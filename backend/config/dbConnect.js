@@ -10,7 +10,5 @@ const dbConnect = async ()=>{
         process.exit(1);
     }
     
-    
-
 };
 module.exports = dbConnect;

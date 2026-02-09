@@ -1,21 +1,23 @@
 const express = require("express");
-const verifyToken = require("../middleware/authMiddleware")
-const authorizeRoles = require("../middleware/roleMiddleware")
 const router = express.Router();
 
-// only admin can access this router
-router.get("/admin",verifyToken, authorizeRoles("admin"),(req,res)=>{
-    res.json({message:"Welcome Admin"})
-})
+// Import Middleware (Destructuring is important here!)
+const { protect } = require("../middleware/authMiddleware");
+const { authorize } = require("../middleware/roleMiddleware");
 
-// only enterprise can access this router
-router.get("/enterprise",verifyToken,authorizeRoles("admin","enterprise"),(req,res)=>{
-    res.json({message:"Welcome Enterprise User"})
-})
+// 1. Admin Only Route
+router.get("/admin", protect, authorize("admin"), (req, res) => {
+    res.json({ message: "Welcome Admin" });
+});
 
-// all can access this route
-router.get("/user",verifyToken,authorizeRoles("admin","enterprise","user"),(req,res)=>{
-    res.json({message:"Welcome User"})
-})
+// 2. Enterprise & Admin Route
+router.get("/enterprise", protect, authorize("admin", "enterprise"), (req, res) => {
+    res.json({ message: "Welcome Enterprise User" });
+});
 
-module.exports=router;
+// 3. All Users Route (User, Admin, Enterprise)
+router.get("/user", protect, authorize("admin", "enterprise", "user"), (req, res) => {
+    res.json({ message: "Welcome User" });
+});
+
+module.exports = router;

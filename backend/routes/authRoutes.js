@@ -1,10 +1,17 @@
-const express = require("express")
-const {register, login, verifyEmail}=require("../controllers/authController")
-
+const express = require("express");
 const router = express.Router();
 
-router.post("/register",register);
-router.post("/login",login);
-router.get("/verify/:token", verifyEmail)
+// Import controller functions (Ensure these names match your authController.js exports)
+const { 
+    registerUser, 
+    loginUser, 
+    verifyEmail 
+} = require("../controllers/authController");
 
-module.exports=router;
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+
+// Changed to POST because we are sending the OTP in the body, not the URL
+router.post("/verify", verifyEmail); 
+
+module.exports = router;
