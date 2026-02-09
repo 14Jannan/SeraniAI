@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { verifyOtp } from '../api';
+import { verifyOtp } from '../api/authApi';
 import { useTheme } from '../context/ThemeContext';
 
 const Verify = () => {

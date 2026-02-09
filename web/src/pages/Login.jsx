@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { login } from '../api';
+import { login } from '../api/authApi';
 import { FcGoogle } from 'react-icons/fc';
 import { FaGithub, FaFacebook } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
@@ -22,7 +22,13 @@ const Login = () => {
       const data = await login({ email, password });
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/dashboard');
+      if (data.user.role === 'admin') {
+        navigate('/admin/users'); // Admins go to User Management
+      } else if (data.user.role === 'enterprise') {
+        navigate('/enterprise/dashboard'); // Future enterprise route
+      } else {
+        navigate('/dashboard'); // Normal users go to dashboard
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

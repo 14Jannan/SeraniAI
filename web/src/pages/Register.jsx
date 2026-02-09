@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { register } from '../api';
+import { register } from '../api/authApi';
 import { useTheme } from '../context/ThemeContext';
 import { FcGoogle } from 'react-icons/fc';
 import { FaGithub, FaFacebook } from 'react-icons/fa';
