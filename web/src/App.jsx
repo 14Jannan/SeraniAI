@@ -6,6 +6,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Verify from './pages/Verify';
+import Subscription from './pages/Subscription';
 
 // Admin Pages
 import AdminLayout from './layouts/AdminLayout';
@@ -30,6 +31,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<Verify />} />
+        <Route path="/subscription" element={<Subscription />} />
 
         {/* --- PROTECTED USER DASHBOARD ROUTES --- */}
         {/* Accessible by 'user', 'enterprise', and 'admin' roles */}

@@ -10,8 +10,18 @@ exports.registerUser = async (req, res) => {
   const { name, email, password, role } = req.body;
 
   try {
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Name, email, and password are required" });
+    }
+
+    const normalizedEmail = String(email || "")
+      .trim()
+      .toLowerCase();
+
     // Check if user exists
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email: normalizedEmail });
     if (user) return res.status(400).json({ message: "User already exists" });
 
     // Hash Password
@@ -31,7 +41,7 @@ exports.registerUser = async (req, res) => {
     // Create User
     user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: role || "user",
       otp,
@@ -39,13 +49,26 @@ exports.registerUser = async (req, res) => {
       isVerified: false,
     });
 
-    // Send Email
-    await sendVerificationEmail(user.email, otp);
+    try {
+      await sendVerificationEmail(user.email, otp);
 
-    res.status(201).json({
-      message: "Registration successful. OTP sent to email.",
-      email: user.email,
-    });
+      return res.status(201).json({
+        message: "Registration successful. OTP sent to email.",
+        email: user.email,
+      });
+    } catch (emailError) {
+      const response = {
+        message:
+          "Registration successful, but OTP email could not be sent. Please contact support or use development OTP.",
+        email: user.email,
+      };
+
+      if (process.env.NODE_ENV !== "production") {
+        response.devOtp = otp;
+      }
+
+      return res.status(201).json(response);
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -56,7 +79,10 @@ exports.verifyEmail = async (req, res) => {
   const { email, otp } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const normalizedEmail = String(email || "")
+      .trim()
+      .toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) return res.status(400).json({ message: "User not found" });
     if (user.isVerified)
@@ -113,8 +139,15 @@ exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+    const normalizedEmail = String(email || "")
+      .trim()
+      .toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Account not found. Please register first." });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
