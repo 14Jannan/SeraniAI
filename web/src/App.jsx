@@ -7,8 +7,9 @@ const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const Verify = lazy(() => import('./pages/Verify'));
 const Subscription = lazy(() => import('./pages/Subscription'));
-const ForgetPassword = lazy(() => import('./pages/ForgetPassword'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const LoginSuccess = lazy(()=>import('./pages/LoginSuccess'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));  
@@ -35,7 +36,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/login-success" element={<LoginSuccess />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/forget-password" element={<ForgetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify" element={<Verify />} />
         <Route path="/subscription" element={<Subscription />} />
 

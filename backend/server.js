@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 const dbConnect = require("./config/dbConnect");
@@ -18,8 +19,12 @@ const app = express();
 // Middleware
 // =======================
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173", //Adjust this to your frontend URL
+  credentials: true 
+}));
 app.use(express.json());
+app.use(cookieParser());
 app.use(passport.initialize()); // Initialize passport
 
 // =======================
