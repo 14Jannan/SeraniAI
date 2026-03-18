@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const dotenv = require("dotenv").config();
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
@@ -7,40 +8,22 @@ const dbConnect = require("./config/dbConnect");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-
-const passport = require("passport");
-require("./config/passport"); // ✅ VERY IMPORTANT (loads OAuth strategies)
+const chatRoutes = require("./routes/chatRoutes");
 
 dbConnect();
 
 const app = express();
-
-// =======================
-// Middleware
-// =======================
-
-app.use(cors({
-  origin: "http://localhost:5173", //Adjust this to your frontend URL
-  credentials: true 
-}));
+app.use(cors());
 app.use(express.json());
-app.use(cookieParser());
-app.use(passport.initialize()); // Initialize passport
-
-// =======================
-// Routes
-// =======================
 
 app.use("/api/users", userRoutes);
+
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
-
-// =======================
-// Start Server
-// =======================
+app.use("/api/chat", chatRoutes);
 
 const PORT = process.env.PORT || 7001;
-
 app.listen(PORT, () => {
   console.log(`Server is running at ${PORT}`);
 });
