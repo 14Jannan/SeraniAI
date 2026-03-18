@@ -3,9 +3,11 @@ const path = require("path");
 const cors = require("cors");
 const dotenv = require("dotenv").config();
 const cookieParser = require("cookie-parser");
+const passport = require("passport");
 require("dotenv").config();
 
 const dbConnect = require("./config/dbConnect");
+require("./config/passport"); // Load passport configuration
 
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -18,8 +20,15 @@ const streakRoutes = require("./routes/streakRoutes");
 dbConnect();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:5173", "http://localhost:5174"],
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
+
+// Initialize passport
+app.use(passport.initialize());
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

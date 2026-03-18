@@ -70,3 +70,20 @@ passport.use(new FacebookStrategy({
     done(null, user);
   } catch (err) { done(err, null); }
 }));
+
+// Serialize user for session (for reference only, not used with JWT)
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+// Deserialize user from session (for reference only, not used with JWT)
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+});
+
+module.exports = passport;
