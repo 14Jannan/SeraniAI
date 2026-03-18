@@ -1,5 +1,9 @@
-import PricingPage from "../components/pricing/PricingPage";
+import React from 'react'
 
-export default function Pricing() {
-  return <PricingPage />;
+const Subscription = () => {
+  return (
+    <div>Subscription</div>
+  )
 }
+
+export default Subscription
