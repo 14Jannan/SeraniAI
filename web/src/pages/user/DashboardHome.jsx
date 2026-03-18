@@ -19,16 +19,16 @@ const DashboardHome = () => {
 
       {/* Main Content - Two Columns */}
       <div className="flex flex-1 gap-8">
-
+        
         {/* Left Column: Journal/Entry Card */}
         <div className="w-full md:w-2/3">
           <div className="bg-white dark:bg-white/5 rounded-xl shadow-sm p-8 h-full min-h-[500px] border border-transparent dark:border-gray-700">
-
+            
             {/* Title Input */}
             <div className="flex justify-between items-center border-b border-gray-300 dark:border-gray-600 pb-2 mb-4">
-              <input
-                type="text"
-                placeholder="Entry Title"
+              <input 
+                type="text" 
+                placeholder="Entry Title" 
                 className="text-4xl font-light bg-transparent outline-none text-gray-400 placeholder-gray-400 w-full"
               />
               <button className="text-purple-500 hover:text-purple-600 transition">
@@ -45,7 +45,7 @@ const DashboardHome = () => {
             </div>
 
             {/* Text Area */}
-            <textarea
+            <textarea 
               className="w-full h-full bg-transparent resize-none outline-none text-gray-600 dark:text-gray-300 text-xl font-light placeholder-gray-300"
               placeholder="Your entry here"
             ></textarea>
@@ -54,16 +54,16 @@ const DashboardHome = () => {
 
         {/* Right Column: Empty space (as per design) or Widgets */}
         <div className="hidden md:block md:w-1/3">
-          {/* Empty for now to match PDF spacious look */}
+           {/* Empty for now to match PDF spacious look */}
         </div>
       </div>
 
       {/* Bottom Right: Ask Anything Bar */}
       <div className="absolute bottom-6 right-0 w-full md:w-1/3">
         <div className="bg-blue-50 dark:bg-gray-100 rounded-2xl p-2 flex items-center shadow-md border border-blue-100">
-          <input
-            type="text"
-            placeholder="Ask anything"
+          <input 
+            type="text" 
+            placeholder="Ask anything" 
             className="flex-1 bg-transparent px-4 py-2 outline-none text-gray-700 placeholder-gray-500"
           />
           <div className="flex gap-2 text-gray-500">
