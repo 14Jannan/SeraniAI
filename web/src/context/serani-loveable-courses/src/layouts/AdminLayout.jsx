@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { FiUsers, FiLogOut, FiSun, FiMoon, FiBook } from 'react-icons/fi';
+import { FiUsers, FiLogOut, FiSun, FiMoon } from 'react-icons/fi';
 
 const AdminLayout = () => {
   const { theme, toggleTheme } = useTheme();
@@ -23,10 +23,6 @@ const AdminLayout = () => {
           <Link to="/admin/users" className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
             <FiUsers className="mr-3" />
             Users
-          </Link>
-          <Link to="/admin/courses" className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
-            <FiBook className="mr-3" />
-            Courses
           </Link>
         </nav>
         <div className="px-4 py-4 border-t dark:border-gray-700">

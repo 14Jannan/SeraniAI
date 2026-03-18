@@ -1,56 +1,101 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// Public Pages
-import Landing from './pages/Landing'; 
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Verify from './pages/Verify';
+/* ---------------- PUBLIC PAGES ---------------- */
 
-// Admin Pages
-import AdminLayout from './layouts/AdminLayout';
-import AdminUsers from './pages/admin/AdminUsers';
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Verify from "./pages/Verify";
 
-// User Pages (New Imports)
-import UserLayout from './layouts/UserLayout';
-import DashboardHome from './pages/user/DashboardHome';
-import AIChat from './pages/user/AIChat';
-import Journal from './pages/user/Journal';
-import Courses from './pages/user/Courses';
+/* ---------------- ADMIN PAGES ---------------- */
 
-// Components
-import PrivateRoute from './components/PrivateRoute';
+import AdminLayout from "./layouts/AdminLayout";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminCourses from "./pages/admin/AdminCourses";
+import AdminLessons from "./pages/admin/AdminLessons";
+
+/* ---------------- USER PAGES ---------------- */
+
+import UserLayout from "./layouts/UserLayout";
+import DashboardHome from "./pages/user/DashboardHome";
+import AIChat from "./pages/user/AIChat";
+import Journal from "./pages/user/Journal";
+import Courses from "./pages/user/Courses";
+import CourseDetails from "./pages/user/CourseDetails";
+
+/* ---------------- COMPONENTS ---------------- */
+
+import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* --- PUBLIC ROUTES --- */}
+
+        {/* ---------- PUBLIC ROUTES ---------- */}
+
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<Verify />} />
 
-        {/* --- PROTECTED USER DASHBOARD ROUTES --- */}
-        {/* Accessible by 'user', 'enterprise', and 'admin' roles */}
-        <Route element={<PrivateRoute allowedRoles={['user', 'enterprise', 'admin']} />}>
+
+
+        {/* ---------- USER DASHBOARD ROUTES ---------- */}
+
+        <Route
+          element={
+            <PrivateRoute allowedRoles={["user", "enterprise", "admin"]} />
+          }
+        >
           <Route path="/dashboard" element={<UserLayout />}>
-            {/* Default page when going to /dashboard */}
+
+            {/* Dashboard Home */}
             <Route index element={<DashboardHome />} />
-            
-            {/* Sub-pages */}
+
+            {/* Chat */}
             <Route path="chat" element={<AIChat />} />
+
+            {/* Journal */}
             <Route path="journal" element={<Journal />} />
+
+            {/* Courses Page */}
             <Route path="courses" element={<Courses />} />
+
+            {/* Course Details Page */}
+            <Route
+              path="course/:courseId"
+              element={<CourseDetails />}
+            />
+
           </Route>
         </Route>
 
-        {/* --- PROTECTED ADMIN ROUTES --- */}
-        {/* Accessible ONLY by 'admin' role */}
-        <Route element={<PrivateRoute allowedRoles={['admin']} />}>
+
+
+        {/* ---------- ADMIN ROUTES ---------- */}
+
+        <Route
+          element={<PrivateRoute allowedRoles={["admin"]} />}
+        >
           <Route path="/admin" element={<AdminLayout />}>
+
+            {/* Admin Dashboard */}
             <Route index element={<AdminUsers />} />
+
+            {/* Users */}
             <Route path="users" element={<AdminUsers />} />
+
+            {/* Courses */}
+            <Route path="courses" element={<AdminCourses />} />
+
+            {/* Lessons inside a course */}
+            <Route
+              path="courses/:courseId/lessons"
+              element={<AdminLessons />}
+            />
+
           </Route>
         </Route>
 
