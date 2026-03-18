@@ -5,6 +5,8 @@ const User = require("../models/userModel");
 const sendVerificationEmail = require("../utils/emailService");
 const otpGenerator = require("otp-generator");
 
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+
 // 1. REGISTER USER & SEND OTP
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -37,7 +39,7 @@ exports.registerUser = async (req, res) => {
     // 6. Create User (Notice we do NOT save confirmPassword to the database)
     user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: role || 'user',
       otp,
@@ -60,9 +62,10 @@ exports.registerUser = async (req, res) => {
 // 2. VERIFY OTP
 exports.verifyEmail = async (req, res) => {
   const { email, otp } = req.body;
+  const normalizedEmail = normalizeEmail(email);
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) return res.status(400).json({ message: "User not found" });
     if (user.isVerified)
@@ -117,9 +120,10 @@ exports.verifyEmail = async (req, res) => {
 // 3. LOGIN (Only if verified)
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
+  const normalizedEmail = normalizeEmail(email);
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);

@@ -15,15 +15,25 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));  
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 
-// User Pages (New Imports)
-import UserLayout from './layouts/UserLayout';
-import DashboardHome from './pages/user/DashboardHome';
-import AIChat from './pages/user/AIChat';
-import Journal from './pages/user/Journal';
-import Courses from './pages/user/Courses';
+/* ---------------- ADMIN PAGES ---------------- */
 
-// Components
-import PrivateRoute from './components/PrivateRoute';
+import AdminLayout from "./layouts/AdminLayout";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminCourses from "./pages/admin/AdminCourses";
+import AdminLessons from "./pages/admin/AdminLessons";
+
+/* ---------------- USER PAGES ---------------- */
+
+import UserLayout from "./layouts/UserLayout";
+import DashboardHome from "./pages/user/DashboardHome";
+import AIChat from "./pages/user/AIChat";
+import Journal from "./pages/user/Journal";
+import Courses from "./pages/user/Courses";
+import CourseDetails from "./pages/user/CourseDetails";
+
+/* ---------------- COMPONENTS ---------------- */
+
+import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
   return (
@@ -31,7 +41,9 @@ function App() {
         <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="loader"></div></div>}>
 
       <Routes>
-        {/* --- PUBLIC ROUTES --- */}
+
+        {/* ---------- PUBLIC ROUTES ---------- */}
+
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/login-success" element={<LoginSuccess />} />
@@ -41,26 +53,62 @@ function App() {
         <Route path="/verify" element={<Verify />} />
         <Route path="/subscription" element={<Subscription />} />
 
-        {/* --- PROTECTED USER DASHBOARD ROUTES --- */}
-        {/* Accessible by 'user', 'enterprise', and 'admin' roles */}
-        <Route element={<PrivateRoute allowedRoles={['user', 'enterprise', 'admin']} />}>
+
+
+        {/* ---------- USER DASHBOARD ROUTES ---------- */}
+
+        <Route
+          element={
+            <PrivateRoute allowedRoles={["user", "enterprise", "admin"]} />
+          }
+        >
           <Route path="/dashboard" element={<UserLayout />}>
-            {/* Default page when going to /dashboard */}
+
+            {/* Dashboard Home */}
             <Route index element={<DashboardHome />} />
-            
-            {/* Sub-pages */}
+
+            {/* Chat */}
             <Route path="chat" element={<AIChat />} />
+
+            {/* Journal */}
             <Route path="journal" element={<Journal />} />
+
+            {/* Courses Page */}
             <Route path="courses" element={<Courses />} />
+
+            {/* Course Details Page */}
+            <Route
+              path="course/:courseId"
+              element={<CourseDetails />}
+            />
+
           </Route>
         </Route>
 
-        {/* --- PROTECTED ADMIN ROUTES --- */}
-        {/* Accessible ONLY by 'admin' role */}
-        <Route element={<PrivateRoute allowedRoles={['admin']} />}>
+
+
+        {/* ---------- ADMIN ROUTES ---------- */}
+
+        <Route
+          element={<PrivateRoute allowedRoles={["admin"]} />}
+        >
           <Route path="/admin" element={<AdminLayout />}>
+
+            {/* Admin Dashboard */}
             <Route index element={<AdminUsers />} />
+
+            {/* Users */}
             <Route path="users" element={<AdminUsers />} />
+
+            {/* Courses */}
+            <Route path="courses" element={<AdminCourses />} />
+
+            {/* Lessons inside a course */}
+            <Route
+              path="courses/:courseId/lessons"
+              element={<AdminLessons />}
+            />
+
           </Route>
         </Route>
       </Routes>
