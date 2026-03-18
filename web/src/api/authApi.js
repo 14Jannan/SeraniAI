@@ -17,3 +17,6 @@ export const login = async (userData) => {
   const response = await axios.post(`${API_URL}/login`, userData);
   return response.data;
 };
+
+export const forgotPassword = (data) => axios.post(`${API_URL}/forgot-password`, data);
+export const resetPassword = (data) => axios.post(`${API_URL}/reset-password`, data);

@@ -1,7 +1,14 @@
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 const dotenv = require("dotenv").config();
+const cookieParser = require("cookie-parser");
+const passport = require("passport");
+require("dotenv").config();
+
 const dbConnect = require("./config/dbConnect");
+require("./config/passport"); // Load passport configuration
+
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");

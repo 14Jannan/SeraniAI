@@ -7,7 +7,7 @@ exports.getAllUsers = async (req,res)=>{
         const users = await User.find({}).select('-password');
         res.json(users);
     }catch(error){
-        res.status(500).json({message: err.message});
+        res.status(500).json({message: error.message});
     }
 };
 
@@ -33,6 +33,13 @@ exports.createUser = async (req, res)=>{
             role,
             isVerified: true,
         })
+
+        res.status(201).json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+        });
     }catch (error){
         res.status(500).json({message: "Server Error"})
     }
