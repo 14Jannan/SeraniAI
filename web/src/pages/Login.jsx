@@ -24,6 +24,8 @@ const Login = () => {
       const data = await login({ email, password });
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      // Always start a fresh AI chat after login
+      localStorage.removeItem("lastActiveChatSessionId");
 
       if (data.user.role === "admin") {
         navigate("/admin/users");
