@@ -5,13 +5,14 @@ const FacebookStrategy = require("passport-facebook").Strategy;
 const User = require("../models/userModel");
 
 // ---------------- Google ----------------
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/auth/google/callback",
-    },
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: "/api/auth/google/callback",
+      },
     async (accessToken, refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ email: profile.emails[0].value });
@@ -31,16 +32,18 @@ passport.use(
     },
   ),
 );
+}
 
 // ---------------- GitHub ----------------
-passport.use(
-  new GitHubStrategy(
-    {
-      clientID: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: "/api/auth/github/callback",
-      scope: ["user:email"],
-    },
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  passport.use(
+    new GitHubStrategy(
+      {
+        clientID: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        callbackURL: "/api/auth/github/callback",
+        scope: ["user:email"],
+      },
     async (accessToken, refreshToken, profile, done) => {
       try {
         let email =
@@ -62,16 +65,18 @@ passport.use(
     },
   ),
 );
+}
 
 // ---------------- Facebook ----------------
-passport.use(
-  new FacebookStrategy(
-    {
-      clientID: process.env.FACEBOOK_APP_ID,
-      clientSecret: process.env.FACEBOOK_APP_SECRET,
-      callbackURL: "/api/auth/facebook/callback",
-      profileFields: ["id", "emails", "name", "displayName"],
-    },
+if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+  passport.use(
+    new FacebookStrategy(
+      {
+        clientID: process.env.FACEBOOK_APP_ID,
+        clientSecret: process.env.FACEBOOK_APP_SECRET,
+        callbackURL: "/api/auth/facebook/callback",
+        profileFields: ["id", "emails", "name", "displayName"],
+      },
     async (accessToken, refreshToken, profile, done) => {
       try {
         let email =
@@ -93,6 +98,7 @@ passport.use(
     },
   ),
 );
+}
 
 // Serialize user for session (for reference only, not used with JWT)
 passport.serializeUser((user, done) => {
