@@ -2,9 +2,12 @@ const Chat = require("../models/chatModels");
 const Groq = require("groq-sdk");
 const { getOrCreateCollection } = require("../config/chromaClient");
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+let groq;
+if (process.env.GROQ_API_KEY) {
+  groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY,
+  });
+}
 
 function getModelName() {
   // you already have MODEL in .env

@@ -17,6 +17,10 @@ const courseRoutes = require("./routes/courseRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
 const streakRoutes = require("./routes/streakRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const billingRoutes = require("./routes/billingRoutes");
+const enterpriseAdminRoutes = require("./routes/enterpriseAdminRoutes");
+
 
 dbConnect();
 
@@ -24,6 +28,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static("uploads"));
@@ -37,6 +42,9 @@ app.use("/api/courses", courseRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/streak", streakRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/billing", billingRoutes);
+app.use("/api/enterprise-admin", enterpriseAdminRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 7001;

@@ -2,11 +2,14 @@ import React, {useEffect, useState} from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { FiLogOut, FiSun, FiMoon, FiHome, FiMessageSquare, FiBook, FiGrid, FiChevronLeft } from 'react-icons/fi'
+import { getUserSubscription } from '../api/subscriptionApi'
 
 const UserLayout = () => {
   const {theme, toggleTheme}=useTheme();
   const navigate=useNavigate();
   const[user, setUser]=useState({name:'User'});
+  const[subscription, setSubscription]=useState(null);
+  const[loading, setLoading]=useState(true);
 
   useEffect(()=>{
     const userData=localStorage.getItem('user');
@@ -15,9 +18,30 @@ const UserLayout = () => {
     }
   },[]);
 
+  useEffect(()=>{
+    const fetchSubscription = async () => {
+      try {
+        const response = await getUserSubscription();
+        if(response.data && response.data.status === 'Active'){
+          setSubscription(response.data);
+        }
+      } catch (error) {
+        console.log('No active subscription found');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubscription();
+  },[]);
+
   const handleLogout=()=>{
     localStorage.clear();
     navigate('/login');
+  };
+
+  const handleUpgrade = () => {
+    navigate('/subscription');
   };
 
   const menuItems=[
@@ -68,8 +92,17 @@ const UserLayout = () => {
                 {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
               <div className='flex-1 min-w-0'>
-                <p className='text-sm front-semibold truncate'>{user.name}</p>
+                <p className='text-sm font-semibold truncate'>{user.name}</p>
+                <p className='text-xs text-white/70'>{subscription ? subscription.plan : 'Free'}</p>
               </div>
+              {!subscription && (
+                <button
+                  onClick={handleUpgrade}
+                  className='px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition-colors'
+                >
+                  Upgrade
+                </button>
+              )}
             </div>
             <button onClick={handleLogout} className='flex items-center gap-2 text-white/80 hover:text-white text-sm w-full'>
               <FiLogOut />Logout

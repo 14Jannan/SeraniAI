@@ -19,6 +19,9 @@ import AdminLayout from "./layouts/AdminLayout";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminLessons from "./pages/admin/AdminLessons";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import EnterpriseAdmin from "./pages/enterpriseAdmin/EnterpriseAdmin";
+
 
 /* ---------------- USER PAGES ---------------- */
 
@@ -98,6 +101,23 @@ function App() {
                 path="courses/:courseId/lessons"
                 element={<AdminLessons />}
               />
+              {/* Subscriptions */}
+              <Route
+                path="subscriptions"
+                element={<AdminSubscriptions />}
+              />
+            </Route>
+          </Route>
+
+          {/* ---------- ENTERPRISE ADMIN ROUTES ---------- */}
+
+          <Route element={<PrivateRoute allowedRoles={["enterpriseAdmin"]} />}>
+            <Route path="/enterprise-admin" element={<AdminLayout />}>
+              {/* Enterprise Admin Dashboard */}
+              <Route index element={<EnterpriseAdmin />} />
+
+              {/* Users */}
+              <Route path="users" element={<EnterpriseAdmin />} />
             </Route>
           </Route>
         </Routes>
