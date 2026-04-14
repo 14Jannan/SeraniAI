@@ -4,8 +4,35 @@ const crypto = require("crypto");
 const User = require("../models/userModel");
 const sendVerificationEmail = require("../utils/emailService");
 const otpGenerator = require("otp-generator");
+const { getValidProviderAccessToken } = require("../utils/oauthTokenService");
 
-const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+const generateAuthTokens = (user) => {
+  const accessToken = jwt.sign(
+    { id: user._id, role: user.role, name: user.name, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" },
+  );
+
+  const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: "7d",
+  });
+
+  return { accessToken, refreshToken };
+};
+
+const setRefreshCookie = (res, refreshToken) => {
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: false,
+    sameSite: "Lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+};
+
+const normalizeEmail = (email) =>
+  String(email || "")
+    .trim()
+    .toLowerCase();
 
 // 1. REGISTER USER & SEND OTP
 // @desc    Register new user
@@ -13,6 +40,7 @@ const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 exports.registerUser = async (req, res) => {
   // 1. Get confirmPassword from the request body
   const { name, email, password, confirmPassword, role } = req.body;
+  const normalizedEmail = normalizeEmail(email);
 
   try {
     // 2. BACKEND SAFETY CHECK: Ensure passwords match
@@ -21,39 +49,38 @@ exports.registerUser = async (req, res) => {
     }
 
     // 3. Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: 'User already exists' });
+    let user = await User.findOne({ email: normalizedEmail });
+    if (user) return res.status(400).json({ message: "User already exists" });
 
     // 4. Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // 5. Generate OTP
-    const otp = otpGenerator.generate(6, { 
-        upperCaseAlphabets: false, 
-        specialChars: false,
-        lowerCaseAlphabets: false 
+    const otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      specialChars: false,
+      lowerCaseAlphabets: false,
     });
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     // 6. Create User (Notice we do NOT save confirmPassword to the database)
     user = await User.create({
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      role: role || 'user',
+      role: role || "user",
       otp,
-      otpExpires
+      otpExpires,
     });
 
     // 7. Send OTP Email
     await sendVerificationEmail(email, otp);
 
     res.status(201).json({
-      message: 'User registered. Please check email for OTP.',
-      email: user.email
+      message: "User registered. Please check email for OTP.",
+      email: user.email,
     });
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -93,18 +120,13 @@ exports.verifyEmail = async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
-    // Generate Token immediately so they are logged in
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "30d",
-      },
-    );
+    // Issue short-lived access token + long-lived refresh cookie
+    const { accessToken, refreshToken } = generateAuthTokens(user);
+    setRefreshCookie(res, refreshToken);
 
     res.status(200).json({
       message: "Email verified successfully",
-      token,
+      token: accessToken,
       user: {
         id: user._id,
         name: user.name,
@@ -123,8 +145,22 @@ exports.loginUser = async (req, res) => {
   const normalizedEmail = normalizeEmail(email);
 
   try {
+    if (!normalizedEmail || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
+
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+    // OAuth-only accounts do not have a local password hash.
+    if (!user.password) {
+      return res.status(400).json({
+        message:
+          "This account uses social login. Please continue with Google, GitHub, or Facebook.",
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
@@ -136,16 +172,11 @@ exports.loginUser = async (req, res) => {
         .json({ message: "Account not verified. Please verify your email." });
     }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "30d",
-      },
-    );
+    const { accessToken, refreshToken } = generateAuthTokens(user);
+    setRefreshCookie(res, refreshToken);
 
     res.json({
-      token,
+      token: accessToken,
       user: {
         id: user._id,
         name: user.name,
@@ -158,74 +189,74 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-
 // @desc    Forgot Password - Send OTP
 exports.forgotPassword = async (req, res) => {
-    const { email } = req.body;
-    console.log("Received forgot password request for email:", email);
+  const { email } = req.body;
+  console.log("Received forgot password request for email:", email);
 
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // 1. GENERATE 6-DIGIT OTP 
-        // (Removing the line that caused user.createPasswordResetToken error)
-        const otp = otpGenerator.generate(6, { 
-            upperCaseAlphabets: false, 
-            specialChars: false, 
-            lowerCaseAlphabets: false 
-        });
-
-        // 2. SAVE OTP TO DATABASE
-        user.otp = otp;
-        user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // Code valid for 10 mins
-        
-        // Use validateBeforeSave: false so it doesn't complain about other fields
-        await user.save({ validateBeforeSave: false });
-
-        // 3. SEND THE EMAIL
-        try {
-            // Reusing your existing sendVerificationEmail utility
-            await sendVerificationEmail(email, otp);
-            res.status(200).json({ message: "Password reset OTP sent to email" });
-        } catch (error) {
-            // If email fails, clear the OTP data
-            user.otp = undefined;
-            user.otpExpires = undefined;
-            await user.save({ validateBeforeSave: false });
-            return res.status(500).json({ message: "Error sending email" });
-        }
-
-    } catch (error) {
-        console.error("Forgot Password Error:", error.message);
-        res.status(500).json({ message: "Server Error", error: error.message });
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    // 1. GENERATE 6-DIGIT OTP
+    // (Removing the line that caused user.createPasswordResetToken error)
+    const otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      specialChars: false,
+      lowerCaseAlphabets: false,
+    });
+
+    // 2. SAVE OTP TO DATABASE
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // Code valid for 10 mins
+
+    // Use validateBeforeSave: false so it doesn't complain about other fields
+    await user.save({ validateBeforeSave: false });
+
+    // 3. SEND THE EMAIL
+    try {
+      // Reusing your existing sendVerificationEmail utility
+      await sendVerificationEmail(email, otp);
+      res.status(200).json({ message: "Password reset OTP sent to email" });
+    } catch (error) {
+      // If email fails, clear the OTP data
+      user.otp = undefined;
+      user.otpExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({ message: "Error sending email" });
+    }
+  } catch (error) {
+    console.error("Forgot Password Error:", error.message);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
 };
 
 exports.resetPassword = async (req, res) => {
-    const { email, otp, newPassword } = req.body;
-    try {
-        const user = await User.findOne({ email });
+  const { email, otp, newPassword } = req.body;
+  try {
+    const user = await User.findOne({ email });
 
-        if (!user || user.otp !== otp || user.otpExpires < Date.now()) {
-            return res.status(400).json({ message: "Invalid or expired OTP" });
-        }
-
-        // Hash new password
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-
-        // Clear OTP fields
-        user.otp = undefined;
-        user.otpExpires = undefined;
-        await user.save();
-
-        res.status(200).json({ message: "Password reset successful. You can now login." });
-    } catch (error) {
-        res.status(500).json({ message: "Server Error" });
+    if (!user || user.otp !== otp || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
     }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+
+    // Clear OTP fields
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    res
+      .status(200)
+      .json({ message: "Password reset successful. You can now login." });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error" });
+  }
 };
 
 // @desc    Refresh Access Token
@@ -247,7 +278,7 @@ exports.refreshAccessToken = async (req, res) => {
     const accessToken = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "15m" },
     );
 
     res.json({ token: accessToken });
@@ -261,4 +292,30 @@ exports.refreshAccessToken = async (req, res) => {
 exports.logoutUser = (req, res) => {
   res.clearCookie("refreshToken");
   res.status(200).json({ message: "Logged out successfully" });
+};
+
+// @desc    Get provider access token and auto-refresh if needed
+// @route   GET /api/auth/oauth/:provider/token
+exports.getOAuthProviderToken = async (req, res) => {
+  const provider = String(req.params.provider || "").toLowerCase();
+  const forceRefresh =
+    String(req.query.forceRefresh || "").toLowerCase() === "true";
+
+  try {
+    const result = await getValidProviderAccessToken({
+      userId: req.user._id,
+      provider,
+      forceRefresh,
+    });
+
+    res.status(200).json({
+      provider: result.provider,
+      accessToken: result.accessToken,
+      source: result.source,
+      expiresAt: result.expiresAt || null,
+      updatedAt: result.updatedAt || null,
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };

@@ -17,13 +17,21 @@ const courseRoutes = require("./routes/courseRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
 const streakRoutes = require("./routes/streakRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const taskRoutes = require("./routes/taskRoutes");
 
 dbConnect();
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  }),
+);
 app.use(express.json());
+app.use(cookieParser());
+app.use(passport.initialize());
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static("uploads"));
@@ -37,6 +45,7 @@ app.use("/api/courses", courseRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/streak", streakRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/tasks", taskRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 7001;
