@@ -68,6 +68,7 @@ passport.use(
     },
   ),
 );
+}
 
 // ---------------- GitHub ----------------
 passport.use(
@@ -150,16 +151,18 @@ passport.use(
     },
   ),
 );
+}
 
 // ---------------- Facebook ----------------
-passport.use(
-  new FacebookStrategy(
-    {
-      clientID: process.env.FACEBOOK_APP_ID,
-      clientSecret: process.env.FACEBOOK_APP_SECRET,
-      callbackURL: "/api/auth/facebook/callback",
-      profileFields: ["id", "emails", "name", "displayName"],
-    },
+if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+  passport.use(
+    new FacebookStrategy(
+      {
+        clientID: process.env.FACEBOOK_APP_ID,
+        clientSecret: process.env.FACEBOOK_APP_SECRET,
+        callbackURL: "/api/auth/facebook/callback",
+        profileFields: ["id", "emails", "name", "displayName"],
+      },
     async (accessToken, refreshToken, profile, done) => {
       try {
         let email =
@@ -211,6 +214,7 @@ passport.use(
     },
   ),
 );
+}
 
 // Serialize user for session (for reference only, not used with JWT)
 passport.serializeUser((user, done) => {

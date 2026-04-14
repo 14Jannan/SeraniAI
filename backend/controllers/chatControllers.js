@@ -2,9 +2,16 @@ const Chat = require("../models/chatModels");
 const Groq = require("groq-sdk");
 const { getOrCreateCollection } = require("../config/chromaClient");
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+// Lazy initialize Groq only when needed
+let groq = null;
+function getGroqClient() {
+  if (!groq && process.env.GROQ_API_KEY) {
+    groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
+  }
+  return groq;
+}
 
 function getModelName() {
   // you already have MODEL in .env
@@ -14,6 +21,11 @@ function getModelName() {
 async function getAiReply(history, context = "") {
   if (!process.env.GROQ_API_KEY) {
     return "GROQ_API_KEY is not set in backend/.env";
+  }
+
+  const groqClient = getGroqClient();
+  if (!groqClient) {
+    return "Groq client could not be initialized";
   }
 
   // Combine history with retrieved context if available
@@ -28,7 +40,7 @@ async function getAiReply(history, context = "") {
     });
   }
 
-  const completion = await groq.chat.completions.create({
+  const completion = await groqClient.chat.completions.create({
     model: getModelName(),
     messages,
     temperature: 0.7,
