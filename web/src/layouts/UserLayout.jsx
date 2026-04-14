@@ -1,19 +1,15 @@
-import React, {useEffect, useState} from 'react'
+import React, {useState} from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
-import { FiLogOut, FiSun, FiMoon, FiHome, FiMessageSquare, FiBook, FiGrid, FiChevronLeft } from 'react-icons/fi'
+import { FiLogOut, FiSun, FiMoon, FiHome, FiMessageSquare, FiBook, FiGrid, FiCheckSquare } from 'react-icons/fi'
 
 const UserLayout = () => {
   const {theme, toggleTheme}=useTheme();
   const navigate=useNavigate();
-  const[user, setUser]=useState({name:'User'});
-
-  useEffect(()=>{
-    const userData=localStorage.getItem('user');
-    if(userData){
-      setUser(JSON.parse(userData));
-    }
-  },[]);
+  const[user]=useState(() => {
+    const userData = localStorage.getItem('user');
+    return userData ? JSON.parse(userData) : { name: 'User' };
+  });
 
   const handleLogout=()=>{
     localStorage.clear();
@@ -24,7 +20,8 @@ const UserLayout = () => {
     {name:'Home', icon:<FiHome />, path:'/dashboard'},
     {name:'AI Chat', icon:<FiMessageSquare />, path:'/dashboard/chat'},
     {name:'Journal', icon:<FiBook />, path:'/dashboard/journal'},
-    {name:'Courses', icon:<FiGrid />, path:'/dashboard/courses'}
+    {name:'Courses', icon:<FiGrid />, path:'/dashboard/courses'},
+    {name:'Daily Tasks', icon:<FiCheckSquare />, path:'/dashboard/tasks'}
   ];
   return (
     <div className='flex h-screen bg-[#f0f9ff] dark:bg-[#0F172A] transition-colors duration-300 font-sans'>

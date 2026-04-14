@@ -17,6 +17,7 @@ const courseRoutes = require("./routes/courseRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
 const streakRoutes = require("./routes/streakRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const taskRoutes = require("./routes/taskRoutes");
 
 dbConnect();
 
@@ -37,6 +38,7 @@ app.use("/api/courses", courseRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/streak", streakRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/tasks", taskRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 7001;

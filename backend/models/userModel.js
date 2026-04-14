@@ -46,6 +46,14 @@ lastLessonCompletedAt: {
   type: Date,
   default: null,
 },
+  taskStreakCount: {
+    type: Number,
+    default: 0,
+  },
+  lastTaskCompletedAt: {
+    type: Date,
+    default: null,
+  },
 lessonProgress: {
   type: [lessonProgressSchema],
   default: [],

@@ -70,7 +70,7 @@ exports.getMyStreak = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = await User.findById(userId).select("streakCount lastLessonCompletedAt");
+    const user = await User.findById(userId).select("streakCount lastLessonCompletedAt taskStreakCount lastTaskCompletedAt");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -78,6 +78,8 @@ exports.getMyStreak = async (req, res) => {
     return res.status(200).json({
       streakCount: user.streakCount || 0,
       lastLessonCompletedAt: user.lastLessonCompletedAt,
+      taskStreakCount: user.taskStreakCount || 0,
+      lastTaskCompletedAt: user.lastTaskCompletedAt,
     });
   } catch (error) {
     console.error("Error getting streak:", error);
