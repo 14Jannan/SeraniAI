@@ -82,6 +82,27 @@ const userSchema = new mongoose.Schema({
   otpExpires: { type: Date },
 
   createdAt: { type: Date, default: Date.now },
+  
+  streakCount: {
+  type: Number,
+  default: 0,
+},
+lastLessonCompletedAt: {
+  type: Date,
+  default: null,
+},
+  taskStreakCount: {
+    type: Number,
+    default: 0,
+  },
+  lastTaskCompletedAt: {
+    type: Date,
+    default: null,
+  },
+lessonProgress: {
+  type: [lessonProgressSchema],
+  default: [],
+},
 
   streakCount: {
     type: Number,
