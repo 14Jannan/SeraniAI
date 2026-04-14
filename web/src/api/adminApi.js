@@ -1,31 +1,21 @@
 // File: src/api/adminApi.js
 
-import axios from 'axios';
+import httpClient from "./httpClient";
 
-const ADMIN_API_URL = 'http://localhost:7001/api/admin';
-
-// Helper function to get the token and create auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    };
-};
+const ADMIN_API_URL = "http://localhost:7001/api/admin";
 
 export const getUsers = () => {
-    return axios.get(`${ADMIN_API_URL}/users`, getAuthHeaders());
+  return httpClient.get(`${ADMIN_API_URL}/users`);
 };
 
 export const addUser = (userData) => {
-    return axios.post(`${ADMIN_API_URL}/users`, userData, getAuthHeaders());
+  return httpClient.post(`${ADMIN_API_URL}/users`, userData);
 };
 
 export const updateUser = (id, userData) => {
-    return axios.put(`${ADMIN_API_URL}/users/${id}`, userData, getAuthHeaders());
+  return httpClient.put(`${ADMIN_API_URL}/users/${id}`, userData);
 };
 
 export const deleteUser = (id) => {
-    return axios.delete(`${ADMIN_API_URL}/users/${id}`, getAuthHeaders());
+  return httpClient.delete(`${ADMIN_API_URL}/users/${id}`);
 };
