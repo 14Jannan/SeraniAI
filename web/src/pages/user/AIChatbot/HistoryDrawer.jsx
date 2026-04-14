@@ -100,7 +100,7 @@ function HistoryDrawer({
                     animate={{ opacity: 1, y: 0 }}
                     onClick={() => {
                       onOpenChat(chat._id);
-                      onClose(); // Close on selection
+                      onClose(); // Close on selection 
                     }}
                     className={`group flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all duration-300 border ${
                       activeSessionId === chat._id
