@@ -1,18 +1,28 @@
-import httpClient from "./httpClient";
+import axios from "axios";
 
 const API_URL = "http://localhost:7001/api/chat";
 
-export const fetchHistory = () => httpClient.get(`${API_URL}/history`);
-
-export const fetchSession = (id) => httpClient.get(`${API_URL}/session/${id}`);
-
-export const sendMessage = (data) => {
-  const config = getHeaders();
-  // If data is FormData, axios handles headers automatically, but we still need Auth
-  return axios.post(`${API_URL}`, data, config);
+const getHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    headers: { Authorization: `Bearer ${token}` },
+  };
 };
 
-export const deleteSession = (id) =>
-  httpClient.delete(`${API_URL}/history/${id}`);
+export const fetchHistory = () => axios.get(`${API_URL}/history`, getHeaders());
 
-export const clearHistory = () => httpClient.delete(`${API_URL}/history`);
+export const fetchSession = (id) =>
+  axios.get(`${API_URL}/session/${id}`, getHeaders());
+
+export const sendMessage = (message, sessionId) =>
+  axios.post(
+    `${API_URL}`,
+    { message, sessionId },
+    getHeaders()
+  );
+
+export const deleteSession = (id) =>
+  axios.delete(`${API_URL}/history/${id}`, getHeaders());
+
+export const clearHistory = () =>
+  axios.delete(`${API_URL}/history`, getHeaders());

@@ -73,8 +73,18 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["user", "admin", "enterprise"],
+    enum: ["user", "admin", "enterprise", "enterpriseAdmin"],
     default: "user",
+  },
+  enterpriseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Enterprise",
+    default: null,
+  },
+  status: {
+    type: String,
+    enum: ["active", "deactivated"],
+    default: "active",
   },
   // OTP Fields
   isVerified: { type: Boolean, default: false },
@@ -82,15 +92,6 @@ const userSchema = new mongoose.Schema({
   otpExpires: { type: Date },
 
   createdAt: { type: Date, default: Date.now },
-  
-  streakCount: {
-  type: Number,
-  default: 0,
-},
-lastLessonCompletedAt: {
-  type: Date,
-  default: null,
-},
   taskStreakCount: {
     type: Number,
     default: 0,
