@@ -17,6 +17,9 @@ const courseRoutes = require("./routes/courseRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
 const streakRoutes = require("./routes/streakRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const billingRoutes = require("./routes/billingRoutes");
+const enterpriseAdminRoutes = require("./routes/enterpriseAdminRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 
 dbConnect();
@@ -30,6 +33,7 @@ app.use(
   }),
 );
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
 
@@ -45,6 +49,9 @@ app.use("/api/courses", courseRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/streak", streakRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/billing", billingRoutes);
+app.use("/api/enterprise-admin", enterpriseAdminRoutes);
 app.use("/api/tasks", taskRoutes);
 
 // Start the server

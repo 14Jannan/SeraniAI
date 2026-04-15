@@ -1,15 +1,15 @@
-import React, {useEffect, useState} from 'react'
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { getUserSubscription } from '../api/subscriptionApi'
 import { FiLogOut, FiSun, FiMoon, FiHome, FiMessageSquare, FiBook, FiGrid, FiCheckSquare } from 'react-icons/fi'
 
 const UserLayout = () => {
   const {theme, toggleTheme}=useTheme();
   const navigate=useNavigate();
-  const location = useLocation();
   const[user, setUser]=useState({name:'User'});
-
-  const isChatPage = location.pathname.includes('/chat');
+  const[subscription, setSubscription]=useState(null);
+  const[loading, setLoading]=useState(true);
 
   useEffect(()=>{
     const userData=localStorage.getItem('user');
@@ -18,9 +18,30 @@ const UserLayout = () => {
     }
   },[]);
 
+  useEffect(()=>{
+    const fetchSubscription = async () => {
+      try {
+        const response = await getUserSubscription();
+        if(response.data && response.data.status === 'Active'){
+          setSubscription(response.data);
+        }
+      } catch (error) {
+        console.log('No active subscription found');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubscription();
+  },[]);
+
   const handleLogout=()=>{
     localStorage.clear();
     navigate('/login');
+  };
+
+  const handleUpgrade = () => {
+    navigate('/subscription');
   };
 
   const menuItems=[
@@ -30,17 +51,16 @@ const UserLayout = () => {
     {name:'Courses', icon:<FiGrid />, path:'/dashboard/courses'},
     {name:'Daily Tasks', icon:<FiCheckSquare />, path:'/dashboard/tasks'}
   ];
-
   return (
     <div className='flex h-screen bg-[#f0f9ff] dark:bg-[#0F172A] transition-colors duration-300 font-sans'>
-      <aside className='w-64 flex-shrink-0 bg-[#1e1b4b] dark:bg-[#0f172a] flex flex-col justify-between transition-colors duration-300 shadow-xl'>
+      <aside className='w-64 flex-shrink-0 bg-[#8cbbf1] dark:bg-[#111827] flex flex-col justify-between transition-colors duration-300'>
         <div className='p-6'>
           <h1 className='text-3xl font-bold text-white mb-10 tracking-wide'>SeraniAI</h1>
           <nav className='space-y-2'>
             {menuItems.map((item)=>(
               <NavLink key={item.name} to={item.path} end={item.path==='/dashboard'}
               className={({isActive}) =>
-                `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-indigo-600 text-white shadow-lg': `text-white/70 hover:bg-white/10 hover:text-white`}`}>
+                `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-[#1e40af] text-white shadow-md': `text-white/80 hover:bg-white/10 hover:text-white`}`}>
                   <span className='text-xl'>{item.icon}</span>
                   <span>{item.name}</span>
               </NavLink>
@@ -49,31 +69,41 @@ const UserLayout = () => {
         </div>
 
         <div className='p-6 space-y-6'>
-          <div className='bg-white/10 rounded-full p-1 flex'>
+          <div className='bg-black/20 dark:bg-white/10 rounded-full p-1 flex'>
             <button 
               onClick={() => toggleTheme('light')}
-              className={`flex-1 text-[11px] font-bold py-1.5 rounded-full transition-all ${
-                theme === 'light' ? 'bg-indigo-600 text-white shadow-md' : 'text-white/40 hover:text-white/70'
+              className={`flex-1 text-xs font-bold py-1.5 rounded-full transition-all ${
+                theme === 'light' ? 'bg-pink-500 text-white shadow' : 'text-white/70'
               }`}
             >
-              Light Mode
+              Light mode
             </button>
 
             <button onClick={()=>toggleTheme('dark')}
-              className={`flex-1 text-[11px] font-bold py-1.5 rounded-full transition-all 
-              ${theme==='dark' ? 'bg-indigo-600 text-white shadow-md': 'text-white/40 hover:text-white/70'}`}>
-              Dark Mode
+              className={`flex-1 text-xs font-bold py-1.5 rounded-full transition-all 
+              ${theme==='dark' ? 'bg-pink-500 text-white shadow': 'text-white/70'}`}>
+              Dark mode
             </button>
           </div>
 
+          {/*User Profile / Logout*/}
           <div className='border-t border-white/20 pt-4'>
             <div className='flex items-center gap-3 text-white mb-3'>
               <div className='w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-s font-bold border-2 border-white/20'>
                 {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
               <div className='flex-1 min-w-0'>
-                <p className='text-sm front-semibold truncate'>{user.name}</p>
+                <p className='text-sm font-semibold truncate'>{user.name}</p>
+                <p className='text-xs text-white/70'>{subscription ? subscription.plan : 'Free'}</p>
               </div>
+              {!subscription && (
+                <button
+                  onClick={handleUpgrade}
+                  className='px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition-colors'
+                >
+                  Upgrade
+                </button>
+              )}
             </div>
             <button onClick={handleLogout} className='flex items-center gap-2 text-white/80 hover:text-white text-sm w-full'>
               <FiLogOut />Logout
@@ -81,11 +111,11 @@ const UserLayout = () => {
           </div>
         </div>
       </aside>
-      <main className={`flex-1 overflow-y-auto ${isChatPage ? 'p-0' : 'p-6'}`}>
+      <main className='flex-1 p-6 overflow-y-auto'>
         <Outlet />
       </main>
     </div>
   )
 }
 
-export default UserLayout;
+export default UserLayout

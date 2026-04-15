@@ -2,13 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CalendarDays, Save, ArrowLeft } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
-const AddJournal = ({
-  onBack,
-  onSave,
-  initialData = null,
-  isEdit = false,
-  readOnly = false,
-}) => {
+const AddJournal = ({ onBack, onSave, initialData = null, isEdit = false }) => {
   const { theme } = useTheme();
 
   const [title, setTitle] = useState("");
@@ -27,10 +21,6 @@ const AddJournal = ({
   }, [initialData]);
 
   const handleSave = async () => {
-    if (readOnly) {
-      return;
-    }
-
     if (!title.trim() && !text.trim()) {
       setLocalError("Please add a title or some content.");
       return;
@@ -78,16 +68,14 @@ const AddJournal = ({
           Back
         </button>
 
-        {!readOnly && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-60 text-white px-4 py-2 rounded-lg"
-          >
-            <Save size={16} />
-            {saving ? "Saving..." : isEdit ? "Update" : "Save"}
-          </button>
-        )}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-60 text-white px-4 py-2 rounded-lg"
+        >
+          <Save size={16} />
+          {saving ? "Saving..." : isEdit ? "Update" : "Save"}
+        </button>
       </div>
 
       {localError && (
@@ -108,7 +96,6 @@ const AddJournal = ({
           placeholder="Entry Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          readOnly={readOnly}
           className={`w-full text-xl font-semibold border-b pb-2 outline-none ${
             theme === "dark"
               ? "bg-slate-900 text-white border-slate-700 placeholder-gray-500"
@@ -133,7 +120,6 @@ const AddJournal = ({
           placeholder="Write your thoughts..."
           value={text}
           onChange={(e) => setText(e.target.value)}
-          readOnly={readOnly}
           className={`w-full flex-1 mt-4 resize-none outline-none ${
             theme === "dark"
               ? "bg-slate-900 text-gray-100 placeholder-gray-500"

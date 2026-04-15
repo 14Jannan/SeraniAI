@@ -19,7 +19,9 @@ import AdminLayout from "./layouts/AdminLayout";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminLessons from "./pages/admin/AdminLessons";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminTasks from "./pages/admin/AdminTasks";
+import EnterpriseAdmin from "./pages/enterpriseAdmin/EnterpriseAdmin";
 
 /* ---------------- USER PAGES ---------------- */
 
@@ -77,7 +79,7 @@ function App() {
               {/* Courses Page */}
               <Route path="courses" element={<Courses />} />
 
-              {/* Daily Tasks Page */}
+              {/* Daily Tasks */}
               <Route path="tasks" element={<TasksPage />} />
 
               {/* Course Details Page */}
@@ -98,14 +100,29 @@ function App() {
               {/* Courses */}
               <Route path="courses" element={<AdminCourses />} />
 
-              {/* Tasks */}
-              <Route path="tasks" element={<AdminTasks />} />
-
               {/* Lessons inside a course */}
               <Route
                 path="courses/:courseId/lessons"
                 element={<AdminLessons />}
               />
+
+              {/* Tasks */}
+              <Route path="tasks" element={<AdminTasks />} />
+
+              {/* Subscriptions */}
+              <Route path="subscriptions" element={<AdminSubscriptions />} />
+            </Route>
+          </Route>
+
+          {/* ---------- ENTERPRISE ADMIN ROUTES ---------- */}
+
+          <Route element={<PrivateRoute allowedRoles={["enterpriseAdmin"]} />}>
+            <Route path="/enterprise-admin" element={<AdminLayout />}>
+              {/* Enterprise Admin Dashboard */}
+              <Route index element={<EnterpriseAdmin />} />
+
+              {/* Users */}
+              <Route path="users" element={<EnterpriseAdmin />} />
             </Route>
           </Route>
         </Routes>

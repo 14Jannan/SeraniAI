@@ -328,11 +328,6 @@ async function getAiReply(history, context = "", tools = null, roleKey = "genera
   // Get instructions for the selected role
   const roleInstructions = roles[roleKey] || roles.general;
 
-  const groqClient = getGroqClient();
-  if (!groqClient) {
-    return "Groq client could not be initialized";
-  }
-
   // Combine history with retrieved context if available
   const messages = (history || [])
     .slice(-20)

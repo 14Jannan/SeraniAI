@@ -47,9 +47,6 @@ const Landing = () => {
                                 <Link to="/register" className="flex items-center justify-center gap-2 px-8 py-4 text-lg font-bold text-white bg-purple-600 rounded-xl shadow-lg hover:bg-purple-700 transform hover:-translate-y-1 transition-all">
                                     START NOW <FiArrowRight />
                                 </Link>
-                                <Link to="/subscription" className="px-8 py-4 text-lg font-bold text-slate-800 bg-slate-200 rounded-xl shadow-lg hover:bg-slate-300 transform hover:-translate-y-1 transition-all">
-                                    Learn More
-                                </Link>
                             </div>
                         </div>
 
