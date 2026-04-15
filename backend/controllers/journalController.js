@@ -1,20 +1,17 @@
 const Journal = require("../models/journalModel");
+const { getOrCreateCollection } = require("../config/chromaClient");
+const { saveJournalEntry } = require("../utils/journalUtils");
 
 // Create new journal entry
 const createJournal = async (req, res) => {
   try {
     const { title, content, mood, tags } = req.body;
 
-    if (!content || content.trim() === "") {
-      return res.status(400).json({ message: "Journal content is required" });
-    }
-
-    const journal = await Journal.create({
-      user: req.user._id,
-      title: title || "",
-      content: content.trim(),
-      mood: mood || "",
-      tags: Array.isArray(tags) ? tags : [],
+    const journal = await saveJournalEntry(req.user._id, {
+      title,
+      content,
+      mood,
+      tags,
     });
 
     res.status(201).json({
@@ -23,9 +20,9 @@ const createJournal = async (req, res) => {
       journal,
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(400).json({
       success: false,
-      message: "Failed to create journal entry",
+      message: error.message || "Failed to create journal entry",
       error: error.message,
     });
   }
@@ -104,6 +101,27 @@ const updateJournal = async (req, res) => {
 
     const updatedJournal = await journal.save();
 
+    // Update vector in ChromaDB/Vectra
+    try {
+      const collection = await getOrCreateCollection();
+      // Delete old vector and add new one
+      await collection.delete({
+        where: { journalId: journal._id.toString() }
+      });
+      await collection.add({
+        ids: [`journal-${journal._id}`],
+        documents: [updatedJournal.content],
+        metadatas: [{
+          userId: req.user._id.toString(),
+          source: "journal",
+          journalId: journal._id.toString(),
+          timestamp: updatedJournal.updatedAt.toISOString()
+        }]
+      });
+    } catch (vErr) {
+      console.error("Journal vector update error:", vErr);
+    }
+
     res.status(200).json({
       success: true,
       message: "Journal entry updated successfully",
@@ -134,6 +152,16 @@ const deleteJournal = async (req, res) => {
     }
 
     await journal.deleteOne();
+
+    // Delete vector from ChromaDB/Vectra
+    try {
+      const collection = await getOrCreateCollection();
+      await collection.delete({
+        where: { journalId: journal._id.toString() }
+      });
+    } catch (vErr) {
+      console.error("Journal vector deletion error:", vErr);
+    }
 
     res.status(200).json({
       success: true,
