@@ -26,18 +26,28 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { 
-    type: String, 
-    enum: ['user', 'admin', 'enterprise'], 
-    default: 'user' 
+  role: {
+    type: String,
+    enum: ['user', 'admin', 'enterpriseAdmin'],
+    default: 'user'
+  },
+  enterpriseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Enterprise',
+    default: null,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'deactivated'],
+    default: 'active',
   },
   // OTP Fields
   isVerified: { type: Boolean, default: false },
   otp: { type: String },
   otpExpires: { type: Date },
-  
+
   createdAt: { type: Date, default: Date.now },
-  
+
   streakCount: {
   type: Number,
   default: 0,
