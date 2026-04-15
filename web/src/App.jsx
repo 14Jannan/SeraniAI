@@ -19,9 +19,6 @@ import AdminLayout from "./layouts/AdminLayout";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminLessons from "./pages/admin/AdminLessons";
-import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
-import AdminTasks from "./pages/admin/AdminTasks";
-import EnterpriseAdmin from "./pages/enterpriseAdmin/EnterpriseAdmin";
 
 /* ---------------- USER PAGES ---------------- */
 
@@ -31,7 +28,6 @@ import AIChat from "./pages/user/AIChatbot/AIChat";
 import Journal from "./pages/user/Journal";
 import Courses from "./pages/user/Courses";
 import CourseDetails from "./pages/user/CourseDetails";
-import TasksPage from "./pages/user/TasksPage";
 
 /* ---------------- COMPONENTS ---------------- */
 
@@ -79,9 +75,6 @@ function App() {
               {/* Courses Page */}
               <Route path="courses" element={<Courses />} />
 
-              {/* Daily Tasks */}
-              <Route path="tasks" element={<TasksPage />} />
-
               {/* Course Details Page */}
               <Route path="course/:courseId" element={<CourseDetails />} />
             </Route>
@@ -105,24 +98,6 @@ function App() {
                 path="courses/:courseId/lessons"
                 element={<AdminLessons />}
               />
-
-              {/* Tasks */}
-              <Route path="tasks" element={<AdminTasks />} />
-
-              {/* Subscriptions */}
-              <Route path="subscriptions" element={<AdminSubscriptions />} />
-            </Route>
-          </Route>
-
-          {/* ---------- ENTERPRISE ADMIN ROUTES ---------- */}
-
-          <Route element={<PrivateRoute allowedRoles={["enterpriseAdmin"]} />}>
-            <Route path="/enterprise-admin" element={<AdminLayout />}>
-              {/* Enterprise Admin Dashboard */}
-              <Route index element={<EnterpriseAdmin />} />
-
-              {/* Users */}
-              <Route path="users" element={<EnterpriseAdmin />} />
             </Route>
           </Route>
         </Routes>

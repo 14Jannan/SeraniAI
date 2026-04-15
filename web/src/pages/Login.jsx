@@ -22,10 +22,6 @@ const Login = () => {
     setError("");
     try {
       const data = await login({ email, password });
-      if (!data?.token || !data?.user) {
-        throw new Error(data?.message || "Invalid login response from server");
-      }
-
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -37,13 +33,7 @@ const Login = () => {
         navigate("/dashboard");
       }
     } catch (err) {
-      if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else if (err.message) {
-        setError(err.message);
-      } else {
-        setError("Unable to connect to server. Please start backend and try again.");
-      }
+      setError(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }

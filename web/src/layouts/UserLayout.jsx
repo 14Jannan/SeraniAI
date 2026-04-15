@@ -1,15 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import React, {useEffect, useState} from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
-import { getUserSubscription } from '../api/subscriptionApi'
-import { FiLogOut, FiSun, FiMoon, FiHome, FiMessageSquare, FiBook, FiGrid, FiCheckSquare } from 'react-icons/fi'
+import { FiLogOut, FiSun, FiMoon, FiHome, FiMessageSquare, FiBook, FiGrid, FiChevronLeft } from 'react-icons/fi'
 
 const UserLayout = () => {
   const {theme, toggleTheme}=useTheme();
   const navigate=useNavigate();
   const[user, setUser]=useState({name:'User'});
-  const[subscription, setSubscription]=useState(null);
-  const[loading, setLoading]=useState(true);
 
   useEffect(()=>{
     const userData=localStorage.getItem('user');
@@ -18,41 +15,19 @@ const UserLayout = () => {
     }
   },[]);
 
-  useEffect(()=>{
-    const fetchSubscription = async () => {
-      try {
-        const response = await getUserSubscription();
-        if(response.data && response.data.status === 'Active'){
-          setSubscription(response.data);
-        }
-      } catch (error) {
-        console.log('No active subscription found');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSubscription();
-  },[]);
-
   const handleLogout=()=>{
     localStorage.clear();
     navigate('/login');
-  };
-
-  const handleUpgrade = () => {
-    navigate('/subscription');
   };
 
   const menuItems=[
     {name:'Home', icon:<FiHome />, path:'/dashboard'},
     {name:'AI Chat', icon:<FiMessageSquare />, path:'/dashboard/chat'},
     {name:'Journal', icon:<FiBook />, path:'/dashboard/journal'},
-    {name:'Courses', icon:<FiGrid />, path:'/dashboard/courses'},
-    {name:'Daily Tasks', icon:<FiCheckSquare />, path:'/dashboard/tasks'}
+    {name:'Courses', icon:<FiGrid />, path:'/dashboard/courses'}
   ];
   return (
-    <div className='flex h-screen bg-[#f0f9ff] dark:bg-[#0F172A] transition-colors duration-300 font-sans'>
+    <div className='flex h-screen bg-[#f0f9ff] dark:bg-[1#f2937] transition-colors duration-300 font-sans'>
       <aside className='w-64 flex-shrink-0 bg-[#8cbbf1] dark:bg-[#111827] flex flex-col justify-between transition-colors duration-300'>
         <div className='p-6'>
           <h1 className='text-3xl font-bold text-white mb-10 tracking-wide'>SeraniAI</h1>
@@ -93,17 +68,8 @@ const UserLayout = () => {
                 {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
               <div className='flex-1 min-w-0'>
-                <p className='text-sm font-semibold truncate'>{user.name}</p>
-                <p className='text-xs text-white/70'>{subscription ? subscription.plan : 'Free'}</p>
+                <p className='text-sm front-semibold truncate'>{user.name}</p>
               </div>
-              {!subscription && (
-                <button
-                  onClick={handleUpgrade}
-                  className='px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition-colors'
-                >
-                  Upgrade
-                </button>
-              )}
             </div>
             <button onClick={handleLogout} className='flex items-center gap-2 text-white/80 hover:text-white text-sm w-full'>
               <FiLogOut />Logout
@@ -111,7 +77,7 @@ const UserLayout = () => {
           </div>
         </div>
       </aside>
-      <main className='flex-1 p-6 overflow-y-auto'>
+      <main className='flex-1 p-8 overflow-y-auto'>
         <Outlet />
       </main>
     </div>
