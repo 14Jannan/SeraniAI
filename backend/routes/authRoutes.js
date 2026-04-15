@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
-const { protect } = require("../middleware/authMiddleware");
 
 // Import your existing controllers
 const {
@@ -12,8 +11,7 @@ const {
   forgotPassword,
   resetPassword,
   refreshAccessToken, // You will add this to authController
-  logoutUser, // You will add this to authController
-  getOAuthProviderToken,
+  logoutUser         // You will add this to authController
 } = require("../controllers/authController");
 
 // =============================
@@ -22,15 +20,15 @@ const {
 
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
-    { id: user._id, role: user.role, name: user.name, email: user.email },
+    { id: user._id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" }, // Access token is short-lived
+    { expiresIn: "15m" } // Access token is short-lived
   );
 
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }, // Refresh token is long-lived
+    { expiresIn: "7d" } // Refresh token is long-lived
   );
 
   return { accessToken, refreshToken };
@@ -59,18 +57,13 @@ router.post("/verify", verifyEmail);
 // NEW: Refresh & Logout
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", logoutUser);
-router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
+
 
 // =============================
 // 🔵 GOOGLE OAUTH
 // =============================
 
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-
-router.get(
-  "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] }),
-);
+router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
 router.get(
   "/google/callback",
@@ -80,18 +73,16 @@ router.get(
     setRefreshCookie(res, refreshToken);
 
     // Redirect to Vite with the Access Token in URL
-    res.redirect(`${frontendUrl}/login-success?token=${accessToken}`);
-  },
+    res.redirect(`http://localhost:5173/login-success?token=${accessToken}`);
+  }
 );
+
 
 // =============================
 // 🟣 GITHUB OAUTH
 // =============================
 
-router.get(
-  "/github",
-  passport.authenticate("github", { scope: ["user:email"] }),
-);
+router.get("/github", passport.authenticate("github", { scope: ["user:email"] }));
 
 router.get(
   "/github/callback",
@@ -100,18 +91,16 @@ router.get(
     const { accessToken, refreshToken } = generateTokens(req.user);
     setRefreshCookie(res, refreshToken);
 
-    res.redirect(`${frontendUrl}/login-success?token=${accessToken}`);
-  },
+    res.redirect(`http://localhost:5173/login-success?token=${accessToken}`);
+  }
 );
+
 
 // =============================
 // 🔵 FACEBOOK OAUTH
 // =============================
 
-router.get(
-  "/facebook",
-  passport.authenticate("facebook", { scope: ["email"] }),
-);
+router.get("/facebook", passport.authenticate("facebook", { scope: ["email"] }));
 
 router.get(
   "/facebook/callback",
@@ -120,8 +109,8 @@ router.get(
     const { accessToken, refreshToken } = generateTokens(req.user);
     setRefreshCookie(res, refreshToken);
 
-    res.redirect(`${frontendUrl}/login-success?token=${accessToken}`);
-  },
+    res.redirect(`http://localhost:5173/login-success?token=${accessToken}`);
+  }
 );
 
 module.exports = router;

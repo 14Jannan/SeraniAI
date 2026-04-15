@@ -4,15 +4,10 @@ const chatMessageSchema = new mongoose.Schema(
   {
     role: {
       type: String,
-      enum: ["user", "assistant", "system", "tool"],
+      enum: ["user", "assistant", "system"],
       required: true,
     },
-    content: { type: String, required: false }, // Optional for tool calls
-    tool_calls: { type: Array, default: undefined },
-    tool_call_id: { type: String, default: undefined },
-    fileUrl: { type: String, default: "" },
-    fileType: { type: String, default: "" },
-    courses: { type: Array, default: [] },
+    content: { type: String, required: true },
   },
   { timestamps: true, _id: false }
 );
