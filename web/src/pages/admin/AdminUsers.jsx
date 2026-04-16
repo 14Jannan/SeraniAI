@@ -44,7 +44,7 @@ const AdminUsers = () => {
         name: user.name,
         email: user.email,
         password: "",
-        role: user.role,
+        role: user.role === "enterprise" ? "user" : user.role,
       });
     } else {
       setFormData({ name: "", email: "", password: "", role: "user" });
@@ -64,14 +64,16 @@ const AdminUsers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const normalizedRole = formData.role === "enterprise" ? "user" : formData.role;
+
       if (currentUser) {
         // Update user
-        const dataToUpdate = { ...formData };
+        const dataToUpdate = { ...formData, role: normalizedRole };
         if (!dataToUpdate.password) delete dataToUpdate.password; // Don't send empty password
         await updateUser(currentUser._id, dataToUpdate);
       } else {
         // Add new user
-        await addUser(formData);
+        await addUser({ ...formData, role: normalizedRole });
       }
       fetchUsers(); // Refresh list
       handleCloseModal();
@@ -134,7 +136,10 @@ const AdminUsers = () => {
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                users.map((user) => {
+                  const displayRole = user.role === "enterprise" ? "user" : user.role;
+
+                  return (
                   <tr
                     key={user._id}
                     className="bg-white dark:bg-[#0d1a2e] border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
@@ -146,14 +151,12 @@ const AdminUsers = () => {
                     <td className="px-6 py-4">
                       <span
                         className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.role === "admin"
+                          displayRole === "admin"
                             ? "bg-red-200 text-red-800"
-                            : user.role === "enterprise"
-                              ? "bg-green-200 text-green-800"
-                              : "bg-blue-200 text-blue-800"
+                            : "bg-blue-200 text-blue-800"
                         }`}
                       >
-                        {user.role}
+                        {displayRole}
                       </span>
                     </td>
                     <td className="px-6 py-4 flex justify-end gap-4">
@@ -171,7 +174,8 @@ const AdminUsers = () => {
                       </button>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -236,7 +240,6 @@ const AdminUsers = () => {
               className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="user">User</option>
-              <option value="enterprise">Enterprise</option>
               <option value="admin">Admin</option>
             </select>
           </div>
