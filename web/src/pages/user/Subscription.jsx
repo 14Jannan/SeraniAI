@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
@@ -167,51 +168,12 @@ function FeatureIcon({ kind }) {
   return <span className="h-5 w-5" />;
 }
 
-function PlanCard({ plan }) {
+function PlanCard({ plan, onUpgrade }) {
   const isHighlighted = Boolean(plan.highlight);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (plan.isCurrent) return;
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/api/billing/payhere`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ planId: plan.id }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data?.error || "Payment initialization failed");
-        return;
-      }
-
-      const { actionUrl, payload } = data;
-      localStorage.setItem("payhere_pending_order_id", String(payload.order_id || ""));
-
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = actionUrl;
-
-      Object.entries(payload).forEach(([key, value]) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = String(value);
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
-    }
+    onUpgrade(plan);
   };
 
   return (
@@ -280,6 +242,7 @@ function PlanCard({ plan }) {
 }
 
 export default function Subscription() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState("personal");
 
   const plans = useMemo(() => {
@@ -330,11 +293,21 @@ export default function Subscription() {
       } finally {
         localStorage.removeItem("payhere_pending_order_id");
         clearQuery();
+        navigate("/dashboard");
       }
     };
 
     confirmPayment();
-  }, []);
+  }, [navigate]);
+
+  const handleUpgrade = (plan) => {
+    if (mode === "business" || plan.id === "business") {
+      navigate(`/subscription/checkout/enterprise/${plan.id}`);
+      return;
+    }
+
+    navigate(`/subscription/checkout/personal/${plan.id}`);
+  };
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
@@ -391,7 +364,7 @@ export default function Subscription() {
             ].join(" ")}
           >
             {plans.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
+              <PlanCard key={plan.id} plan={plan} onUpgrade={handleUpgrade} />
             ))}
           </div>
         </section>

@@ -57,7 +57,7 @@ const getMonthRange = () => {
 
 exports.initializePayHerePayment = async (req, res) => {
   try {
-    const { planId } = req.body;
+    const { planId, seats } = req.body;
     const user = req.user;
 
     const plan = PLAN_DETAILS[planId];
@@ -76,8 +76,17 @@ exports.initializePayHerePayment = async (req, res) => {
       });
     }
 
+    const seatCountRaw = Number(seats);
+    const seatCount = Number.isFinite(seatCountRaw)
+      ? Math.max(1, Math.floor(seatCountRaw))
+      : 1;
+
+    const unitAmount = Number(plan.amount);
+    const totalAmount =
+      planId === "business" ? unitAmount * seatCount : unitAmount;
+
     const orderId = `SERANI-${Date.now()}`;
-    const amount = Number(plan.amount).toFixed(2);
+    const amount = Number(totalAmount).toFixed(2);
     const currency = "LKR";
 
     // PayHere hash: MD5(merchant_id + order_id + amount + currency + MD5(merchant_secret))
@@ -101,7 +110,10 @@ exports.initializePayHerePayment = async (req, res) => {
         process.env.PAYHERE_NOTIFY_URL ||
         "http://localhost:7001/api/billing/payhere/notify",
       order_id: orderId,
-      items: `${plan.plan} Monthly Plan`,
+      items:
+        planId === "business"
+          ? `${plan.plan} Monthly Plan (${seatCount} seats)`
+          : `${plan.plan} Monthly Plan`,
       currency,
       amount,
       first_name: user?.name || "Serani",
@@ -112,7 +124,10 @@ exports.initializePayHerePayment = async (req, res) => {
       city: "Colombo",
       country: "Sri Lanka",
       custom_1: String(user?._id || ""),
-      custom_2: plan.plan,
+      custom_2:
+        planId === "business"
+          ? `${plan.plan}|seats:${seatCount}`
+          : plan.plan,
       hash,
     };
 
@@ -123,7 +138,7 @@ exports.initializePayHerePayment = async (req, res) => {
         userId: user?._id,
         plan: plan.plan,
         billingCycle: "Monthly",
-        amount: Number(plan.amount),
+        amount: Number(totalAmount),
         currency,
         status: "Pending",
         startDate,

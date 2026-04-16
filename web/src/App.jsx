@@ -7,6 +7,12 @@ const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const Verify = lazy(() => import("./pages/Verify"));
 const Subscription = lazy(() => import("./pages/user/Subscription"));
+const PersonalCheckout = lazy(() =>
+  import("./pages/user/checkout/PersonalCheckout")
+);
+const EnterpriseCheckout = lazy(() =>
+  import("./pages/user/checkout/EnterpriseCheckout")
+);
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const LoginSuccess = lazy(() => import("./pages/LoginSuccess"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -58,6 +64,14 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/subscription" element={<Subscription />} />
+          <Route
+            path="/subscription/checkout/personal/:planId"
+            element={<PersonalCheckout />}
+          />
+          <Route
+            path="/subscription/checkout/enterprise/:planId"
+            element={<EnterpriseCheckout />}
+          />
 
           {/* ---------- USER DASHBOARD ROUTES ---------- */}
 
