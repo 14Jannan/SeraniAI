@@ -20,136 +20,135 @@ const buildProviderTokens = (
 });
 
 // ---------------- Google ----------------
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/auth/google/callback", // redirects to url after login
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        let user = await User.findOne({ email: profile.emails[0].value });
-        if (!user) {
-          user = await User.create({
-            name: profile.displayName,
-            email: profile.emails[0].value,
-            googleId: profile.id,
-            authProvider: "google",
-            isVerified: true,
-            oauthTokens: {
-              google: buildProviderTokens(accessToken, refreshToken),
-            },
-          });
-        } else if (!user.googleId) {
-          user.googleId = profile.id;
-          user.authProvider = user.authProvider || "google";
-          user.isVerified = true;
-          user.oauthTokens = user.oauthTokens || {};
-          user.oauthTokens.google = buildProviderTokens(
-            accessToken,
-            refreshToken,
-            user.oauthTokens.google,
-          );
-          await user.save({ validateBeforeSave: false });
-        } else {
-          user.oauthTokens = user.oauthTokens || {};
-          user.oauthTokens.google = buildProviderTokens(
-            accessToken,
-            refreshToken,
-            user.oauthTokens.google,
-          );
-          await user.save({ validateBeforeSave: false });
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: "/api/auth/google/callback", // redirects to url after login
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          let user = await User.findOne({ email: profile.emails[0].value });
+          if (!user) {
+            user = await User.create({
+              name: profile.displayName,
+              email: profile.emails[0].value,
+              googleId: profile.id,
+              authProvider: "google",
+              isVerified: true,
+              oauthTokens: {
+                google: buildProviderTokens(accessToken, refreshToken),
+              },
+            });
+          } else if (!user.googleId) {
+            user.googleId = profile.id;
+            user.authProvider = user.authProvider || "google";
+            user.isVerified = true;
+            user.oauthTokens = user.oauthTokens || {};
+            user.oauthTokens.google = buildProviderTokens(
+              accessToken,
+              refreshToken,
+              user.oauthTokens.google,
+            );
+            await user.save({ validateBeforeSave: false });
+          } else {
+            user.oauthTokens = user.oauthTokens || {};
+            user.oauthTokens.google = buildProviderTokens(
+              accessToken,
+              refreshToken,
+              user.oauthTokens.google,
+            );
+            await user.save({ validateBeforeSave: false });
+          }
+          done(null, user);
+        } catch (err) {
+          done(err, null);
         }
-        done(null, user);
-      } catch (err) {
-        done(err, null);
-      }
-    },
-  ),
-);
+      },
+    ),
+  );
+}
 
 // ---------------- GitHub ----------------
-passport.use(
-  new GitHubStrategy(
-    {
-      clientID: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: "/api/auth/github/callback", // redirects to url after login
-      scope: ["user:email"], // request access to user's email addresses
-    },
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  passport.use(
+    new GitHubStrategy(
+      {
+        clientID: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        callbackURL: "/api/auth/github/callback", // redirects to url after login
+        scope: ["user:email"], // request access to user's email addresses
+      },
+      // runs after logs in on github
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          // Github may not provide email if it is private, so fallback to a synthetic value.
+          let email =
+            profile.emails?.[0]?.value || `${profile.username}@github.com`;
+          // Get a stable display name from available profile fields.
+          const githubName =
+            profile.displayName || profile._json?.name || profile.username;
+          const shouldUpdateName = (existingName) =>
+            !existingName || existingName.toLowerCase() === "user";
 
-    // runs after logs in on github
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        //Github may not provide email if it is private, if misssing create fake email username@gmail.com
-        let email =
-          profile.emails?.[0]?.value || `${profile.username}@github.com`;
-        //Gets good name from Github profile or full name from Github API JSON or fallback to Github username
-        const githubName =
-          profile.displayName || profile._json?.name || profile.username;
-        //If user's  name is missing or the existing name is 'user'
-        //serach by githubId or email in MongoDB
-        const shouldUpdateName = (existingName) =>
-          !existingName || existingName.toLowerCase() === "user";
-        let user =
-          (await User.findOne({ githubId: profile.id })) ||
-          (await User.findOne({ email }));
-        //if there is no user with the githubId or email, create new user with github profile info
-        if (!user) {
-          user = await User.create({
-            name: githubName,
-            email,
-            githubId: profile.id,
-            authProvider: "github",
-            isVerified: true,
-            oauthTokens: {
-              github: buildProviderTokens(accessToken, refreshToken),
-            },
-          });
-        } //if user exists but doesn't have githubId, link github account to existing user
-        else if (!user.githubId) {
-          user.githubId = profile.id;
-          if (shouldUpdateName(user.name)) {
+          let user =
+            (await User.findOne({ githubId: profile.id })) ||
+            (await User.findOne({ email }));
+
+          if (!user) {
+            user = await User.create({
+              name: githubName,
+              email,
+              githubId: profile.id,
+              authProvider: "github",
+              isVerified: true,
+              oauthTokens: {
+                github: buildProviderTokens(accessToken, refreshToken),
+              },
+            });
+          } else if (!user.githubId) {
+            user.githubId = profile.id;
+            if (shouldUpdateName(user.name)) {
+              user.name = githubName;
+            }
+            user.authProvider = user.authProvider || "github";
+            user.isVerified = true;
+            user.oauthTokens = user.oauthTokens || {};
+            user.oauthTokens.github = buildProviderTokens(
+              accessToken,
+              refreshToken,
+              user.oauthTokens.github,
+            );
+            await user.save({ validateBeforeSave: false });
+          } else if (shouldUpdateName(user.name) && githubName) {
             user.name = githubName;
+            user.oauthTokens = user.oauthTokens || {};
+            user.oauthTokens.github = buildProviderTokens(
+              accessToken,
+              refreshToken,
+              user.oauthTokens.github,
+            );
+            await user.save({ validateBeforeSave: false });
+          } else {
+            user.oauthTokens = user.oauthTokens || {};
+            user.oauthTokens.github = buildProviderTokens(
+              accessToken,
+              refreshToken,
+              user.oauthTokens.github,
+            );
+            await user.save({ validateBeforeSave: false });
           }
-          user.authProvider = user.authProvider || "github";
-          user.isVerified = true;
-          user.oauthTokens = user.oauthTokens || {};
-          user.oauthTokens.github = buildProviderTokens(
-            accessToken,
-            refreshToken,
-            user.oauthTokens.github,
-          );
-          await user.save({ validateBeforeSave: false });
-        } //if user exists and has githubId, just update tokens and optionally update name if it is missing or generic like "user"
-        else if (shouldUpdateName(user.name) && githubName) {
-          user.name = githubName;
-          user.oauthTokens = user.oauthTokens || {};
-          user.oauthTokens.github = buildProviderTokens(
-            accessToken,
-            refreshToken,
-            user.oauthTokens.github,
-          );
-          await user.save({ validateBeforeSave: false });
-        }// just update tokens if user exists, has githubId, and name is already set to something specific (not missing or generic)
-         else {
-          user.oauthTokens = user.oauthTokens || {};
-          user.oauthTokens.github = buildProviderTokens(
-            accessToken,
-            refreshToken,
-            user.oauthTokens.github,
-          );
-          await user.save({ validateBeforeSave: false });
+
+          done(null, user);
+        } catch (err) {
+          done(err, null);
         }
-        // passport requires calling done() to finsih authentication
-        done(null, user);
-      } catch (err) {
-        done(err, null);
-      }
-    },
-  ),
-);
+      },
+    ),
+  );
+}
 
 // ---------------- Facebook ----------------
 if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
