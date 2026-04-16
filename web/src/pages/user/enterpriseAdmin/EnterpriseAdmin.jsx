@@ -6,8 +6,8 @@ import {
   updateEnterpriseUser,
   deactivateEnterpriseUser,
   deleteEnterpriseUser,
-} from "../../api/enterpriseAdminApi";
-import Modal from "../../components/Modal";
+} from "../../../api/enterpriseAdminApi";
+import Modal from "../../../components/Modal";
 
 const EnterpriseAdmin = () => {
   const [users, setUsers] = useState([]);

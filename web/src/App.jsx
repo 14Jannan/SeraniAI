@@ -6,7 +6,7 @@ const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const Verify = lazy(() => import("./pages/Verify"));
-const Subscription = lazy(() => import("./pages/Subscription"));
+const Subscription = lazy(() => import("./pages/user/Subscription"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const LoginSuccess = lazy(() => import("./pages/LoginSuccess"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -21,7 +21,7 @@ import AdminCourses from "./pages/admin/AdminCourses";
 import AdminLessons from "./pages/admin/AdminLessons";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminTasks from "./pages/admin/AdminTasks";
-import EnterpriseAdmin from "./pages/enterpriseAdmin/EnterpriseAdmin";
+import EnterpriseAdmin from "./pages/user/enterpriseAdmin/EnterpriseAdmin";
 
 /* ---------------- USER PAGES ---------------- */
 
