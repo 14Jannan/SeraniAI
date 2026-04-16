@@ -2,30 +2,38 @@ import React, { useEffect, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { getUserSubscription } from '../api/subscriptionApi'
-import { FiLogOut, FiSun, FiMoon, FiHome, FiMessageSquare, FiBook, FiGrid, FiCheckSquare } from 'react-icons/fi'
+import {
+  FiLogOut,
+  FiHome,
+  FiMessageSquare,
+  FiBook,
+  FiGrid,
+  FiCheckSquare
+} from 'react-icons/fi'
 
 const UserLayout = () => {
-  const {theme, toggleTheme}=useTheme();
-  const navigate=useNavigate();
-  const[user, setUser]=useState({name:'User'});
-  const[subscription, setSubscription]=useState(null);
-  const[loading, setLoading]=useState(true);
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
 
-  useEffect(()=>{
-    const userData=localStorage.getItem('user');
-    if(userData){
-      setUser(JSON.parse(userData));
-    }
-  },[]);
+  const [user, setUser] = useState({ name: 'User' });
+  const [subscription, setSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
+  const isDark = theme === 'dark';
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) setUser(JSON.parse(userData));
+  }, []);
+
+  useEffect(() => {
     const fetchSubscription = async () => {
       try {
         const response = await getUserSubscription();
-        if(response.data && response.data.status === 'Active'){
+        if (response.data && response.data.status === 'Active') {
           setSubscription(response.data);
         }
-      } catch (error) {
+      } catch (err) {
         console.log('No active subscription found');
       } finally {
         setLoading(false);
@@ -33,9 +41,9 @@ const UserLayout = () => {
     };
 
     fetchSubscription();
-  },[]);
+  }, []);
 
-  const handleLogout=()=>{
+  const handleLogout = () => {
     localStorage.clear();
     navigate('/login');
   };
@@ -44,78 +52,140 @@ const UserLayout = () => {
     navigate('/subscription');
   };
 
-  const menuItems=[
-    {name:'Home', icon:<FiHome />, path:'/dashboard'},
-    {name:'AI Chat', icon:<FiMessageSquare />, path:'/dashboard/chat'},
-    {name:'Journal', icon:<FiBook />, path:'/dashboard/journal'},
-    {name:'Courses', icon:<FiGrid />, path:'/dashboard/courses'},
-    {name:'Daily Tasks', icon:<FiCheckSquare />, path:'/dashboard/tasks'}
+  const menuItems = [
+    { name: 'Home', icon: <FiHome />, path: '/dashboard' },
+    { name: 'AI Chat', icon: <FiMessageSquare />, path: '/dashboard/chat' },
+    { name: 'Journal', icon: <FiBook />, path: '/dashboard/journal' },
+    { name: 'Courses', icon: <FiGrid />, path: '/dashboard/courses' },
+    { name: 'Daily Tasks', icon: <FiCheckSquare />, path: '/dashboard/tasks' }
   ];
+
   return (
-    <div className='flex h-screen bg-[#f0f9ff] dark:bg-[#0F172A] transition-colors duration-300 font-sans'>
-      <aside className='w-64 flex-shrink-0 bg-[#8cbbf1] dark:bg-[#111827] flex flex-col justify-between transition-colors duration-300'>
-        <div className='p-6'>
-          <h1 className='text-3xl font-bold text-white mb-10 tracking-wide'>SeraniAI</h1>
-          <nav className='space-y-2'>
-            {menuItems.map((item)=>(
-              <NavLink key={item.name} to={item.path} end={item.path==='/dashboard'}
-              className={({isActive}) =>
-                `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-[#1e40af] text-white shadow-md': `text-white/80 hover:bg-white/10 hover:text-white`}`}>
-                  <span className='text-xl'>{item.icon}</span>
-                  <span>{item.name}</span>
+    <div className={`
+      flex h-screen font-sans transition-colors duration-300
+      ${isDark ? 'bg-[#0F172A]' : 'bg-[#f0f9ff]'}
+    `}>
+
+      {/* Sidebar */}
+      <aside className={`
+        w-64 flex-shrink-0 flex flex-col justify-between transition-colors duration-300
+        ${isDark
+          ? 'bg-[#111827]'
+          : 'bg-[#1e1b4b]'
+        }
+      `}>
+
+        {/* Header */}
+        <div className="p-6">
+          <h1 className="text-3xl font-bold text-white mb-10 tracking-wide">
+            SeraniAI
+          </h1>
+
+          <nav className="space-y-2">
+            {menuItems.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                end={item.path === '/dashboard'}
+                className={({ isActive }) => `
+                  flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200
+                  ${isActive
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : isDark
+                      ? 'text-gray-300 hover:bg-gray-700'
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  }
+                `}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <span>{item.name}</span>
               </NavLink>
             ))}
           </nav>
         </div>
 
-        <div className='p-6 space-y-6'>
-          <div className='bg-black/20 dark:bg-white/10 rounded-full p-1 flex'>
-            <button 
+        {/* Bottom Panel */}
+        <div className="p-6 space-y-6">
+
+          {/* Theme Toggle */}
+          <div className={`
+            rounded-full p-1 flex transition-colors
+            ${isDark ? 'bg-white/10' : 'bg-black/20'}
+          `}>
+            <button
               onClick={() => toggleTheme('light')}
-              className={`flex-1 text-xs font-bold py-1.5 rounded-full transition-all ${
-                theme === 'light' ? 'bg-pink-500 text-white shadow' : 'text-white/70'
-              }`}
+              className={`
+                flex-1 text-xs font-bold py-1.5 rounded-full transition-all
+                ${theme === 'light'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-white/60 hover:text-white'
+                }
+              `}
             >
-              Light mode
+              Light
             </button>
 
-            <button onClick={()=>toggleTheme('dark')}
-              className={`flex-1 text-xs font-bold py-1.5 rounded-full transition-all 
-              ${theme==='dark' ? 'bg-pink-500 text-white shadow': 'text-white/70'}`}>
-              Dark mode
+            <button
+              onClick={() => toggleTheme('dark')}
+              className={`
+                flex-1 text-xs font-bold py-1.5 rounded-full transition-all
+                ${theme === 'dark'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-white/60 hover:text-white'
+                }
+              `}
+            >
+              Dark
             </button>
           </div>
 
-          {/*User Profile / Logout*/}
-          <div className='border-t border-white/20 pt-4'>
-            <div className='flex items-center gap-3 text-white mb-3'>
-              <div className='w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-s font-bold border-2 border-white/20'>
+          {/* User + Subscription */}
+          <div className="border-t border-white/20 pt-4">
+
+            <div className="flex items-center gap-3 text-white mb-3">
+
+              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold border-2 border-white/20">
                 {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
-              <div className='flex-1 min-w-0'>
-                <p className='text-sm font-semibold truncate'>{user.name}</p>
-                <p className='text-xs text-white/70'>{subscription ? subscription.plan : 'Free'}</p>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">
+                  {user.name}
+                </p>
+                <p className="text-xs text-white/70">
+                  {subscription ? subscription.plan : 'Free'}
+                </p>
               </div>
+
               {!subscription && (
                 <button
                   onClick={handleUpgrade}
-                  className='px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition-colors'
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition"
                 >
                   Upgrade
                 </button>
               )}
             </div>
-            <button onClick={handleLogout} className='flex items-center gap-2 text-white/80 hover:text-white text-sm w-full'>
-              <FiLogOut />Logout
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-white/80 hover:text-white text-sm w-full"
+            >
+              <FiLogOut />
+              Logout
             </button>
+
           </div>
         </div>
       </aside>
-      <main className='flex-1 p-6 overflow-y-auto'>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-6">
         <Outlet />
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default UserLayout
+export default UserLayout;
