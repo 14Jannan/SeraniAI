@@ -23,3 +23,6 @@ export const getUserSubscription = () => API.get("/subscriptions/user/current");
 
 // GET subscription by ID
 export const getSubscriptionById = (id) => API.get(`/subscriptions/${id}`);
+
+// DELETE subscription by ID (admin)
+export const deleteSubscriptionById = (id) => API.delete(`/subscriptions/${id}`);

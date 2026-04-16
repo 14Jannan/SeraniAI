@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { fetchSubscriptions } from "../../api/subscriptionApi";
+import { fetchSubscriptions, deleteSubscriptionById } from "../../api/subscriptionApi";
 
 const AdminSubscriptions = () => {
   const [subscriptions, setSubscriptions] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     const loadSubscriptions = async () => {
@@ -30,6 +31,24 @@ const AdminSubscriptions = () => {
     const paymentId = String(sub.paymentId || "").toLowerCase();
     return email.includes(query) || paymentId.includes(query);
   });
+
+  const handleDelete = async (subscriptionId) => {
+    const ok = window.confirm(
+      "Delete this subscription? The user will be downgraded to Free."
+    );
+    if (!ok) return;
+
+    try {
+      setDeletingId(subscriptionId);
+      await deleteSubscriptionById(subscriptionId);
+      setSubscriptions((prev) => prev.filter((sub) => sub._id !== subscriptionId));
+      setError("");
+    } catch {
+      setError("Failed to delete subscription");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) {
     return <p className="mt-10 text-center">Loading subscriptions...</p>;
@@ -66,6 +85,7 @@ const AdminSubscriptions = () => {
               <th className="p-4">Status</th>
               <th className="p-4">Start Date</th>
               <th className="p-4">End Date</th>
+              <th className="p-4">Actions</th>
             </tr>
           </thead>
 
@@ -97,6 +117,15 @@ const AdminSubscriptions = () => {
                 </td>
                 <td className="p-4">{new Date(sub.startDate).toLocaleDateString()}</td>
                 <td className="p-4">{new Date(sub.endDate).toLocaleDateString()}</td>
+                <td className="p-4">
+                  <button
+                    onClick={() => handleDelete(sub._id)}
+                    disabled={deletingId === sub._id}
+                    className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {deletingId === sub._id ? "Deleting..." : "Delete"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -6,6 +6,7 @@ const {
   getSubscriptionById,
   createSubscription,
   updateSubscriptionStatus,
+  deleteSubscription,
   getUserSubscription,
   syncSubscription,
   retrySubscriptionPayment,
@@ -26,6 +27,7 @@ router.get('/', protect, authorize('admin'), getAllSubscriptions);
 router.get('/:id', protect, authorize('admin'), getSubscriptionById);
 router.post('/', protect, authorize('admin'), createSubscription);
 router.patch('/:id', protect, authorize('admin'), updateSubscriptionStatus);
+router.delete('/:id', protect, authorize('admin'), deleteSubscription);
 
 module.exports = router;
 

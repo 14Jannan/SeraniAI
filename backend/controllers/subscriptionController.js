@@ -141,6 +141,37 @@ exports.updateSubscriptionStatus = async (req, res) => {
   }
 };
 
+// DELETE subscription (admin)
+exports.deleteSubscription = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid subscription id' });
+    }
+
+    const subscription = await Subscription.findById(req.params.id);
+
+    if (!subscription) {
+      return res.status(404).json({ message: 'Subscription not found' });
+    }
+
+    const userId = subscription.userId;
+
+    await Subscription.findByIdAndDelete(req.params.id);
+
+    if (userId) {
+      // Ensure the affected user is treated as a free user after deletion.
+      await Subscription.updateMany(
+        { userId, status: 'Active' },
+        { $set: { status: 'Cancelled' } }
+      );
+    }
+
+    return res.status(200).json({ message: 'Subscription deleted. User downgraded to Free.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error deleting subscription', error });
+  }
+};
+
 // GET user subscription
 exports.getUserSubscription = async (req, res) => {
   try {
@@ -150,7 +181,7 @@ exports.getUserSubscription = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const subscription = await Subscription.findOne({ userId })
+    const subscription = await Subscription.findOne({ userId, status: 'Active' })
       .sort({ createdAt: -1 });
 
     if (!subscription) {
