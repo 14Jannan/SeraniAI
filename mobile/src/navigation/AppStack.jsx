@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
 import { CoursesScreen } from "../screens/app/CoursesScreen";
+import { AdminUsersScreen } from "../screens/app/AdminUsersScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -27,6 +28,16 @@ const CoursesStack = () => (
     }}
   >
     <Stack.Screen name="CoursesList" component={CoursesScreen} />
+  </Stack.Navigator>
+);
+
+const AdminStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+    }}
+  >
+    <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
   </Stack.Navigator>
 );
 
@@ -79,7 +90,7 @@ export const AppStack = () => {
       {isAdmin && (
         <Tab.Screen
           name="Admin"
-          component={DashboardStack}
+          component={AdminStack}
           options={{
             title: "Admin",
             tabBarLabel: "Admin",

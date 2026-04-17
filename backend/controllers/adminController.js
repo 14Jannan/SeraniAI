@@ -14,7 +14,7 @@ exports.getAllUsers = async (req,res)=>{
 // CREATE USERS
 exports.createUser = async (req, res)=>{
     const {name, email, password, role}=req.body;
-    const normalizedRole = role === "enterprise" ? "user" : role;
+    const normalizedRole = role === "enterprise" ? "enterpriseUser" : role;
     if(!name || !email || !password || !role){
             return res.status(400).json({message: "Please provide all fields"});
         }
@@ -54,7 +54,7 @@ exports.updateUser = async(req,res)=>{
         if(user){
             user.name = req.body.name || user.name;
             user.email = req.body.email || user.email;
-            user.role = req.body.role === "enterprise" ? "user" : (req.body.role || user.role);
+            user.role = req.body.role === "enterprise" ? "enterpriseUser" : (req.body.role || user.role);
 
             if(req.body.password){
                 const salt = await bcrypt.genSalt(10);

@@ -218,7 +218,7 @@ exports.deleteCourse = async (req, res) => {
     const course = await Course.findByIdAndUpdate(
       id,
       { isDeleted: true },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!course) {
@@ -253,7 +253,7 @@ exports.updateCourse = async (req, res) => {
     }
 
     const updated = await Course.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: "after",
     });
 
     res.json(updated);

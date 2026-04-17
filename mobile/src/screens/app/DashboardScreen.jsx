@@ -137,7 +137,7 @@ export const DashboardScreen = ({ navigation }) => {
                 borderColor: colors.warningBorder,
               },
             ]}
-            onPress={() => navigation.navigate("AdminDashboard")}
+            onPress={() => navigation.navigate("Admin")}
           >
             <View
               style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}

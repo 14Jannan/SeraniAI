@@ -5,22 +5,35 @@ const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const { authorize } = require("../middleware/roleMiddleware");
 
-const { getDashboardStats, getWeeklyReport } = require("../controllers/dashboardController");
+const {
+  getDashboardStats,
+  getWeeklyReport,
+} = require("../controllers/dashboardController");
 
 // 1. Admin Only Route
 router.get("/admin", protect, authorize("admin"), (req, res) => {
-    res.json({ message: "Welcome Admin" });
+  res.json({ message: "Welcome Admin" });
 });
 
-// 2. Enterprise & Admin Route
-router.get("/enterprise", protect, authorize("admin", "enterprise"), (req, res) => {
+// 2. Enterprise User & Admin Route
+router.get(
+  "/enterprise",
+  protect,
+  authorize("admin", "enterpriseUser"),
+  (req, res) => {
     res.json({ message: "Welcome Enterprise User" });
-});
+  },
+);
 
-// 3. All Users Route (User, Admin, Enterprise)
-router.get("/user", protect, authorize("admin", "enterprise", "user"), (req, res) => {
+// 3. All Users Route (User, Admin, Enterprise User)
+router.get(
+  "/user",
+  protect,
+  authorize("admin", "enterpriseUser", "user"),
+  (req, res) => {
     res.json({ message: "Welcome User" });
-});
+  },
+);
 
 // 4. Dashboard Stats Route
 router.get("/dashboard-stats", protect, getDashboardStats);

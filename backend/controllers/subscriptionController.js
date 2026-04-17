@@ -1,6 +1,7 @@
 const Subscription = require('../models/subscriptionModel');
 const payHereService = require('../services/payHereService');
 const mongoose = require('mongoose');
+const User = require('../models/userModel');
 
 const normalizePlan = (plan) => {
   if (typeof plan !== 'string') return null;
@@ -163,6 +164,18 @@ exports.deleteSubscription = async (req, res) => {
       await Subscription.updateMany(
         { userId, status: 'Active' },
         { $set: { status: 'Cancelled' } }
+      );
+
+      // Keep user profile role in sync with free plan state.
+      await User.findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            role: 'user',
+            enterpriseId: null,
+          },
+        },
+        { new: true }
       );
     }
 

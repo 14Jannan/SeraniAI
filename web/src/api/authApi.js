@@ -22,3 +22,5 @@ export const forgotPassword = (data) =>
   httpClient.post(`${API_URL}/forgot-password`, data);
 export const resetPassword = (data) =>
   httpClient.post(`${API_URL}/reset-password`, data);
+export const getCurrentUser = () =>
+  httpClient.get(`${API_URL}/me`);

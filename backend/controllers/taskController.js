@@ -184,7 +184,7 @@ exports.getDailyTasks = async (req, res) => {
           xp: 0,
         },
       },
-      { new: true, upsert: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     return res.status(200).json({
@@ -232,7 +232,7 @@ exports.saveMyTaskProgress = async (req, res) => {
           xp,
         },
       },
-      { new: true, upsert: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     if (completedTaskIds.length > 0) {

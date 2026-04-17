@@ -14,6 +14,7 @@ const {
   refreshAccessToken, // You will add this to authController
   logoutUser, // You will add this to authController
   getOAuthProviderToken,
+  getCurrentUser,
 } = require("../controllers/authController");
 
 // =============================
@@ -60,6 +61,7 @@ router.post("/verify", verifyEmail);
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", logoutUser);
 router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
+router.get("/me", protect, getCurrentUser);
 
 // =============================
 // 🔵 GOOGLE OAUTH

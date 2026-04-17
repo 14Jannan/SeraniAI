@@ -73,7 +73,15 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["user", "admin", "enterpriseAdmin"],
+    enum: [
+      "user",
+      "admin",
+      "enterpriseUser",
+      "enterpriseAdmin",
+      "(Go)PlanUser",
+      "(Plus)PlanUser",
+      "(Pro)PlanUser",
+    ],
     default: "user",
   },
   enterpriseId: {
@@ -100,11 +108,6 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
-lessonProgress: {
-  type: [lessonProgressSchema],
-  default: [],
-},
-
   streakCount: {
     type: Number,
     default: 0,

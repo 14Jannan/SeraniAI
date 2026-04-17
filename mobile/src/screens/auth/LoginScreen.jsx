@@ -77,7 +77,12 @@ export const LoginScreen = ({ navigation }) => {
     try {
       await login(email, password);
     } catch (err) {
-      Alert.alert("Login Failed", error || "An error occurred");
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        error ||
+        "An error occurred";
+      Alert.alert("Login Failed", errorMessage);
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,64 @@ import { FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
 import { getUsers, addUser, updateUser, deleteUser } from "../../api/adminApi";
 import Modal from "../../components/Modal";
 
+const ROLE_CONFIG = {
+  user: {
+    label: "User",
+    badgeClass:
+      "border-sky-400 bg-sky-50 text-sky-700 dark:border-sky-500 dark:bg-sky-500/10 dark:text-sky-200",
+  },
+  admin: {
+    label: "Admin",
+    badgeClass:
+      "border-rose-500 bg-rose-50 text-rose-700 dark:border-rose-400 dark:bg-rose-500/10 dark:text-rose-200",
+  },
+  enterpriseUser: {
+    label: "Enterprise User",
+    badgeClass:
+      "border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-200",
+  },
+  enterpriseAdmin: {
+    label: "Enterprise Admin",
+    badgeClass:
+      "border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-400 dark:bg-violet-500/10 dark:text-violet-200",
+  },
+  "(Go)PlanUser": {
+    label: "Go Plan User",
+    badgeClass:
+      "border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-500/10 dark:text-amber-200",
+  },
+  "(Plus)PlanUser": {
+    label: "Plus Plan User",
+    badgeClass:
+      "border-orange-500 bg-orange-50 text-orange-700 dark:border-orange-400 dark:bg-orange-500/10 dark:text-orange-200",
+  },
+  "(Pro)PlanUser": {
+    label: "Pro Plan User",
+    badgeClass:
+      "border-fuchsia-500 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-400 dark:bg-fuchsia-500/10 dark:text-fuchsia-200",
+  },
+};
+
+const ROLE_OPTIONS = [
+  { value: "user", label: "User" },
+  { value: "admin", label: "Admin" },
+  { value: "enterpriseUser", label: "Enterprise User" },
+  { value: "enterpriseAdmin", label: "Enterprise Admin" },
+  { value: "(Go)PlanUser", label: "Go Plan User" },
+  { value: "(Plus)PlanUser", label: "Plus Plan User" },
+  { value: "(Pro)PlanUser", label: "Pro Plan User" },
+];
+
+const getRoleConfig = (role) =>
+  ROLE_CONFIG[role] || {
+    label: role,
+    badgeClass:
+      "border-slate-400 bg-slate-50 text-slate-700 dark:border-slate-500 dark:bg-slate-500/10 dark:text-slate-200",
+  };
+
+const formFieldClassName =
+  "mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
+
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +102,7 @@ const AdminUsers = () => {
         name: user.name,
         email: user.email,
         password: "",
-        role: user.role === "enterprise" ? "user" : user.role,
+        role: user.role === "enterprise" ? "enterpriseUser" : user.role,
       });
     } else {
       setFormData({ name: "", email: "", password: "", role: "user" });
@@ -64,7 +122,8 @@ const AdminUsers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const normalizedRole = formData.role === "enterprise" ? "user" : formData.role;
+      const normalizedRole =
+        formData.role === "enterprise" ? "enterpriseUser" : formData.role;
 
       if (currentUser) {
         // Update user
@@ -137,7 +196,8 @@ const AdminUsers = () => {
                 </tr>
               ) : (
                 users.map((user) => {
-                  const displayRole = user.role === "enterprise" ? "user" : user.role;
+                  const displayRole =
+                    user.role === "enterprise" ? "enterpriseUser" : user.role;
 
                   return (
                   <tr
@@ -149,15 +209,17 @@ const AdminUsers = () => {
                     </td>
                     <td className="px-6 py-4">{user.email}</td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          displayRole === "admin"
-                            ? "bg-red-200 text-red-800"
-                            : "bg-blue-200 text-blue-800"
-                        }`}
-                      >
-                        {displayRole}
-                      </span>
+                      {(() => {
+                        const roleConfig = getRoleConfig(displayRole);
+
+                        return (
+                          <span
+                            className={`inline-flex items-center rounded-full border-2 px-3 py-1 text-xs font-semibold ${roleConfig.badgeClass}`}
+                          >
+                            {roleConfig.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 flex justify-end gap-4">
                       <button
@@ -199,7 +261,7 @@ const AdminUsers = () => {
               value={formData.name}
               onChange={handleChange}
               required
-              className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className={formFieldClassName}
             />
           </div>
           <div>
@@ -212,7 +274,7 @@ const AdminUsers = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className={formFieldClassName}
             />
           </div>
           <div>
@@ -226,7 +288,7 @@ const AdminUsers = () => {
               onChange={handleChange}
               placeholder={currentUser ? "Leave blank to keep same" : ""}
               required={!currentUser}
-              className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className={formFieldClassName}
             />
           </div>
           <div>
@@ -237,10 +299,13 @@ const AdminUsers = () => {
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className={formFieldClassName}
             >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+              {ROLE_OPTIONS.map((roleOption) => (
+                <option key={roleOption.value} value={roleOption.value}>
+                  {roleOption.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="flex justify-end gap-4 pt-4">

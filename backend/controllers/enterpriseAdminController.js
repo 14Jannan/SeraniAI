@@ -46,6 +46,7 @@ exports.addUserToEnterprise = async (req, res) => {
 
     // Add user to enterprise
     user.enterpriseId = enterpriseId;
+    user.role = 'enterpriseUser';
     user.status = 'active';
     await user.save();
 
@@ -134,6 +135,9 @@ exports.deleteEnterpriseUser = async (req, res) => {
 
     // Remove user from enterprise
     user.enterpriseId = null;
+    if (user.role === 'enterpriseUser') {
+      user.role = 'user';
+    }
     user.status = 'active';
     await user.save();
 

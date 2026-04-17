@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { getUserSubscription } from '../api/subscriptionApi'
+import { getCurrentUser } from '../api/authApi'
 import {
   FiLogOut,
   FiHome,
@@ -21,26 +22,53 @@ const UserLayout = () => {
 
   const isDark = theme === 'dark';
 
+  const roleToPlanLabel = (role, fallbackPlan) => {
+    const roleLabelMap = {
+      '(Go)PlanUser': 'Go Plan User',
+      '(Plus)PlanUser': 'Plus Plan User',
+      '(Pro)PlanUser': 'Pro Plan User',
+      enterpriseUser: 'Enterprise User',
+      enterpriseAdmin: 'Enterprise Admin',
+      admin: 'Admin',
+      user: 'Free',
+    };
+
+    return roleLabelMap[role] || fallbackPlan || 'Free';
+  };
+
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) setUser(JSON.parse(userData));
   }, []);
 
   useEffect(() => {
-    const fetchSubscription = async () => {
+    const fetchProfileAndSubscription = async () => {
       try {
-        const response = await getUserSubscription();
-        if (response.data && response.data.status === 'Active') {
-          setSubscription(response.data);
+        const [userResponse, subscriptionResponse] = await Promise.allSettled([
+          getCurrentUser(),
+          getUserSubscription(),
+        ]);
+
+        if (userResponse.status === 'fulfilled' && userResponse.value?.data) {
+          const freshUser = userResponse.value.data;
+          setUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        }
+
+        if (
+          subscriptionResponse.status === 'fulfilled' &&
+          subscriptionResponse.value?.data?.status === 'Active'
+        ) {
+          setSubscription(subscriptionResponse.value.data);
         }
       } catch (err) {
-        console.log('No active subscription found');
+        console.log('Unable to refresh user profile and subscription');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSubscription();
+    fetchProfileAndSubscription();
   }, []);
 
   const handleLogout = () => {
@@ -153,7 +181,7 @@ const UserLayout = () => {
                   {user.name}
                 </p>
                 <p className="text-xs text-white/70">
-                  {subscription ? subscription.plan : 'Free'}
+                  {roleToPlanLabel(user?.role, subscription?.plan)}
                 </p>
               </div>
 

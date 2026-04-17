@@ -6,7 +6,7 @@
     "assetBundlePatterns": ["**/*"],
     "scheme": "seraniaiapp",
     "extra": {
-      "apiUrl": "http://192.168.1.10:7001/api"
+      "apiUrl": ""
     },
     "ios": {
       "supportsTablet": true,

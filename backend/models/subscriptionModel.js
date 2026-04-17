@@ -14,6 +14,12 @@ const subscriptionSchema = new mongoose.Schema(
       required: true,
     },
 
+    planCode: {
+      type: String,
+      enum: ['go', 'plus', 'pro', 'business'],
+      default: null,
+    },
+
     billingCycle: {
       type: String,
       enum: ['Monthly'],

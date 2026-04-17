@@ -1,12 +1,14 @@
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 const Subscription = require("../models/subscriptionModel");
+const User = require("../models/userModel");
+const Enterprise = require("../models/enterpriseModel");
 
 const PLAN_DETAILS = {
-  go: { plan: "Personal", amount: 1000 },
-  plus: { plan: "Personal", amount: 2000 },
-  pro: { plan: "Personal", amount: 4000 },
-  business: { plan: "Business", amount: 3000 },
+  go: { plan: "Personal", amount: 1000, role: "(Go)PlanUser" },
+  plus: { plan: "Personal", amount: 2000, role: "(Plus)PlanUser" },
+  pro: { plan: "Personal", amount: 4000, role: "(Pro)PlanUser" },
+  business: { plan: "Business", amount: 3000, role: "enterpriseAdmin" },
 };
 
 const md5Upper = (value) =>
@@ -45,8 +47,77 @@ const getCheckoutUrl = () => {
   return "https://www.payhere.lk/pay/checkout";
 };
 
-const getPlanFromLabel = (label) =>
-  String(label || "").toLowerCase().includes("business") ? "Business" : "Personal";
+const getPlanCodeFromLabel = (label) => {
+  const value = String(label || "").trim().toLowerCase();
+
+  if (value.includes("business")) return "business";
+  if (value.includes("plus")) return "plus";
+  if (value.includes("pro")) return "pro";
+  if (value.includes("go")) return "go";
+
+  return "go";
+};
+
+const parseCustom2Payload = (custom2) => {
+  const raw = String(custom2 || "").trim();
+  if (!raw) {
+    return { planCode: "go", plan: "Personal" };
+  }
+
+  // New deterministic format: planId:<id>|plan:<planName>|seats:<count>
+  const segments = raw.split("|");
+  const kv = {};
+  for (const segment of segments) {
+    const [k, ...rest] = segment.split(":");
+    const key = String(k || "").trim().toLowerCase();
+    const value = rest.join(":").trim();
+    if (key && value) kv[key] = value;
+  }
+
+  if (kv.planid && PLAN_DETAILS[kv.planid]) {
+    return {
+      planCode: kv.planid,
+      plan: PLAN_DETAILS[kv.planid].plan,
+    };
+  }
+
+  // Backward compatibility with old payloads ("Personal", "Business", "Business|seats:2").
+  const legacyPlanCode = getPlanCodeFromLabel(raw);
+  return {
+    planCode: legacyPlanCode,
+    plan: PLAN_DETAILS[legacyPlanCode].plan,
+  };
+};
+
+const syncUserRoleFromPlanCode = async ({ userId, planCode }) => {
+  const details = PLAN_DETAILS[planCode] || PLAN_DETAILS.go;
+
+  const user = await User.findById(userId);
+  if (!user) return;
+
+  user.role = details.role;
+
+  if (details.role === "enterpriseAdmin") {
+    let enterprise = await Enterprise.findOne({ ownerId: user._id });
+    if (!enterprise) {
+      enterprise = await Enterprise.create({
+        name: `${user.name || "Business"} Workspace`,
+        ownerId: user._id,
+        members: [user._id],
+      });
+    } else if (!enterprise.members.some((memberId) => memberId.equals(user._id))) {
+      enterprise.members.push(user._id);
+      enterprise.updatedAt = new Date();
+      await enterprise.save();
+    }
+
+    user.enterpriseId = enterprise._id;
+  } else {
+    user.enterpriseId = null;
+  }
+
+  await user.save();
+};
 
 const getMonthRange = () => {
   const startDate = new Date();
@@ -126,8 +197,8 @@ exports.initializePayHerePayment = async (req, res) => {
       custom_1: String(user?._id || ""),
       custom_2:
         planId === "business"
-          ? `${plan.plan}|seats:${seatCount}`
-          : plan.plan,
+          ? `planId:${planId}|plan:${plan.plan}|seats:${seatCount}`
+          : `planId:${planId}|plan:${plan.plan}`,
       hash,
     };
 
@@ -137,6 +208,7 @@ exports.initializePayHerePayment = async (req, res) => {
       {
         userId: user?._id,
         plan: plan.plan,
+        planCode: planId,
         billingCycle: "Monthly",
         amount: Number(totalAmount),
         currency,
@@ -207,7 +279,7 @@ exports.handlePayHereNotify = async (req, res) => {
       return res.status(400).send("invalid currency");
     }
 
-    const plan = getPlanFromLabel(custom_2);
+    const { planCode, plan } = parseCustom2Payload(custom_2);
     const { startDate, endDate } = getMonthRange();
     const paymentCandidates = [String(payment_id || "").trim(), String(order_id || "").trim()].filter(Boolean);
 
@@ -216,6 +288,7 @@ exports.handlePayHereNotify = async (req, res) => {
       {
         userId: custom_1,
         plan,
+        planCode,
         billingCycle: "Monthly",
         amount: parsedAmount,
         currency,
@@ -227,6 +300,8 @@ exports.handlePayHereNotify = async (req, res) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+
+    await syncUserRoleFromPlanCode({ userId: custom_1, planCode });
 
     return res.status(200).send("ok");
   } catch (error) {
@@ -260,6 +335,11 @@ exports.confirmPayHereReturn = async (req, res) => {
       subscription.status = "Active";
       await subscription.save();
     }
+
+    const fallbackPlanCode =
+      subscription.planCode ||
+      getPlanCodeFromLabel(subscription.plan);
+    await syncUserRoleFromPlanCode({ userId, planCode: fallbackPlanCode });
 
     return res.status(200).json({ message: "Subscription payment confirmed" });
   } catch (error) {

@@ -319,3 +319,24 @@ exports.getOAuthProviderToken = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+// @desc    Get current authenticated user profile
+// @route   GET /api/auth/me
+exports.getCurrentUser = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    return res.status(200).json({
+      id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+      enterpriseId: req.user.enterpriseId || null,
+      status: req.user.status,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch user profile" });
+  }
+};
