@@ -39,8 +39,8 @@ const LoginSuccess = () => {
 
       if (role === "admin") {
         navigate("/admin/users", { replace: true });
-      } else if (role === "enterprise") {
-        navigate("/enterprise/dashboard", { replace: true });
+      } else if (role === "enterpriseAdmin") {
+        navigate("/enterprise-admin", { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
       }

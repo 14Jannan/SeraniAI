@@ -53,7 +53,7 @@ exports.addUserToEnterprise = async (req, res) => {
     await Enterprise.findByIdAndUpdate(
       enterpriseId,
       { $addToSet: { members: user._id } },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     res.status(201).json({
@@ -141,7 +141,7 @@ exports.deleteEnterpriseUser = async (req, res) => {
     await Enterprise.findByIdAndUpdate(
       enterpriseId,
       { $pull: { members: userId } },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     res.json({ message: "User removed from enterprise" });

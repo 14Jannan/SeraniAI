@@ -63,7 +63,17 @@ function App() {
 
           <Route
             element={
-              <PrivateRoute allowedRoles={["user", "enterprise", "admin"]} />
+              <PrivateRoute
+                allowedRoles={[
+                  "user",
+                  "enterpriseUser",
+                  "enterprise",
+                  "(Go)PlanUser",
+                  "(Plus)PlanUser",
+                  "(Pro)PlanUser",
+                  "admin",
+                ]}
+              />
             }
           >
             <Route path="/dashboard" element={<UserLayout />}>

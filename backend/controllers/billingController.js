@@ -131,7 +131,7 @@ exports.initializePayHerePayment = async (req, res) => {
         paymentId: orderId,
         method: "PayHere",
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, setDefaultsOnInsert: true, returnDocument: "after" }
     );
 
     return res.status(200).json({ actionUrl, payload });
@@ -210,7 +210,7 @@ exports.handlePayHereNotify = async (req, res) => {
         paymentId: String(payment_id || order_id),
         method: "PayHere",
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, setDefaultsOnInsert: true, returnDocument: "after" }
     );
 
     return res.status(200).send("ok");

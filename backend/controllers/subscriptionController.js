@@ -124,7 +124,7 @@ exports.updateSubscriptionStatus = async (req, res) => {
     const updated = await Subscription.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true, runValidators: true }
+      { runValidators: true, returnDocument: "after" }
     );
 
     if (!updated) {
@@ -193,7 +193,7 @@ exports.syncSubscription = async (req, res) => {
         paymentId: payHereData.order_id,
         method: 'PayHere',
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, setDefaultsOnInsert: true, returnDocument: "after" }
     );
 
     res.status(200).json({

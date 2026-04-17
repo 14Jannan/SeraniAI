@@ -17,7 +17,7 @@ const courseRoutes = require("./routes/courseRoutes");
 const lessonRoutes = require("./routes/lessonRoutes");
 const streakRoutes = require("./routes/streakRoutes");
 const chatRoutes = require("./routes/chatRoutes");
-const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const billingRoutes = require("./routes/billingRoutes");
 const enterpriseAdminRoutes = require("./routes/enterpriseAdminRoutes");
 const taskRoutes = require("./routes/taskRoutes");
@@ -26,9 +26,42 @@ dbConnect();
 
 const app = express();
 
+const allowedOrigins = new Set(
+  [
+    process.env.FRONTEND_URL,
+    "http://localhost:5173",
+    "http://localhost:8081",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8081",
+  ].filter(Boolean),
+);
+
+const isLocalDevOrigin = (origin) => {
+  try {
+    const parsed = new URL(origin);
+    return (
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "0.0.0.0"
+    );
+  } catch (error) {
+    return false;
+  }
+};
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.has(origin) || isLocalDevOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   }),
 );
