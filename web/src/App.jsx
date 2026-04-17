@@ -81,6 +81,7 @@ function App() {
                 allowedRoles={[
                   "user",
                   "enterpriseUser",
+                  "enterpriseAdmin",
                   "enterprise",
                   "(Go)PlanUser",
                   "(Plus)PlanUser",
@@ -105,6 +106,16 @@ function App() {
 
               {/* Daily Tasks */}
               <Route path="tasks" element={<TasksPage />} />
+
+              {/* Enterprise Manager (EnterpriseAdmin only) */}
+              <Route
+                path="enterprise-manager"
+                element={
+                  <PrivateRoute allowedRoles={["enterpriseAdmin"]}>
+                    <EnterpriseAdmin />
+                  </PrivateRoute>
+                }
+              />
 
               {/* Course Details Page */}
               <Route path="course/:courseId" element={<CourseDetails />} />
@@ -138,17 +149,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* ---------- ENTERPRISE ADMIN ROUTES ---------- */}
-
-          <Route element={<PrivateRoute allowedRoles={["enterpriseAdmin"]} />}>
-            <Route path="/enterprise-admin" element={<AdminLayout />}>
-              {/* Enterprise Admin Dashboard */}
-              <Route index element={<EnterpriseAdmin />} />
-
-              {/* Users */}
-              <Route path="users" element={<EnterpriseAdmin />} />
-            </Route>
-          </Route>
         </Routes>
       </Suspense>
     </Router>

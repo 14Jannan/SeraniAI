@@ -2,6 +2,7 @@ const Subscription = require('../models/subscriptionModel');
 const payHereService = require('../services/payHereService');
 const mongoose = require('mongoose');
 const User = require('../models/userModel');
+const Enterprise = require('../models/enterpriseModel');
 
 const normalizePlan = (plan) => {
   if (typeof plan !== 'string') return null;
@@ -156,6 +157,14 @@ exports.deleteSubscription = async (req, res) => {
     }
 
     const userId = subscription.userId;
+    const isBusinessPlanDeletion =
+      subscription.plan === 'Business' || subscription.planCode === 'business';
+    let enterpriseId = null;
+
+    if (userId && isBusinessPlanDeletion) {
+      const ownerUser = await User.findById(userId).select('enterpriseId');
+      enterpriseId = ownerUser?.enterpriseId || null;
+    }
 
     await Subscription.findByIdAndDelete(req.params.id);
 
@@ -177,6 +186,21 @@ exports.deleteSubscription = async (req, res) => {
         },
         { new: true }
       );
+
+      // If a Business owner is downgraded, all enterprise members must also downgrade.
+      if (enterpriseId) {
+        await User.updateMany(
+          { enterpriseId },
+          {
+            $set: {
+              role: 'user',
+              enterpriseId: null,
+            },
+          }
+        );
+
+        await Enterprise.findByIdAndDelete(enterpriseId);
+      }
     }
 
     return res.status(200).json({ message: 'Subscription deleted. User downgraded to Free.' });

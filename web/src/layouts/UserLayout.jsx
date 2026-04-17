@@ -9,7 +9,8 @@ import {
   FiMessageSquare,
   FiBook,
   FiGrid,
-  FiCheckSquare
+  FiCheckSquare,
+  FiUsers,
 } from 'react-icons/fi'
 
 const UserLayout = () => {
@@ -21,6 +22,8 @@ const UserLayout = () => {
   const [loading, setLoading] = useState(true);
 
   const isDark = theme === 'dark';
+  const isEnterpriseScopedUser =
+    user?.role === 'enterpriseUser' || user?.role === 'enterpriseAdmin';
 
   const roleToPlanLabel = (role, fallbackPlan) => {
     const roleLabelMap = {
@@ -85,7 +88,16 @@ const UserLayout = () => {
     { name: 'AI Chat', icon: <FiMessageSquare />, path: '/dashboard/chat' },
     { name: 'Journal', icon: <FiBook />, path: '/dashboard/journal' },
     { name: 'Courses', icon: <FiGrid />, path: '/dashboard/courses' },
-    { name: 'Daily Tasks', icon: <FiCheckSquare />, path: '/dashboard/tasks' }
+    { name: 'Daily Tasks', icon: <FiCheckSquare />, path: '/dashboard/tasks' },
+    ...(user?.role === 'enterpriseAdmin'
+      ? [
+          {
+            name: 'Enterprise Manager',
+            icon: <FiUsers />,
+            path: '/dashboard/enterprise-manager',
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -185,7 +197,7 @@ const UserLayout = () => {
                 </p>
               </div>
 
-              {!subscription && (
+              {!subscription && !isEnterpriseScopedUser && (
                 <button
                   onClick={handleUpgrade}
                   className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition"

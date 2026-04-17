@@ -61,7 +61,7 @@ const getPlanCodeFromLabel = (label) => {
 const parseCustom2Payload = (custom2) => {
   const raw = String(custom2 || "").trim();
   if (!raw) {
-    return { planCode: "go", plan: "Personal" };
+    return { planCode: "go", plan: "Personal", seats: 1 };
   }
 
   // New deterministic format: planId:<id>|plan:<planName>|seats:<count>
@@ -75,9 +75,14 @@ const parseCustom2Payload = (custom2) => {
   }
 
   if (kv.planid && PLAN_DETAILS[kv.planid]) {
+    const parsedSeats = Number(kv.seats);
     return {
       planCode: kv.planid,
       plan: PLAN_DETAILS[kv.planid].plan,
+      seats:
+        kv.planid === "business" && Number.isFinite(parsedSeats)
+          ? Math.max(1, Math.floor(parsedSeats))
+          : 1,
     };
   }
 
@@ -86,6 +91,7 @@ const parseCustom2Payload = (custom2) => {
   return {
     planCode: legacyPlanCode,
     plan: PLAN_DETAILS[legacyPlanCode].plan,
+    seats: legacyPlanCode === "business" ? 1 : 1,
   };
 };
 
@@ -209,6 +215,7 @@ exports.initializePayHerePayment = async (req, res) => {
         userId: user?._id,
         plan: plan.plan,
         planCode: planId,
+        seats: planId === "business" ? seatCount : 1,
         billingCycle: "Monthly",
         amount: Number(totalAmount),
         currency,
@@ -279,7 +286,7 @@ exports.handlePayHereNotify = async (req, res) => {
       return res.status(400).send("invalid currency");
     }
 
-    const { planCode, plan } = parseCustom2Payload(custom_2);
+    const { planCode, plan, seats } = parseCustom2Payload(custom_2);
     const { startDate, endDate } = getMonthRange();
     const paymentCandidates = [String(payment_id || "").trim(), String(order_id || "").trim()].filter(Boolean);
 
@@ -289,6 +296,7 @@ exports.handlePayHereNotify = async (req, res) => {
         userId: custom_1,
         plan,
         planCode,
+        seats: planCode === "business" ? seats : 1,
         billingCycle: "Monthly",
         amount: parsedAmount,
         currency,

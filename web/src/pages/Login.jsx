@@ -30,7 +30,7 @@ const Login = () => {
       if (data.user.role === "admin") {
         navigate("/admin/users");
       } else if (data.user.role === "enterpriseAdmin") {
-        navigate("/enterprise-admin");
+        navigate("/dashboard/enterprise-manager");
       } else {
         navigate("/dashboard");
       }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
-const PrivateRoute = ({ allowedRoles }) => {
+const PrivateRoute = ({ allowedRoles, children }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -17,7 +17,7 @@ const PrivateRoute = ({ allowedRoles }) => {
   }
 
   // User is authenticated and authorized, render the child components
-  return <Outlet />;
+  return children || <Outlet />;
 };
 
 export default PrivateRoute;

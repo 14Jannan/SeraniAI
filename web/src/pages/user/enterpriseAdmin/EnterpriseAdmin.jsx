@@ -13,6 +13,11 @@ const EnterpriseAdmin = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [seatSummary, setSeatSummary] = useState({
+    seatLimit: 1,
+    seatsUsed: 0,
+    seatsRemaining: 1,
+  });
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -35,7 +40,12 @@ const EnterpriseAdmin = () => {
     try {
       setLoading(true);
       const res = await getEnterpriseUsers();
-      setUsers(res.data);
+      setUsers(res.data?.users || []);
+      setSeatSummary({
+        seatLimit: res.data?.seatLimit || 1,
+        seatsUsed: res.data?.seatsUsed || 0,
+        seatsRemaining: res.data?.seatsRemaining || 0,
+      });
       setError("");
     } catch (err) {
       setError("Failed to fetch users.");
@@ -46,6 +56,11 @@ const EnterpriseAdmin = () => {
 
   // Add User Modal Handlers
   const handleOpenAddModal = () => {
+    if (seatSummary.seatsUsed >= seatSummary.seatLimit) {
+      setError(`Seat limit reached. You have used ${seatSummary.seatsUsed} of ${seatSummary.seatLimit} seats.`);
+      return;
+    }
+
     setAddFormData({ email: "" });
     setIsAddModalOpen(true);
   };
@@ -132,12 +147,22 @@ const EnterpriseAdmin = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Enterprise User Management
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+            Enterprise Manager
+          </h1>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            Seats used: {seatSummary.seatsUsed} / {seatSummary.seatLimit}
+          </p>
+        </div>
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
+          disabled={seatSummary.seatsUsed >= seatSummary.seatLimit}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md transition ${
+            seatSummary.seatsUsed >= seatSummary.seatLimit
+              ? "bg-gray-400 text-gray-100 cursor-not-allowed"
+              : "bg-blue-600 text-white hover:bg-blue-700"
+          }`}
         >
           <FiPlus /> Add User
         </button>

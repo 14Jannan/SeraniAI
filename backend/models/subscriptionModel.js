@@ -20,6 +20,12 @@ const subscriptionSchema = new mongoose.Schema(
       default: null,
     },
 
+    seats: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+
     billingCycle: {
       type: String,
       enum: ['Monthly'],

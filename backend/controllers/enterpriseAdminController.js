@@ -1,6 +1,40 @@
 const User = require('../models/userModel');
 const Enterprise = require('../models/enterpriseModel');
+const Subscription = require('../models/subscriptionModel');
 const bcrypt = require('bcryptjs');
+
+const getSeatSummary = async ({ enterpriseId, ownerId }) => {
+  const enterprise = await Enterprise.findById(enterpriseId).select('members ownerId');
+  if (!enterprise) {
+    return {
+      seatLimit: 1,
+      seatsUsed: 0,
+      seatsRemaining: 1,
+    };
+  }
+
+  const activeBusinessSubscription = await Subscription.findOne({
+    userId: ownerId,
+    status: 'Active',
+    plan: 'Business',
+  }).sort({ createdAt: -1 });
+
+  const seatLimit = Math.max(1, Number(activeBusinessSubscription?.seats || 1));
+  const memberIds = new Set(
+    (enterprise.members || []).map((memberId) => String(memberId))
+  );
+
+  if (enterprise.ownerId) {
+    memberIds.add(String(enterprise.ownerId));
+  }
+
+  const seatsUsed = memberIds.size;
+  return {
+    seatLimit,
+    seatsUsed,
+    seatsRemaining: Math.max(0, seatLimit - seatsUsed),
+  };
+};
 
 // GET ALL USERS IN ENTERPRISE
 exports.getEnterpriseUsers = async (req, res) => {
@@ -12,7 +46,15 @@ exports.getEnterpriseUsers = async (req, res) => {
     }
 
     const users = await User.find({ enterpriseId }).select('-password');
-    res.json(users);
+    const seatSummary = await getSeatSummary({
+      enterpriseId,
+      ownerId: req.user._id,
+    });
+
+    res.json({
+      users,
+      ...seatSummary,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -31,6 +73,17 @@ exports.addUserToEnterprise = async (req, res) => {
 
     if (!enterpriseId) {
       return res.status(400).json({ message: "EnterpriseAdmin is not linked to an enterprise" });
+    }
+
+    const seatSummary = await getSeatSummary({
+      enterpriseId,
+      ownerId: req.user._id,
+    });
+
+    if (seatSummary.seatsUsed >= seatSummary.seatLimit) {
+      return res.status(400).json({
+        message: `Seat limit reached. You have used ${seatSummary.seatsUsed} of ${seatSummary.seatLimit} seats.`
+      });
     }
 
     // Find the user by email
@@ -63,6 +116,11 @@ exports.addUserToEnterprise = async (req, res) => {
       email: user.email,
       role: user.role,
       status: user.status,
+      seatSummary: {
+        seatLimit: seatSummary.seatLimit,
+        seatsUsed: seatSummary.seatsUsed + 1,
+        seatsRemaining: Math.max(0, seatSummary.seatLimit - (seatSummary.seatsUsed + 1)),
+      },
     });
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
