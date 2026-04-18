@@ -6,7 +6,7 @@ const Course = require("../models/courseModel");
 const Lesson = require("../models/lessonModel");
 const { saveJournalEntry } = require("../utils/journalUtils");
 const OpenAI = require("openai");
-const { getOrCreateCollection } = require("../config/chromaClient");
+const { getOrCreateCollection } = require("../config/vectraClient");
 const fs = require("fs");
 const path = require("path");
 const pdf = require("pdf-parse");
@@ -328,11 +328,6 @@ async function getAiReply(history, context = "", tools = null, roleKey = "genera
   // Get instructions for the selected role
   const roleInstructions = roles[roleKey] || roles.general;
 
-  const groqClient = getGroqClient();
-  if (!groqClient) {
-    return "Groq client could not be initialized";
-  }
-
   // Combine history with retrieved context if available
   const messages = (history || [])
     .slice(-20)
@@ -448,12 +443,12 @@ exports.sendMessage = async (req, res) => {
         });
 
         searchContext = contextItems.join("\n---\n");
-        console.log(`ChromaDB found ${contextItems.length} unique relevant context items.`);
+        console.log(`Vectra found ${contextItems.length} unique relevant context items.`);
       } else {
-        console.log("ChromaDB: No relevant context found for query.");
+        console.log("Vectra: No relevant context found for query.");
       }
-    } catch (chromaErr) {
-      console.error("ChromaDB query error:", chromaErr);
+    } catch (vectraErr) {
+      console.error("Vectra query error:", vectraErr);
     }
 
     // 2.5) Select Role based on message
@@ -560,7 +555,7 @@ exports.sendMessage = async (req, res) => {
 
     await chat.save();
 
-    // 5) Index messages in ChromaDB
+    // 5) Index messages in Vectra
     try {
       const collection = await getOrCreateCollection();
       const timestamp = new Date().toISOString();
@@ -578,8 +573,8 @@ exports.sendMessage = async (req, res) => {
           { userId: userId.toString(), sessionId: chat._id.toString(), role: "assistant", timestamp }
         ]
       });
-    } catch (chromaIdxErr) {
-      console.error("ChromaDB indexing error:", chromaIdxErr);
+    } catch (vectraIdxErr) {
+      console.error("Vectra indexing error:", vectraIdxErr);
     }
 
     return res.status(200).json({
@@ -633,14 +628,14 @@ exports.deleteSession = async (req, res) => {
     const deleted = await Chat.findOneAndDelete({ _id: req.params.id, user: userId });
     if (!deleted) return res.status(404).json({ message: "Chat session not found" });
 
-    // Delete from ChromaDB
+    // Delete from Vectra
     try {
       const collection = await getOrCreateCollection();
       await collection.delete({
         where: { sessionId: req.params.id }
       });
-    } catch (chromaErr) {
-      console.error("ChromaDB session deletion error:", chromaErr);
+    } catch (vectraErr) {
+      console.error("Vectra session deletion error:", vectraErr);
     }
 
     return res.status(200).json({ message: "Chat deleted" });
@@ -657,14 +652,14 @@ exports.clearHistory = async (req, res) => {
 
     await Chat.deleteMany({ user: userId });
 
-    // Delete from ChromaDB
+    // Delete from Vectra
     try {
       const collection = await getOrCreateCollection();
       await collection.delete({
         where: { userId: userId.toString() }
       });
-    } catch (chromaErr) {
-      console.error("ChromaDB history clear error:", chromaErr);
+    } catch (vectraErr) {
+      console.error("Vectra history clear error:", vectraErr);
     }
 
     return res.status(200).json({ message: "All chat history cleared" });

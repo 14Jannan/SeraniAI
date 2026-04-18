@@ -1,8 +1,8 @@
 const Journal = require("../models/journalModel");
-const { getOrCreateCollection } = require("../config/chromaClient");
+const { getOrCreateCollection } = require("../config/vectraClient");
 
 /**
- * Shared utility to create a journal entry and index it in ChromaDB.
+ * Shared utility to create a journal entry and index it in Vectra.
  * @param {string} userId - The ID of the user.
  * @param {object} journalData - The journal details { title, content, mood, tags }.
  * @returns {Promise<object>} The created journal entry.
@@ -20,7 +20,7 @@ exports.saveJournalEntry = async (userId, { title, content, mood, tags }) => {
     tags: Array.isArray(tags) ? tags : [],
   });
 
-  // Vectorize in ChromaDB for semantic search
+  // Vectorize in Vectra for semantic search
   try {
     const collection = await getOrCreateCollection();
     await collection.add({

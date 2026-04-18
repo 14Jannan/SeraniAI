@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const Journal = require('../models/journalModel');
-const { getOrCreateCollection } = require('../config/chromaClient');
+const { getOrCreateCollection } = require('../config/vectraClient');
 require('dotenv').config();
 
 async function vectorizeExisting() {

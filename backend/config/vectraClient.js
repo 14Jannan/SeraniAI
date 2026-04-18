@@ -38,7 +38,7 @@ async function getIndex() {
 }
 
 // ── Drop-in collection wrapper ────────────────────────────────────────────────
-// Exposes .add() / .query() / .delete() so chatControllers.js needs no changes.
+// Exposes .add() / .query() / .delete() for semantic search operations.
 
 const collection = {
     /**
@@ -113,9 +113,18 @@ const collection = {
             console.log(`Vectra: deleted ${toDelete.length} items matching`, where);
         }
     },
+
+    /**
+     * Count total items in the index.
+     */
+    async count() {
+        const idx = await getIndex();
+        const allItems = await idx.listItems();
+        return allItems.length;
+    },
 };
 
-// ── Public API (same shape as before) ─────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 async function getOrCreateCollection() {
     await getIndex(); // ensure index is ready
     return collection;

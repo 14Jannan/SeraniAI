@@ -1,5 +1,5 @@
 const Chat = require("./models/chatModels");
-const { getOrCreateCollection } = require("./config/chromaClient");
+const { getOrCreateCollection } = require("./config/vectraClient");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
@@ -9,7 +9,7 @@ async function reindex() {
         console.log("Connected to MongoDB.");
 
         const collection = await getOrCreateCollection();
-        console.log("Connected to ChromaDB.");
+        console.log("Connected to Vectra.");
 
         const chats = await Chat.find({});
         console.log(`Found ${chats.length} chat sessions.`);

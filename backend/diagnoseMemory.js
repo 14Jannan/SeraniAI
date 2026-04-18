@@ -1,4 +1,4 @@
-const { getOrCreateCollection } = require("./config/chromaClient");
+const { getOrCreateCollection } = require("./config/vectraClient");
 require("dotenv").config();
 
 async function diagnoseMemory(query, userId) {
@@ -8,7 +8,7 @@ async function diagnoseMemory(query, userId) {
 
         // 1. Check total count
         const count = await collection.count();
-        console.log(`Total items in ChromaDB: ${count}`);
+        console.log(`Total items in Vectra: ${count}`);
 
         // 2. Perform query with NO filter first to see what's in there
         console.log("\nSearching ALL records (No filter):");

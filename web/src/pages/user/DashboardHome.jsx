@@ -14,7 +14,8 @@ import {
   Clock,
   ArrowUpRight,
   AlertCircle,
-  Loader2
+  Loader2,
+  CheckCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -116,7 +117,7 @@ const DashboardHome = () => {
 
   const statCards = [
     { label: 'Total Journals', value: stats.totalJournals, icon: PenTool, color: 'text-purple-600', bg: 'bg-purple-100', trend: 'Updated' },
-    { label: 'Active Courses', value: stats.activeCourses, icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100', trend: 'In Progress' },
+    { label: 'Daily Tasks', value: stats.dailyTasks, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100', trend: 'Today' },
     { label: 'Completed Lessons', value: stats.completedLessons, icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: 'Total Progress' },
     { label: 'AI Interactions', value: stats.aiInteractions, icon: MessageSquare, color: 'text-amber-600', bg: 'bg-amber-100', trend: 'Active Chat' },
   ];
@@ -396,4 +397,4 @@ const DashboardHome = () => {
   );
 };
 
-export default DashboardHome;
+export default DashboardHome;

@@ -1,4 +1,4 @@
-const { getOrCreateCollection } = require("./config/chromaClient");
+const { getOrCreateCollection } = require("./config/vectraClient");
 require("dotenv").config();
 
 async function run() {

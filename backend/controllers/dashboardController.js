@@ -2,6 +2,7 @@ const User = require("../models/userModel");
 const Journal = require("../models/journalModel");
 const Chat = require("../models/chatModels");
 const Lesson = require("../models/lessonModel");
+const UserTaskProgress = require("../models/userTaskProgressModel");
 const OpenAI = require("openai");
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
@@ -27,13 +28,10 @@ exports.getDashboardStats = async (req, res) => {
     // 3. Completed Lessons Count
     const completedLessons = user.lessonProgress.length;
 
-    // 4. Active Courses (Unique courses from lessonProgress)
-    const lessonIds = user.lessonProgress.map((lp) => lp.lessonId);
-    let activeCoursesCount = 0;
-    if (lessonIds.length > 0) {
-      const uniqueCourses = await Lesson.find({ _id: { $in: lessonIds } }).distinct("courseId");
-      activeCoursesCount = uniqueCourses.length;
-    }
+    // 4. Daily Tasks Count (for today)
+    const today = new Date().toISOString().slice(0, 10);
+    const todayTaskProgress = await UserTaskProgress.findOne({ user: userId, dateKey: today });
+    const dailyTasksCount = todayTaskProgress ? todayTaskProgress.taskIds.length : 0;
 
     // 5. AI Interactions Count (User messages)
     const chats = await Chat.find({ user: userId });
@@ -106,7 +104,7 @@ exports.getDashboardStats = async (req, res) => {
       userName: user.name,
       stats: {
         totalJournals,
-        activeCourses: activeCoursesCount,
+        dailyTasks: dailyTasksCount,
         completedLessons,
         aiInteractions,
       },

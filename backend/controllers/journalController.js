@@ -1,5 +1,5 @@
 const Journal = require("../models/journalModel");
-const { getOrCreateCollection } = require("../config/chromaClient");
+const { getOrCreateCollection } = require("../config/vectraClient");
 const { saveJournalEntry } = require("../utils/journalUtils");
 
 // Create new journal entry
@@ -101,7 +101,7 @@ const updateJournal = async (req, res) => {
 
     const updatedJournal = await journal.save();
 
-    // Update vector in ChromaDB/Vectra
+    // Update vector in Vectra
     try {
       const collection = await getOrCreateCollection();
       // Delete old vector and add new one
@@ -153,7 +153,7 @@ const deleteJournal = async (req, res) => {
 
     await journal.deleteOne();
 
-    // Delete vector from ChromaDB/Vectra
+    // Delete vector from Vectra
     try {
       const collection = await getOrCreateCollection();
       await collection.delete({
