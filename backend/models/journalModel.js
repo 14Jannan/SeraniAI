@@ -20,10 +20,51 @@ const journalSchema = new mongoose.Schema(
     mood: {
       type: String,
       default: "",
+      trim: true,
+    },
+    moodConfidence: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 1,
+    },
+    moodSource: {
+      type: String,
+      enum: ["manual", "ai", "fallback"],
+      default: "manual",
     },
     tags: {
       type: [String],
       default: [],
+    },
+    aiInsight: {
+      summary: {
+        type: String,
+        default: "",
+      },
+      emotionalTone: {
+        type: String,
+        default: "",
+      },
+      keyThemes: {
+        type: [String],
+        default: [],
+      },
+      suggestedAction: {
+        type: String,
+        default: "",
+      },
+      generatedAt: {
+        type: Date,
+      },
+      provider: {
+        type: String,
+        default: "",
+      },
+      model: {
+        type: String,
+        default: "",
+      },
     },
     isFavorite: {
       type: Boolean,
@@ -32,5 +73,10 @@ const journalSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+journalSchema.index({ user: 1, createdAt: -1 });
+journalSchema.index({ user: 1, mood: 1, createdAt: -1 });
+journalSchema.index({ user: 1, tags: 1, createdAt: -1 });
+journalSchema.index({ user: 1, isFavorite: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Journal", journalSchema);

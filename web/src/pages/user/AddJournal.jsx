@@ -6,6 +6,8 @@ import {
   Download,
   Mic,
   MicOff,
+  Sparkles,
+  RefreshCcw,
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -27,7 +29,6 @@ const capitalizeFirstLetter = (value) => {
   if (!value) {
     return value;
   }
-
   return value.charAt(0).toUpperCase() + value.slice(1);
 };
 
@@ -44,18 +45,19 @@ const appendSpokenText = (currentValue, spokenValue) => {
   }
 
   const trimmedCurrent = currentValue.trimEnd();
-  const needsLineBreak = /[.!?]$/.test(trimmedCurrent) || trimmedCurrent.endsWith("\n");
+  const needsLineBreak =
+    /[.!?]$/.test(trimmedCurrent) || trimmedCurrent.endsWith("\n");
   const separator = needsLineBreak ? "\n" : " ";
   const normalized = capitalizeFirstLetter(trimmedSpoken);
-  const appended = `${trimmedCurrent}${separator}${normalized}`;
 
-  return appended.replace(/\s+\n/g, "\n");
+  return `${trimmedCurrent}${separator}${normalized}`.replace(/\s+\n/g, "\n");
 };
 
 const AddJournal = ({
   onBack,
   onSave,
   onDownload,
+  onRefreshInsight,
   initialData = null,
   isEdit = false,
   readOnly = false,
@@ -70,6 +72,9 @@ const AddJournal = ({
   const [speechError, setSpeechError] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(true);
+  const [refreshingInsight, setRefreshingInsight] = useState(false);
+
+  const aiInsight = initialData?.aiInsight || null;
 
   useEffect(() => {
     if (initialData) {
@@ -96,9 +101,7 @@ const AddJournal = ({
     recognition.continuous = true;
     recognition.maxAlternatives = 3;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
+    recognition.onstart = () => setIsListening(true);
 
     recognition.onresult = (event) => {
       let bestTranscript = "";
@@ -106,14 +109,16 @@ const AddJournal = ({
 
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         const result = event.results[index];
-
         if (!result.isFinal) {
           continue;
         }
 
-        for (let alternativeIndex = 0; alternativeIndex < result.length; alternativeIndex += 1) {
+        for (
+          let alternativeIndex = 0;
+          alternativeIndex < result.length;
+          alternativeIndex += 1
+        ) {
           const alternative = result[alternativeIndex];
-
           if (alternative.confidence > bestConfidence) {
             bestConfidence = alternative.confidence;
             bestTranscript = alternative.transcript;
@@ -122,7 +127,6 @@ const AddJournal = ({
       }
 
       const cleanTranscript = bestTranscript.trim();
-
       if (!cleanTranscript) {
         return;
       }
@@ -158,7 +162,6 @@ const AddJournal = ({
   }, []);
 
   const toggleVoiceInput = () => {
-    setLocalError("");
     setSpeechError("");
 
     if (!speechSupported) {
@@ -167,7 +170,6 @@ const AddJournal = ({
     }
 
     const recognition = recognitionRef.current;
-
     if (!recognition) {
       setSpeechError("Voice input is not ready yet.");
       return;
@@ -186,13 +188,25 @@ const AddJournal = ({
     }
   };
 
-  const handleSave = async () => {
-    if (readOnly) {
+  const handleRefreshInsight = async () => {
+    if (typeof onRefreshInsight !== "function" || !initialData?._id) {
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current?.stop();
+    try {
+      setRefreshingInsight(true);
+      setLocalError("");
+      await onRefreshInsight(initialData._id);
+    } catch (err) {
+      setLocalError(err.message || "Failed to refresh insight");
+    } finally {
+      setRefreshingInsight(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (readOnly) {
+      return;
     }
 
     if (!title.trim() && !text.trim()) {
@@ -200,21 +214,24 @@ const AddJournal = ({
       return;
     }
 
+    if (isListening) {
+      recognitionRef.current?.stop();
+    }
+
     try {
       setSaving(true);
       setLocalError("");
 
+      const payload = {
+        title: title.trim(),
+        text: text.trim(),
+        mood: "",
+      };
+
       if (isEdit) {
-        await onSave({
-          _id: initialData?._id,
-          title: title.trim(),
-          text: text.trim(),
-        });
+        await onSave({ _id: initialData?._id, ...payload });
       } else {
-        await onSave({
-          title: title.trim(),
-          text: text.trim(),
-        });
+        await onSave(payload);
       }
     } catch (err) {
       setLocalError(err.message || "Failed to save journal");
@@ -222,6 +239,11 @@ const AddJournal = ({
       setSaving(false);
     }
   };
+
+  const containerClass =
+    theme === "dark"
+      ? "bg-slate-900 border-slate-700 text-gray-100"
+      : "bg-white border-gray-200 text-gray-700";
 
   return (
     <div
@@ -243,7 +265,7 @@ const AddJournal = ({
         </button>
 
         <div className="flex items-center gap-3">
-          {readOnly && typeof onDownload === "function" && (
+          {typeof onDownload === "function" && readOnly && (
             <button
               type="button"
               onClick={onDownload}
@@ -251,6 +273,18 @@ const AddJournal = ({
             >
               <Download size={16} />
               Download PDF
+            </button>
+          )}
+
+          {typeof onRefreshInsight === "function" && initialData?._id && (
+            <button
+              type="button"
+              onClick={handleRefreshInsight}
+              disabled={refreshingInsight}
+              className="flex items-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 disabled:opacity-60 px-4 py-2 rounded-lg"
+            >
+              <RefreshCcw size={15} />
+              {refreshingInsight ? "Refreshing..." : "Refresh Insight"}
             </button>
           )}
 
@@ -279,18 +313,12 @@ const AddJournal = ({
         </div>
       )}
 
-      <div
-        className={`flex-1 ${
-          theme === "dark"
-            ? "bg-slate-900 border-slate-700"
-            : "bg-white border-gray-200"
-        } rounded-xl shadow p-6 border flex flex-col`}
-      >
+      <div className={`flex-1 rounded-xl shadow p-6 border flex flex-col gap-4 ${containerClass}`}>
         <input
           type="text"
           placeholder="Entry Title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(event) => setTitle(event.target.value)}
           readOnly={readOnly}
           className={`w-full text-xl font-semibold border-b pb-2 outline-none ${
             theme === "dark"
@@ -301,17 +329,15 @@ const AddJournal = ({
 
         <div
           className={`flex items-center gap-2 ${
-            theme === "dark"
-              ? "text-gray-400 border-slate-700"
-              : "text-gray-500 border-gray-200"
-          } mt-4 border-b pb-2`}
+            theme === "dark" ? "text-gray-400" : "text-gray-500"
+          }`}
         >
           <CalendarDays size={16} />
           <span>{isEdit ? "Editing entry" : new Date().toDateString()}</span>
         </div>
 
-        <div className="flex items-center justify-between gap-3 mt-4 mb-2">
-          {!readOnly && (
+        {!readOnly && (
+          <div>
             <button
               type="button"
               onClick={toggleVoiceInput}
@@ -327,20 +353,43 @@ const AddJournal = ({
               {isListening ? <MicOff size={16} /> : <Mic size={16} />}
               <span>{isListening ? "Stop mic" : "Start mic"}</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <textarea
           placeholder="Write your thoughts..."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(event) => setText(event.target.value)}
           readOnly={readOnly}
-          className={`w-full flex-1 mt-2 min-h-[220px] resize-none rounded-lg border px-4 py-4 outline-none ${
+          className={`w-full flex-1 min-h-[220px] resize-none rounded-lg border px-4 py-4 outline-none ${
             theme === "dark"
               ? "bg-slate-900 text-gray-100 border-slate-700 placeholder-gray-500"
               : "bg-white text-gray-600 border-gray-200 placeholder-gray-400"
           }`}
         />
+
+        {aiInsight?.summary && (
+          <div
+            className={`rounded-xl border p-4 ${
+              theme === "dark"
+                ? "bg-slate-950 border-slate-700"
+                : "bg-indigo-50 border-indigo-100"
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles size={16} className="text-indigo-500" />
+              <h4 className="font-semibold text-indigo-600">AI Insight</h4>
+            </div>
+            <p className={theme === "dark" ? "text-gray-300" : "text-gray-700"}>
+              {aiInsight.summary}
+            </p>
+            {aiInsight.suggestedAction && (
+              <p className={theme === "dark" ? "text-gray-400 mt-2 text-sm" : "text-gray-600 mt-2 text-sm"}>
+                Suggested action: {aiInsight.suggestedAction}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

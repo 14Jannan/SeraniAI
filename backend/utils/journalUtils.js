@@ -6,10 +6,13 @@ const chromadb = new ChromaDBService();
 /**
  * Shared utility to create a journal entry.
  * @param {string} userId - The ID of the user.
- * @param {object} journalData - The journal details { title, content, mood, tags }.
+ * @param {object} journalData - The journal details { title, content, mood, tags, moodConfidence, moodSource, aiInsight }.
  * @returns {Promise<object>} The created journal entry.
  */
-exports.saveJournalEntry = async (userId, { title, content, mood, tags }) => {
+exports.saveJournalEntry = async (
+  userId,
+  { title, content, mood, tags, moodConfidence, moodSource, aiInsight }
+) => {
   if (!content || content.trim() === "") {
     throw new Error("Journal content is required");
   }
@@ -20,6 +23,25 @@ exports.saveJournalEntry = async (userId, { title, content, mood, tags }) => {
     content: content.trim(),
     mood: mood || "",
     tags: Array.isArray(tags) ? tags : [],
+    moodConfidence:
+      typeof moodConfidence === "number" && Number.isFinite(moodConfidence)
+        ? moodConfidence
+        : null,
+    moodSource: moodSource || (mood ? "manual" : "fallback"),
+    aiInsight:
+      aiInsight && typeof aiInsight === "object"
+        ? {
+            summary: aiInsight.summary || "",
+            emotionalTone: aiInsight.emotionalTone || "",
+            keyThemes: Array.isArray(aiInsight.keyThemes)
+              ? aiInsight.keyThemes
+              : [],
+            suggestedAction: aiInsight.suggestedAction || "",
+            generatedAt: aiInsight.generatedAt || undefined,
+            provider: aiInsight.provider || "",
+            model: aiInsight.model || "",
+          }
+        : undefined,
   });
 
   // Index in ChromaDB for semantic search
