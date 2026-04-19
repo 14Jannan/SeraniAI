@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, CalendarDays, Trash2, Pencil, ArrowLeft } from "lucide-react";
+import {
+  Plus,
+  CalendarDays,
+  Trash2,
+  Pencil,
+  ArrowLeft,
+  Download,
+} from "lucide-react";
+import { jsPDF } from "jspdf";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -17,6 +25,60 @@ const getLocalDateString = (date = new Date()) => {
 const parseDateInputAsLocal = (dateString) => {
   const [year, month, day] = dateString.split("-").map(Number);
   return new Date(year, month - 1, day);
+};
+
+const buildJournalFilename = (title, dateString) => {
+  const safeTitle = (title || "journal-entry")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+
+  return `${safeTitle || "journal-entry"}-${dateString || getLocalDateString()}.pdf`;
+};
+
+const downloadJournalPdf = (entry) => {
+  const pdf = new jsPDF();
+  const marginLeft = 14;
+  const topMargin = 18;
+  const bottomMargin = 16;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const contentWidth = pageWidth - marginLeft * 2;
+  const createdDate = entry?.createdAt
+    ? new Date(entry.createdAt).toLocaleString()
+    : new Date().toLocaleString();
+  const title = entry?.title?.trim() || "Untitled Entry";
+  const content = entry?.content?.trim() || "";
+
+  pdf.setFontSize(18);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Journal Entry", marginLeft, topMargin);
+
+  pdf.setFontSize(12);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(`Title: ${title}`, marginLeft, 30, { maxWidth: contentWidth });
+  pdf.text(`Date: ${createdDate}`, marginLeft, 38, { maxWidth: contentWidth });
+
+  const lines = pdf.splitTextToSize(content || "No content provided.", contentWidth);
+  let currentY = 52;
+
+  lines.forEach((line) => {
+    if (currentY > pageHeight - bottomMargin) {
+      pdf.addPage();
+      currentY = topMargin;
+    }
+
+    pdf.text(line, marginLeft, currentY);
+    currentY += 7;
+  });
+
+  pdf.save(
+    buildJournalFilename(
+      title,
+      entry?.createdAt ? getLocalDateString(new Date(entry.createdAt)) : getLocalDateString()
+    )
+  );
 };
 
 const Journal = () => {
@@ -246,6 +308,7 @@ const Journal = () => {
       <AddJournal
         onBack={handleBack}
         onSave={async () => {}}
+        onDownload={() => downloadJournalPdf(selectedEntry)}
         initialData={{
           _id: selectedEntry?._id,
           title: selectedEntry?.title || "",
@@ -319,6 +382,18 @@ const Journal = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadJournalPdf(entry);
+                      }}
+                      className="p-2 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-emerald-50"
+                      title="Download PDF"
+                    >
+                      <Download size={16} />
+                    </button>
+
                     <button
                       type="button"
                       onClick={(e) => {
@@ -479,6 +554,18 @@ const Journal = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadJournalPdf(entry);
+                    }}
+                    className="p-2 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-emerald-50"
+                    title="Download PDF"
+                  >
+                    <Download size={16} />
+                  </button>
+
                   <button
                     type="button"
                     onClick={(e) => {
