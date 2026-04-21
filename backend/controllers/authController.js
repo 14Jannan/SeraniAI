@@ -13,9 +13,13 @@ const generateAuthTokens = (user) => {
     { expiresIn: "15m" },
   );
 
-  const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: "7d",
-  });
+  const refreshToken = jwt.sign(
+    { id: user._id },
+    process.env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: "7d",
+    },
+  );
 
   return { accessToken, refreshToken };
 };
@@ -29,10 +33,6 @@ const setRefreshCookie = (res, refreshToken) => {
   });
 };
 
-const normalizeEmail = (email) =>
-  String(email || "")
-    .trim()
-    .toLowerCase();
 
 // 1. REGISTER USER & SEND OTP
 // @desc    Register new user
@@ -40,7 +40,7 @@ const normalizeEmail = (email) =>
 exports.registerUser = async (req, res) => {
   // 1. Get confirmPassword from the request body
   const { name, email, password, confirmPassword, role } = req.body;
-  const normalizedEmail = normalizeEmail(email);
+  const normalizedEmail = String(email || "").trim();
 
   try {
     // 2. BACKEND SAFETY CHECK: Ensure passwords match

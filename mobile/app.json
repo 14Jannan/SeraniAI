@@ -3,7 +3,9 @@
     "name": "SeraniAI",
     "slug": "seraniaiapp",
     "version": "1.0.0",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "scheme": "seraniaiapp",
     "extra": {
       "apiUrl": ""
@@ -22,7 +24,8 @@
           "faceIDPermission": "Allow $(PRODUCT_NAME) to access your Face ID.",
           "isUserDefinedKeychainSynchronizationEnabled": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

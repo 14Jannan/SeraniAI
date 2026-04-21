@@ -50,22 +50,7 @@ export const CoursesScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.primaryStrong }]}>
-        <Text style={styles.title}>My Courses</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Keep progressing every day
-        </Text>
-      </View>
-      <FlatList
-        style={styles.listView}
-        data={courses}
-        renderItem={renderCourse}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.list,
-          { paddingHorizontal: isWide ? 28 : 16 },
-        ]}
-      />
+      
     </View>
   );
 };
