@@ -26,13 +26,15 @@
     "mongoose": "^9.1.2",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.5",
+    "openai": "^6.34.0",
     "otp-generator": "^4.0.1",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "pdf-parse": "^2.4.5",
-    "vectra": "^0.12.3"
+    "vectra": "^0.12.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
