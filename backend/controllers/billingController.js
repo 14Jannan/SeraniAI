@@ -5,8 +5,6 @@ const User = require("../models/userModel");
 const Enterprise = require("../models/enterpriseModel");
 
 const PLAN_DETAILS = {
-  go: { plan: "Personal", amount: 1000, role: "(Go)PlanUser" },
-  plus: { plan: "Personal", amount: 2000, role: "(Plus)PlanUser" },
   pro: { plan: "Personal", amount: 4000, role: "(Pro)PlanUser" },
   business: { plan: "Business", amount: 3000, role: "enterpriseAdmin" },
 };
@@ -51,17 +49,15 @@ const getPlanCodeFromLabel = (label) => {
   const value = String(label || "").trim().toLowerCase();
 
   if (value.includes("business")) return "business";
-  if (value.includes("plus")) return "plus";
   if (value.includes("pro")) return "pro";
-  if (value.includes("go")) return "go";
 
-  return "go";
+  return null;
 };
 
 const parseCustom2Payload = (custom2) => {
   const raw = String(custom2 || "").trim();
   if (!raw) {
-    return { planCode: "go", plan: "Personal", seats: 1 };
+    return null;
   }
 
   // New deterministic format: planId:<id>|plan:<planName>|seats:<count>
@@ -88,6 +84,10 @@ const parseCustom2Payload = (custom2) => {
 
   // Backward compatibility with old payloads ("Personal", "Business", "Business|seats:2").
   const legacyPlanCode = getPlanCodeFromLabel(raw);
+  if (!legacyPlanCode || !PLAN_DETAILS[legacyPlanCode]) {
+    return null;
+  }
+
   return {
     planCode: legacyPlanCode,
     plan: PLAN_DETAILS[legacyPlanCode].plan,
@@ -96,7 +96,8 @@ const parseCustom2Payload = (custom2) => {
 };
 
 const syncUserRoleFromPlanCode = async ({ userId, planCode }) => {
-  const details = PLAN_DETAILS[planCode] || PLAN_DETAILS.go;
+  const details = PLAN_DETAILS[planCode];
+  if (!details) return;
 
   const user = await User.findById(userId);
   if (!user) return;
@@ -140,7 +141,7 @@ exports.initializePayHerePayment = async (req, res) => {
     const plan = PLAN_DETAILS[planId];
     if (!plan) {
       return res.status(400).json({
-        error: "Invalid plan. Allowed plans: go, plus, pro, business",
+        error: "Invalid plan. Allowed plans: pro, business",
       });
     }
 
@@ -286,7 +287,12 @@ exports.handlePayHereNotify = async (req, res) => {
       return res.status(400).send("invalid currency");
     }
 
-    const { planCode, plan, seats } = parseCustom2Payload(custom_2);
+    const parsedPlanPayload = parseCustom2Payload(custom_2);
+    if (!parsedPlanPayload) {
+      return res.status(400).send("invalid plan payload");
+    }
+
+    const { planCode, plan, seats } = parsedPlanPayload;
     const { startDate, endDate } = getMonthRange();
     const paymentCandidates = [String(payment_id || "").trim(), String(order_id || "").trim()].filter(Boolean);
 
@@ -344,9 +350,13 @@ exports.confirmPayHereReturn = async (req, res) => {
       await subscription.save();
     }
 
-    const fallbackPlanCode =
-      subscription.planCode ||
-      getPlanCodeFromLabel(subscription.plan);
+    const fallbackPlanCode = PLAN_DETAILS[subscription.planCode]
+      ? subscription.planCode
+      : getPlanCodeFromLabel(subscription.plan);
+    if (!fallbackPlanCode) {
+      return res.status(400).json({ message: "Unable to determine subscription plan" });
+    }
+
     await syncUserRoleFromPlanCode({ userId, planCode: fallbackPlanCode });
 
     return res.status(200).json({ message: "Subscription payment confirmed" });

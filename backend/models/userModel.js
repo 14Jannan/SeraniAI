@@ -78,8 +78,6 @@ const userSchema = new mongoose.Schema({
       "admin",
       "enterpriseUser",
       "enterpriseAdmin",
-      "(Go)PlanUser",
-      "(Plus)PlanUser",
       "(Pro)PlanUser",
     ],
     default: "user",

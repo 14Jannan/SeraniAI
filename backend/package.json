@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
+    "migrate:remove-go-plus": "node scripts/remove_go_plus_plans.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

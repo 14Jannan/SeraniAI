@@ -27,16 +27,6 @@ const ROLE_CONFIG = {
     badgeClass:
       "border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-400 dark:bg-violet-500/10 dark:text-violet-200",
   },
-  "(Go)PlanUser": {
-    label: "Go Plan User",
-    badgeClass:
-      "border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-500/10 dark:text-amber-200",
-  },
-  "(Plus)PlanUser": {
-    label: "Plus Plan User",
-    badgeClass:
-      "border-orange-500 bg-orange-50 text-orange-700 dark:border-orange-400 dark:bg-orange-500/10 dark:text-orange-200",
-  },
   "(Pro)PlanUser": {
     label: "Pro Plan User",
     badgeClass:
@@ -49,8 +39,6 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Admin" },
   { value: "enterpriseUser", label: "Enterprise User" },
   { value: "enterpriseAdmin", label: "Enterprise Admin" },
-  { value: "(Go)PlanUser", label: "Go Plan User" },
-  { value: "(Plus)PlanUser", label: "Plus Plan User" },
   { value: "(Pro)PlanUser", label: "Pro Plan User" },
 ];
 
