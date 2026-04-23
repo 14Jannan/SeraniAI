@@ -5,33 +5,6 @@ const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
 const PERSONAL_PLANS = {
-  go: {
-    id: "go",
-    name: "Go",
-    price: "1000",
-    subtitle: "Keep progressing with expanded access",
-    features: [
-      "Explore topics in depth with AI",
-      "Chat longer and more frequently",
-      "More guided reflections and prompts",
-      "Improved account management",
-      "Extra token allowance monthly",
-    ],
-  },
-  plus: {
-    id: "plus",
-    name: "Plus",
-    price: "2000",
-    subtitle: "Unlock the full experience",
-    features: [
-      "Advanced AI insights and mood analysis",
-      "Multi-session chat memory support",
-      "Higher token limits",
-      "Premium reflective activities and courses",
-      "Enhanced privacy controls",
-      "Priority feature access",
-    ],
-  },
   pro: {
     id: "pro",
     name: "Pro",
@@ -130,7 +103,7 @@ export default function PersonalCheckout() {
 
   return (
     <main className="min-h-screen bg-neutral-50 px-5 py-10 text-neutral-900 sm:px-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-6xl">
         <button
           type="button"
           onClick={() => navigate("/subscription")}
@@ -139,44 +112,52 @@ export default function PersonalCheckout() {
           Back
         </button>
 
-        <div className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm sm:p-9">
-          <h1 className="text-4xl font-semibold tracking-tight">{plan.name} plan</h1>
-          <p className="mt-3 text-sm text-neutral-600">{plan.subtitle}</p>
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm sm:p-9">
+            <h1 className="text-4xl font-semibold tracking-tight">{plan.name} plan</h1>
+            <p className="mt-3 text-sm text-neutral-600">{plan.subtitle}</p>
 
-          <h2 className="mt-8 text-xl font-semibold">Top features</h2>
-          <ul className="mt-4 space-y-3">
-            {plan.features.map((feature) => (
-              <li key={feature} className="text-sm text-neutral-800">
-                {feature}
-              </li>
-            ))}
-          </ul>
+            <h2 className="mt-8 text-xl font-semibold">Top features</h2>
+            <ul className="mt-4 space-y-3">
+              {plan.features.map((feature) => (
+                <li key={feature} className="text-sm text-neutral-800">
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </section>
 
-          <div className="mt-8 border-t border-neutral-200 pt-6 text-sm">
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-neutral-600">Monthly subscription</span>
-              <span>LKR {plan.price}.00</span>
+          <aside className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm sm:p-9">
+            <h2 className="text-2xl font-semibold">Order summary</h2>
+
+            <div className="mt-6 border-t border-neutral-200 pt-6 text-sm">
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-neutral-600">Monthly subscription</span>
+                <span>LKR {Number(plan.price).toFixed(2)}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-2xl font-semibold">
+                <span>Due today</span>
+                <span>LKR {Number(plan.price).toFixed(2)}</span>
+              </div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-2xl font-semibold">
-              <span>Due today</span>
-              <span>LKR {plan.price}.00</span>
-            </div>
-          </div>
 
-          {error ? (
-            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          ) : null}
+            {error ? (
+              <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
 
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={loading}
-            className="mt-8 w-full rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {loading ? "Redirecting..." : `Proceed to Payment (LKR ${plan.price}.00)`}
-          </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={loading}
+              className="mt-8 w-full rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {loading
+                ? "Redirecting..."
+                : `Proceed to Payment (LKR ${Number(plan.price).toFixed(2)})`}
+            </button>
+          </aside>
         </div>
       </div>
     </main>

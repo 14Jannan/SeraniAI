@@ -19,8 +19,6 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Admin" },
   { value: "enterpriseUser", label: "Enterprise User" },
   { value: "enterpriseAdmin", label: "Enterprise Admin" },
-  { value: "(Go)PlanUser", label: "Go Plan User" },
-  { value: "(Plus)PlanUser", label: "Plus Plan User" },
   { value: "(Pro)PlanUser", label: "Pro Plan User" },
 ];
 

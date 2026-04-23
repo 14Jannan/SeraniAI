@@ -83,8 +83,6 @@ function App() {
                   "enterpriseUser",
                   "enterpriseAdmin",
                   "enterprise",
-                  "(Go)PlanUser",
-                  "(Plus)PlanUser",
                   "(Pro)PlanUser",
                   "admin",
                 ]}
