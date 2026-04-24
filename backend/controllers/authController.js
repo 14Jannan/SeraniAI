@@ -6,6 +6,8 @@ const sendVerificationEmail = require("../utils/emailService");
 const otpGenerator = require("otp-generator");
 const { getValidProviderAccessToken } = require("../utils/oauthTokenService");
 
+const normalizeEmail = (email) => String(email || "").trim();
+
 const generateAuthTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, role: user.role, name: user.name, email: user.email },
@@ -13,9 +15,13 @@ const generateAuthTokens = (user) => {
     { expiresIn: "15m" },
   );
 
-  const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: "7d",
-  });
+  const refreshToken = jwt.sign(
+    { id: user._id },
+    process.env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: "7d",
+    },
+  );
 
   return { accessToken, refreshToken };
 };
@@ -29,18 +35,13 @@ const setRefreshCookie = (res, refreshToken) => {
   });
 };
 
-const normalizeEmail = (email) =>
-  String(email || "")
-    .trim()
-    .toLowerCase();
-
 // 1. REGISTER USER & SEND OTP
 // @desc    Register new user
 // @route   POST /api/auth/register
 exports.registerUser = async (req, res) => {
   // 1. Get confirmPassword from the request body
   const { name, email, password, confirmPassword, role } = req.body;
-  const normalizedEmail = normalizeEmail(email);
+  const normalizedEmail = String(email || "").trim();
 
   try {
     // 2. BACKEND SAFETY CHECK: Ensure passwords match
@@ -192,10 +193,11 @@ exports.loginUser = async (req, res) => {
 // @desc    Forgot Password - Send OTP
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
-  console.log("Received forgot password request for email:", email);
+  const normalizedEmail = normalizeEmail(email);
+  console.log("Received forgot password request for email:", normalizedEmail);
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -218,7 +220,7 @@ exports.forgotPassword = async (req, res) => {
     // 3. SEND THE EMAIL
     try {
       // Reusing your existing sendVerificationEmail utility
-      await sendVerificationEmail(email, otp);
+      await sendVerificationEmail(normalizedEmail, otp);
       res.status(200).json({ message: "Password reset OTP sent to email" });
     } catch (error) {
       // If email fails, clear the OTP data
@@ -235,10 +237,14 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
-  try {
-    const user = await User.findOne({ email });
+  const normalizedEmail = normalizeEmail(email);
 
-    if (!user || user.otp !== otp || user.otpExpires < Date.now()) {
+  try {
+    const user = await User.findOne({ email: normalizedEmail });
+    const receivedOtp = String(otp).trim();
+    const storedOtp = user?.otp ? String(user.otp).trim() : "";
+
+    if (!user || storedOtp !== receivedOtp || user.otpExpires < Date.now()) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 

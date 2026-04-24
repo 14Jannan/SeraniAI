@@ -79,7 +79,7 @@ const Login = () => {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-300"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                required                
               />
             </div>
 
