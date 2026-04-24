@@ -1,47 +1,59 @@
-const { getOrCreateCollection } = require("./config/vectraClient");
+const axios = require("axios");
 require("dotenv").config();
 
+/**
+ * Diagnostic tool for ChromaDB
+ * Query ChromaDB and inspect search results
+ * Make sure the ChromaDB service is running at CHROMA_API_URL
+ */
 async function diagnoseMemory(query, userId) {
+  try {
+    console.log(`--- Diagnostics for: "${query}" (User: ${userId}) ---`);
+    const chromaApiUrl = process.env.CHROMA_API_URL || "http://localhost:5000/api";
+
+    // Check health
     try {
-        console.log(`--- DIagnostics for: "${query}" (User: ${userId}) ---`);
-        const collection = await getOrCreateCollection();
-
-        // 1. Check total count
-        const count = await collection.count();
-        console.log(`Total items in Vectra: ${count}`);
-
-        // 2. Perform query with NO filter first to see what's in there
-        console.log("\nSearching ALL records (No filter):");
-        const allResults = await collection.query({
-            queryTexts: [query],
-            nResults: 5
-        });
-        allResults.documents[0].forEach((doc, i) => {
-            console.log(`- [${allResults.metadatas[0][i].role}] (Dist: ${allResults.distances[0][i].toFixed(4)}) : ${doc}`);
-        });
-
-        // 3. Perform query WITH filter
-        console.log(`\nSearching with filter { userId: "${userId}" }:`);
-        const filteredResults = await collection.query({
-            queryTexts: [query],
-            nResults: 10,
-            where: { userId: userId }
-        });
-
-        if (filteredResults.documents[0].length > 0) {
-            filteredResults.documents[0].forEach((doc, i) => {
-                const dist = filteredResults.distances[0][i];
-                console.log(`- Match ${i + 1} [Dist: ${dist.toFixed(4)}]: ${doc}`);
-            });
-        } else {
-            console.log("No results found with this userId filter.");
-        }
-
-    } catch (error) {
-        console.error("DIAGNOSTIC ERROR:", error);
+      const health = await axios.get(`${chromaApiUrl}/health`);
+      console.log("ChromaDB service status:", health.data.status);
+    } catch (err) {
+      console.error("ChromaDB service is not running. Start it first with: python chroma_service/run.py");
+      return;
     }
+
+    // 1. Check collection count
+    try {
+      const countResponse = await axios.get(`${chromaApiUrl}/collection-count/chat_messages`);
+      console.log(`Total items in ChatMessages collection: ${countResponse.data.count}`);
+    } catch (err) {
+      console.log("Could not get collection count:", err.message);
+    }
+
+    // 2. Perform search
+    console.log("\nSearching chat messages:");
+    try {
+      const searchResponse = await axios.post(`${chromaApiUrl}/search`, {
+        query,
+        collection: "chat_messages",
+        n_results: 5
+      });
+
+      if (searchResponse.data.results && searchResponse.data.results.length > 0) {
+        searchResponse.data.results.forEach((result, i) => {
+          const distance = searchResponse.data.distances[0][i];
+          console.log(`- Match ${i + 1} [Distance: ${distance.toFixed(4)}]: ${result.document.substring(0, 100)}...`);
+          console.log(`  Metadata:`, result.metadata);
+        });
+      } else {
+        console.log("No results found.");
+      }
+    } catch (err) {
+      console.error("Search failed:", err.message);
+    }
+  } catch (error) {
+    console.error("DIAGNOSTIC ERROR:", error.message);
+  }
 }
 
-// Common user ID from previous logs
-const TARGET_USER = "698ccfa92e57d64849eb6aa9";
-diagnoseMemory("What is my name? my name info", TARGET_USER);
+// Example usage
+const TARGET_USER = "698ccfa92e57d64849eb6aa9"; // Replace with actual user ID
+diagnoseMemory("What is my name?", TARGET_USER);

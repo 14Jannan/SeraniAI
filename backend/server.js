@@ -21,6 +21,7 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const billingRoutes = require("./routes/billingRoutes");
 const enterpriseAdminRoutes = require("./routes/enterpriseAdminRoutes");
 const taskRoutes = require("./routes/taskRoutes");
+const chromaRoutes = require("./routes/chromaRoutes");
 
 dbConnect();
 
@@ -86,6 +87,7 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/enterprise-admin", enterpriseAdminRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/chroma", chromaRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 7001;

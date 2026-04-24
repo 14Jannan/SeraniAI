@@ -1,49 +1,40 @@
-const { getOrCreateCollection } = require("./config/vectraClient");
+const axios = require("axios");
 require("dotenv").config();
 
+/**
+ * Simple diagnostic tool for ChromaDB
+ * Verify ChromaDB is running and check collection status
+ * Make sure the ChromaDB service is running at CHROMA_API_URL
+ */
 async function run() {
-    try {
-        console.log("1. Starting collection access...");
-        const collection = await getOrCreateCollection();
-        console.log("2. Collection accessed.");
+  try {
+    const chromaApiUrl = process.env.CHROMA_API_URL || "http://localhost:5000/api";
+    console.log(`1. Connecting to ChromaDB at ${chromaApiUrl}...`);
 
-        console.log("3. Counting documents...");
-        const count = await collection.count();
-        console.log(`4. Count: ${count}`);
+    // Check health
+    console.log("2. Checking service health...");
+    const healthResponse = await axios.get(`${chromaApiUrl}/health`);
+    console.log("3. Service status:", healthResponse.data.status);
 
-        if (count === 0) {
-            console.log("ERROR: Collection is empty. Re-indexing might have failed.");
-            return;
-        }
-
-        console.log("5. Fetching ALL documents to see user IDs...");
-        const data = await collection.get({
-            limit: 100,
-            include: ["metadatas", "documents"]
-        });
-
-        const userIds = [...new Set(data.metadatas.map(m => m.userId))];
-        console.log("6. Unique User IDs in DB:", userIds);
-
-        const targetUser = userIds[0]; // Just take the first one found for testing
-        if (!targetUser) {
-            console.log("ERROR: No User IDs found in metadata.");
-            return;
-        }
-
-        console.log(`7. Testing query for User: ${targetUser} with query "name"`);
-        const results = await collection.query({
-            queryTexts: ["name"],
-            nResults: 5,
-            where: { userId: targetUser }
-        });
-
-        console.log("8. Query Results:", JSON.stringify(results, null, 2));
-
-    } catch (err) {
-        console.error("DIAGNOSTIC FAILED AT STEP:", err.message);
-        if (err.stack) console.error(err.stack);
+    // Check collections
+    const collections = ["journals", "courses", "chat_messages", "users"];
+    console.log("\n4. Checking collection counts:");
+    for (const collection of collections) {
+      try {
+        const countResponse = await axios.get(`${chromaApiUrl}/collection-count/${collection}`);
+        console.log(`   - ${collection}: ${countResponse.data.count} documents`);
+      } catch (err) {
+        console.log(`   - ${collection}: Error - ${err.message}`);
+      }
     }
+
+    console.log("\n5. ChromaDB diagnostic complete!");
+  } catch (err) {
+    console.error("DIAGNOSTIC FAILED:", err.message);
+    console.error("\nMake sure ChromaDB service is running:");
+    console.error("  1. cd chroma_service");
+    console.error("  2. python run.py (or start.bat on Windows)");
+  }
 }
 
 run();

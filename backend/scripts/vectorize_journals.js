@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 const Journal = require('../models/journalModel');
-const { getOrCreateCollection } = require('../config/vectraClient');
+const ChromaDBService = require('../services/chromaDBService');
 require('dotenv').config();
+
+const chromadb = new ChromaDBService();
 
 async function vectorizeExisting() {
   try {
@@ -12,20 +14,19 @@ async function vectorizeExisting() {
     const journals = await Journal.find({});
     console.log(`Found ${journals.length} journals to vectorize.`);
 
-    const collection = await getOrCreateCollection();
-
     for (const journal of journals) {
       console.log(`Vectorizing journal: ${journal._id} - ${journal.title}`);
-      await collection.add({
-        ids: [`journal-${journal._id}`],
-        documents: [journal.content],
-        metadatas: [{
+      try {
+        await chromadb.addEmbedding(journal.content, "journals", {
           userId: journal.user.toString(),
           source: "journal",
           journalId: journal._id.toString(),
-          timestamp: journal.createdAt.toISOString()
-        }]
-      });
+          timestamp: journal.createdAt.toISOString(),
+          title: journal.title || ""
+        });
+      } catch (e) {
+        console.error(`Failed to vectorize journal ${journal._id}:`, e.message);
+      }
     }
 
     console.log('--- DONE ---');
