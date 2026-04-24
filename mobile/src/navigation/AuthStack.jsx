@@ -6,6 +6,7 @@ import { RegisterScreen } from "../screens/auth/RegisterScreen";
 import { OTPScreen } from "../screens/auth/OTPScreen";
 import { ForgotPasswordScreen } from "../screens/auth/ForgotPasswordScreen";
 import { ResetPasswordScreen } from "../screens/auth/ResetPasswordScreen";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Stack = createStackNavigator();
 

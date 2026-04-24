@@ -46,7 +46,7 @@ exports.createUser = async (req, res)=>{
     }
 };
 
-//UPDATE USER
+//UPDATE USER 
 exports.updateUser = async(req,res)=>{
     try{
         const user = await User.findById(req.params.id);

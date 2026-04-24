@@ -3,7 +3,15 @@ const router = express.Router();
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const { protect } = require("../middleware/authMiddleware");
+const validateRequest = require("../middleware/validateRequest");
 
+const{
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+}=require("../validations/authValidation");
 // Import your existing controllers
 const {
   registerUser,
@@ -51,11 +59,11 @@ const setRefreshCookie = (res, refreshToken) => {
 // 🔐 LOCAL AUTH ROUTES
 // =============================
 
-router.post("/register", registerUser);
-router.post("/login", loginUser);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
-router.post("/verify", verifyEmail);
+router.post("/register", validateRequest(registerSchema), registerUser);
+router.post("/login", validateRequest(loginSchema), loginUser);
+router.post("/forgot-password", validateRequest(forgotPasswordSchema), forgotPassword);
+router.post("/reset-password", validateRequest(resetPasswordSchema), resetPassword);
+router.post("/verify", validateRequest(verifyEmailSchema), verifyEmail);
 
 // NEW: Refresh & Logout
 router.post("/refresh", refreshAccessToken);
