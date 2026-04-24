@@ -16,7 +16,7 @@ const subscriptionSchema = new mongoose.Schema(
 
     planCode: {
       type: String,
-      enum: ['go', 'plus', 'pro', 'business'],
+      enum: ['pro', 'business'],
       default: null,
     },
 

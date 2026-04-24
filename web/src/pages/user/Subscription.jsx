@@ -20,41 +20,12 @@ const PERSONAL_PLANS = [
     ],
   },
   {
-    id: "go",
-    name: "Go",
-    price: "1000",
-    subtitle: "Keep progressing with expanded access",
-    cta: "Upgrade to Go",
-    features: [
-      { icon: "sparkle", text: "Explore topics in depth with AI" },
-      { icon: "chat", text: "Chat longer and more frequently" },
-      { icon: "sparkle", text: "More guided reflections & prompts" },
-      { icon: "shield", text: "Improved account management" },
-      { icon: "sparkle", text: "Extra token allowance monthly" },
-    ],
-  },
-  {
-    id: "plus",
-    name: "Plus",
-    price: "2000",
-    subtitle: "Unlock the full experience",
-    badge: "POPULAR",
-    highlight: true,
-    cta: "Upgrade to Plus",
-    features: [
-      { icon: "sparkle", text: "Advanced AI insights & mood analysis" },
-      { icon: "chat", text: "Multi-session chat memory support" },
-      { icon: "sparkle", text: "Higher token limits (AI usage)" },
-      { icon: "sparkle", text: "Premium reflective activities & courses" },
-      { icon: "shield", text: "Enhanced privacy controls" },
-      { icon: "sparkle", text: "Priority feature access" },
-    ],
-  },
-  {
     id: "pro",
     name: "Pro",
     price: "4000",
     subtitle: "Maximize productivity & growth",
+    badge: "POPULAR",
+    highlight: true,
     cta: "Upgrade to Pro",
     features: [
       { icon: "sparkle", text: "Maximum AI usage + best insights" },
@@ -249,6 +220,17 @@ export default function Subscription() {
     return mode === "personal" ? PERSONAL_PLANS : BUSINESS_PLANS;
   }, [mode]);
 
+  const cardsLayoutClass = useMemo(() => {
+    if (mode === "personal") {
+      // With only Free + Pro, keep cards centered on large screens.
+      return plans.length <= 2
+        ? "mx-auto max-w-4xl grid-cols-1 sm:grid-cols-2"
+        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+    }
+
+    return "mx-auto max-w-4xl grid-cols-1 md:grid-cols-2";
+  }, [mode, plans.length]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentState = params.get("payment");
@@ -355,14 +337,7 @@ export default function Subscription() {
 
         {/* Cards */}
         <section className="mt-10">
-          <div
-            className={[
-              "grid gap-6",
-              mode === "personal"
-                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-                : "grid-cols-1 md:grid-cols-2",
-            ].join(" ")}
-          >
+          <div className={["grid gap-6", cardsLayoutClass].join(" ")}>
             {plans.map((plan) => (
               <PlanCard key={plan.id} plan={plan} onUpgrade={handleUpgrade} />
             ))}

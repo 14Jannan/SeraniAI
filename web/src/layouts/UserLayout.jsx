@@ -27,8 +27,6 @@ const UserLayout = () => {
 
   const roleToPlanLabel = (role, fallbackPlan) => {
     const roleLabelMap = {
-      '(Go)PlanUser': 'Go Plan User',
-      '(Plus)PlanUser': 'Plus Plan User',
       '(Pro)PlanUser': 'Pro Plan User',
       enterpriseUser: 'Enterprise User',
       enterpriseAdmin: 'Enterprise Admin',
