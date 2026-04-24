@@ -34,7 +34,6 @@ import EnterpriseAdmin from "./pages/user/enterpriseAdmin/EnterpriseAdmin";
 import UserLayout from "./layouts/UserLayout";
 import DashboardHome from "./pages/user/DashboardHome";
 import AIChat from "./pages/user/AIChatbot/AIChat";
-import Journal from "./pages/user/Journal";
 import Courses from "./pages/user/Courses";
 import CourseDetails from "./pages/user/CourseDetails";
 import TasksPage from "./pages/user/TasksPage";
@@ -42,6 +41,8 @@ import TasksPage from "./pages/user/TasksPage";
 /* ---------------- COMPONENTS ---------------- */
 
 import PrivateRoute from "./components/PrivateRoute";
+import JournalRouteGuard from "./components/JournalRouteGuard";
+import PlanFeatureGate from "./components/PlanFeatureGate";
 
 function App() {
   return (
@@ -94,16 +95,46 @@ function App() {
               <Route index element={<DashboardHome />} />
 
               {/* Chat */}
-              <Route path="chat" element={<AIChat />} />
+              <Route
+                path="chat"
+                element={
+                  <PlanFeatureGate
+                    featureName="AI Chat"
+                    description="AI Chat is available on Premium. Upgrade to continue with unlimited assistant support."
+                  >
+                    <AIChat />
+                  </PlanFeatureGate>
+                }
+              />
 
               {/* Journal */}
-              <Route path="journal" element={<Journal />} />
+              <Route path="journal" element={<JournalRouteGuard />} />
 
               {/* Courses Page */}
-              <Route path="courses" element={<Courses />} />
+              <Route
+                path="courses"
+                element={
+                  <PlanFeatureGate
+                    featureName="Courses"
+                    description="Courses are available on Premium. Upgrade to access your full learning path."
+                  >
+                    <Courses />
+                  </PlanFeatureGate>
+                }
+              />
 
               {/* Daily Tasks */}
-              <Route path="tasks" element={<TasksPage />} />
+              <Route
+                path="tasks"
+                element={
+                  <PlanFeatureGate
+                    featureName="Daily Tasks"
+                    description="Daily tasks and progress tracking are available on Premium."
+                  >
+                    <TasksPage />
+                  </PlanFeatureGate>
+                }
+              />
 
               {/* Enterprise Manager (EnterpriseAdmin only) */}
               <Route
@@ -116,7 +147,17 @@ function App() {
               />
 
               {/* Course Details Page */}
-              <Route path="course/:courseId" element={<CourseDetails />} />
+              <Route
+                path="course/:courseId"
+                element={
+                  <PlanFeatureGate
+                    featureName="Course Details"
+                    description="Detailed lessons and course content are available on Premium."
+                  >
+                    <CourseDetails />
+                  </PlanFeatureGate>
+                }
+              />
             </Route>
           </Route>
 
