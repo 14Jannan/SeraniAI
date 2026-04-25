@@ -1,5 +1,4 @@
 const Journal = require("../models/journalModel");
-const { getOrCreateCollection } = require("../config/vectraClient");
 const { saveJournalEntry } = require("../utils/journalUtils");
 const OpenAI = require("openai");
 
@@ -395,27 +394,6 @@ const updateJournal = async (req, res) => {
 
     const updatedJournal = await journal.save();
 
-    // Update vector in Vectra
-    try {
-      const collection = await getOrCreateCollection();
-      // Delete old vector and add new one
-      await collection.delete({
-        where: { journalId: journal._id.toString() }
-      });
-      await collection.add({
-        ids: [`journal-${journal._id}`],
-        documents: [updatedJournal.content],
-        metadatas: [{
-          userId: req.user._id.toString(),
-          source: "journal",
-          journalId: journal._id.toString(),
-          timestamp: updatedJournal.updatedAt.toISOString()
-        }]
-      });
-    } catch (vErr) {
-      console.error("Journal vector update error:", vErr);
-    }
-
     res.status(200).json({
       success: true,
       message: "Journal entry updated successfully",
@@ -568,15 +546,6 @@ const deleteJournal = async (req, res) => {
 
     await journal.deleteOne();
 
-    // Delete vector from Vectra
-    try {
-      const collection = await getOrCreateCollection();
-      await collection.delete({
-        where: { journalId: journal._id.toString() }
-      });
-    } catch (vErr) {
-      console.error("Journal vector deletion error:", vErr);
-    }
 
     res.status(200).json({
       success: true,

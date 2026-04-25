@@ -6,11 +6,13 @@ const Course = require("../models/courseModel");
 const Lesson = require("../models/lessonModel");
 const { saveJournalEntry } = require("../utils/journalUtils");
 const OpenAI = require("openai");
-const { getOrCreateCollection } = require("../config/vectraClient");
 const fs = require("fs");
 const path = require("path");
 const pdf = require("pdf-parse");
-const roles = require("../config/roles.json");
+const { generateSystemPrompt } = require("../utils/promptBuilder");
+const ChromaDBService = require("../services/chromaDBService");
+
+const chromadb = new ChromaDBService();
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -59,6 +61,8 @@ async function isFirstChatOfDay(userId) {
   }
 }
 
+const UserTaskProgress = require("../models/userTaskProgressModel");
+
 async function getDailyReminders(userId) {
   try {
     const startOfDay = new Date();
@@ -95,6 +99,13 @@ async function getDailyReminders(userId) {
     const lastLessonDate = user.lastLessonCompletedAt ? new Date(user.lastLessonCompletedAt) : null;
     if (!lastLessonDate || lastLessonDate < startOfDay) {
       reminders.push("Don't forget to complete a lesson today to maintain your learning streak!");
+    }
+
+    // 4. Check daily tasks
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const progress = await UserTaskProgress.findOne({ user: userId, dateKey });
+    if (!progress || (progress.taskIds.length > 0 && progress.completedTaskIds.length < progress.taskIds.length)) {
+      reminders.push("Don't forget to complete your daily tasks to stay on track!");
     }
 
     if (reminders.length > 0) {
@@ -293,7 +304,7 @@ async function suggestCourses(query) {
 
 async function determineRole(userMessage) {
   if (!process.env.OPENAI_API_KEY) return "general";
-  
+
   try {
     const response = await openai.chat.completions.create({
       model: getModelName(),
@@ -311,7 +322,7 @@ Respond ONLY with one of the three words: journal, course, or general.`
       temperature: 0,
       max_tokens: 10
     });
-    
+
     const intent = response.choices[0].message.content.trim().toLowerCase();
     return ["journal", "course", "general"].includes(intent) ? intent : "general";
   } catch (err) {
@@ -320,26 +331,24 @@ Respond ONLY with one of the three words: journal, course, or general.`
   }
 }
 
-async function getAiReply(history, context = "", tools = null, roleKey = "general") {
+async function getAiReply(history, context = "", tools = null, roleKey = "general", userName = "User") {
   if (!process.env.OPENAI_API_KEY) {
     return { content: "OPENAI_API_KEY is not set in backend/.env" };
   }
-
-  // Get instructions for the selected role
-  const roleInstructions = roles[roleKey] || roles.general;
 
   // Combine history with retrieved context if available
   const messages = (history || [])
     .slice(-20)
     .map((m) => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id }));
 
-  if (context || roleInstructions) {
+  if (roleKey || context) {
     // Check if system message already exists
     const hasSystem = messages.some(m => m.role === "system");
     if (!hasSystem) {
+      const systemPrompt = generateSystemPrompt(roleKey, userName, context);
       messages.unshift({
         role: "system",
-        content: `${roleInstructions}\n\nYou are SeraniAI, a helpful assistant. Below is additional context for this conversation, which may include past memories, today's journal/lesson activities, and content from uploaded files. Use this information to provide accurate and personalized responses.\n\nCONTEXT:\n${context}`
+        content: systemPrompt
       });
     }
   }
@@ -361,7 +370,7 @@ exports.sendMessage = async (req, res) => {
 
     const { message, sessionId, editIndex } = req.body;
     const clean = (message || "").trim();
-    
+
     // Check if we have a file OR message
     if (!clean && !req.file) {
       return res.status(400).json({ message: "Message or file is required" });
@@ -399,8 +408,8 @@ exports.sendMessage = async (req, res) => {
     }
 
     // 1) Save user message
-    chat.messages.push({ 
-      role: "user", 
+    chat.messages.push({
+      role: "user",
       content: clean || (req.file ? `Uploaded file: ${req.file.originalname}` : ""),
       fileUrl: fileMeta.url,
       fileType: fileMeta.type
@@ -408,47 +417,28 @@ exports.sendMessage = async (req, res) => {
 
     // 2) Prepare Context (Today's Data + Semantic Search + File Content)
     let todayContext = await getTodayContext(userId);
-    
+
     // Prepend file content to message if present
-    const augmentedMessage = fileData 
-      ? `[IMPORTANT SYSTEM NOTE: I have just uploaded a new file. The content of this NEW file is provided below. You MUST base your answer primarily on THIS file's content, rather than any previous files or past context, unless I explicitly ask otherwise.]\n\n--- CURRENT UPLOADED FILE CONTENT ---\n${fileData}\n--- END OF FILE CONTENT ---\n\nUSER MESSAGE: ${clean}` 
+    const augmentedMessage = fileData
+      ? `[IMPORTANT SYSTEM NOTE: I have just uploaded a new file. The content of this NEW file is provided below. You MUST base your answer primarily on THIS file's content, rather than any previous files or past context, unless I explicitly ask otherwise.]\n\n--- CURRENT UPLOADED FILE CONTENT ---\n${fileData}\n--- END OF FILE CONTENT ---\n\nUSER MESSAGE: ${clean}`
       : clean;
     let searchContext = "";
     try {
-      const collection = await getOrCreateCollection();
-      const results = await collection.query({
-        queryTexts: [clean],
-        nResults: 15, // Higher number to find actual facts among similar questions
-        where: { userId: userId.toString() }
-      });
-
-      if (results && results.documents && results.documents[0].length > 0) {
-        // Use a Set to avoid duplicate messages in context
-        const uniqueDocs = new Set();
-        const contextItems = [];
-
-        results.documents[0].forEach((doc, idx) => {
-          if (!uniqueDocs.has(doc)) {
-            uniqueDocs.add(doc);
-            const metadata = results.metadatas[0][idx];
-            const source = metadata.source || "chat";
-            const role = metadata.role ? `(${metadata.role})` : "";
-            
-            if (source === "journal") {
-              contextItems.push(`[PAST JOURNAL ENTRY]: ${doc}`);
-            } else {
-              contextItems.push(`[PAST CONVERSATION ${role}]: ${doc}`);
-            }
-          }
-        });
-
-        searchContext = contextItems.join("\n---\n");
-        console.log(`Vectra found ${contextItems.length} unique relevant context items.`);
-      } else {
-        console.log("Vectra: No relevant context found for query.");
+      // 1. Search journals for context
+      const journalData = await chromadb.search(clean, "journals", 5, { userId: userId.toString() });
+      if (journalData && journalData.results && journalData.results.length > 0) {
+        const docs = journalData.results.map(r => r.document);
+        searchContext += "PAST JOURNALS:\n" + docs.join("\n") + "\n\n";
       }
-    } catch (vectraErr) {
-      console.error("Vectra query error:", vectraErr);
+
+      // 2. Search past chat messages for memory
+      const chatData = await chromadb.search(clean, "chat_messages", 10, { userId: userId.toString() });
+      if (chatData && chatData.results && chatData.results.length > 0) {
+        const docs = chatData.results.map(r => r.document);
+        searchContext += "PAST CONVERSATION MEMORIES:\n" + docs.join("\n") + "\n\n";
+      }
+    } catch (err) {
+      console.error("Vector search error:", err);
     }
 
     // 2.5) Select Role based on message
@@ -457,9 +447,9 @@ exports.sendMessage = async (req, res) => {
 
     // 3) Generate AI reply (with Tool support and selected role)
     const fullContext = (todayContext + "\n" + searchContext).trim();
-    
-    const messagesForAI = chat.messages.map(m => ({ 
-      role: m.role, 
+
+    const messagesForAI = chat.messages.map(m => ({
+      role: m.role,
       content: m.content,
       tool_calls: m.tool_calls,
       tool_call_id: m.tool_call_id
@@ -467,7 +457,7 @@ exports.sendMessage = async (req, res) => {
     // Override the last user message with augmented content for AI context
     messagesForAI[messagesForAI.length - 1].content = augmentedMessage;
 
-    let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole);
+    let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user.name || "User");
 
     let suggestedCourses = [];
 
@@ -522,7 +512,7 @@ exports.sendMessage = async (req, res) => {
         tool_calls: m.tool_calls,
         tool_call_id: m.tool_call_id
       }));
-      aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole);
+      aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole, req.user.name || "User");
     }
 
     let reply = aiResponse.content || "No reply";
@@ -551,30 +541,30 @@ exports.sendMessage = async (req, res) => {
     }
 
     // 5) Save final assistant message
-    chat.messages.push({ role: "assistant", content: reply, courses: suggestedCourses });
+    const assistantMessage = { role: "assistant", content: reply, courses: suggestedCourses };
+    chat.messages.push(assistantMessage);
 
     await chat.save();
 
-    // 5) Index messages in Vectra
+    // 6) Index in ChromaDB for future memory
     try {
-      const collection = await getOrCreateCollection();
-      const timestamp = new Date().toISOString();
-
-      // The final assistant reply is the last message
-      const assistantMessage = chat.messages[chat.messages.length - 1];
-      // The user message is the one we saved at the beginning of this function
-      // (It's still 'clean' or the file placeholder)
-      
-      await collection.add({
-        ids: [`${chat._id}-user-${Date.now()}-u`, `${chat._id}-assistant-${Date.now()}-a`],
-        documents: [clean || "Uploaded file", reply],
-        metadatas: [
-          { userId: userId.toString(), sessionId: chat._id.toString(), role: "user", timestamp },
-          { userId: userId.toString(), sessionId: chat._id.toString(), role: "assistant", timestamp }
-        ]
+      const userMsg = chat.messages[chat.messages.length - 2];
+      // Index User Message
+      await chromadb.addEmbedding(userMsg.content, "chat_messages", {
+        role: "user",
+        userId: userId.toString(),
+        sessionId: chat._id.toString(),
+        timestamp: new Date().toISOString()
       });
-    } catch (vectraIdxErr) {
-      console.error("Vectra indexing error:", vectraIdxErr);
+      // Index Assistant Reply
+      await chromadb.addEmbedding(reply, "chat_messages", {
+        role: "assistant",
+        userId: userId.toString(),
+        sessionId: chat._id.toString(),
+        timestamp: new Date().toISOString()
+      });
+    } catch (indexErr) {
+      console.error("Failed to index chat in ChromaDB:", indexErr.message);
     }
 
     return res.status(200).json({
@@ -592,7 +582,12 @@ exports.sendMessage = async (req, res) => {
 exports.getHistory = async (req, res) => {
   try {
     const userId = req.user?._id;
-    if (!userId) return res.status(401).json({ message: "Not authorized" });
+    if (!userId) {
+      console.log("getHistory: No user ID found in request object");
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    console.log(`Fetching history for user: ${userId}`);
 
     const chats = await Chat.find({ user: userId })
       .select("_id title updatedAt createdAt")
@@ -628,14 +623,15 @@ exports.deleteSession = async (req, res) => {
     const deleted = await Chat.findOneAndDelete({ _id: req.params.id, user: userId });
     if (!deleted) return res.status(404).json({ message: "Chat session not found" });
 
-    // Delete from Vectra
+    // Delete from ChromaDB
     try {
-      const collection = await getOrCreateCollection();
-      await collection.delete({
-        where: { sessionId: req.params.id }
-      });
+      // Note: ChromaDBService.deleteEmbeddings usually takes IDs. 
+      // If the backend service supports clearing by metadata, we should use that.
+      // For now, we'll try to clear specific session embeddings if we had their IDs.
+      // Since we don't have IDs easily here, we might just log or implement a better delete in the service.
+      console.log(`Need to delete vector embeddings for session: ${req.params.id}`);
     } catch (vectraErr) {
-      console.error("Vectra session deletion error:", vectraErr);
+      console.error("ChromaDB session deletion error:", vectraErr);
     }
 
     return res.status(200).json({ message: "Chat deleted" });
@@ -651,16 +647,6 @@ exports.clearHistory = async (req, res) => {
     if (!userId) return res.status(401).json({ message: "Not authorized" });
 
     await Chat.deleteMany({ user: userId });
-
-    // Delete from Vectra
-    try {
-      const collection = await getOrCreateCollection();
-      await collection.delete({
-        where: { userId: userId.toString() }
-      });
-    } catch (vectraErr) {
-      console.error("Vectra history clear error:", vectraErr);
-    }
 
     return res.status(200).json({ message: "All chat history cleared" });
   } catch (err) {

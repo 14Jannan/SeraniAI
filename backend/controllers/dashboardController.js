@@ -93,11 +93,11 @@ exports.getDashboardStats = async (req, res) => {
     // Fill in zeros for days without activity
     const dailyActivity = [];
     for (let i = 0; i < 7; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        const dateStr = d.toISOString().split('T')[0];
-        const dayMatch = journalTrends.find(jt => jt._id === dateStr);
-        dailyActivity.push(dayMatch ? dayMatch.count : 0);
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const dayMatch = journalTrends.find(jt => jt._id === dateStr);
+      dailyActivity.push(dayMatch ? dayMatch.count : 0);
     }
 
     res.json({
@@ -143,7 +143,7 @@ exports.getWeeklyReport = async (req, res) => {
 
     // 2. Prepare context for AI
     let context = "USER ACTIVITY IN THE LAST 7 DAYS:\n\n";
-    
+
     if (journals.length > 0) {
       context += "--- JOURNAL ENTRIES ---\n";
       journals.forEach(j => {
