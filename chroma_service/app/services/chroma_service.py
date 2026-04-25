@@ -1,3 +1,8 @@
+import os
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
+os.environ["CHROMA_TELEMETRY_OFF"] = "true"
+import posthog
+posthog.capture = lambda *args, **kwargs: None
 import chromadb
 from chromadb.config import Settings
 import uuid
@@ -16,8 +21,11 @@ class ChromaServiceSingleton:
 
     def __init__(self):
         if self._client is None:
-            # Initialize ChromaDB with persistent storage
-            self._client = chromadb.PersistentClient(path=PERSIST_DIR)
+            # Initialize ChromaDB with persistent storage and disable telemetry
+            self._client = chromadb.PersistentClient(
+                path=PERSIST_DIR,
+                settings=Settings(anonymized_telemetry=False)
+            )
             self._ensure_collections()
 
     def _ensure_collections(self):

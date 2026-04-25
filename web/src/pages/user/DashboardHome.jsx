@@ -125,6 +125,7 @@ const DashboardHome = () => {
   const quickActions = [
     { title: 'New Journal Entry', desc: 'Reflect on your day', icon: Plus, link: '/dashboard/journal', color: 'bg-purple-600' },
     { title: 'View Courses', desc: 'Continue learning', icon: Play, link: '/dashboard/courses', color: 'bg-emerald-600' },
+    { title: 'Daily Tasks', desc: 'Manage your goals', icon: CheckCircle, link: '/dashboard/tasks', color: 'bg-amber-600' },
     { title: 'Ask SeraniAI', desc: 'Get instant answers', icon: MessageSquare, link: '/dashboard/chat', color: 'bg-blue-600' },
   ];
 
