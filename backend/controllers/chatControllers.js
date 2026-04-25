@@ -9,7 +9,7 @@ const OpenAI = require("openai");
 const fs = require("fs");
 const path = require("path");
 const pdf = require("pdf-parse");
-const roles = require("../config/roles.json");
+const { generateSystemPrompt } = require("../utils/promptBuilder");
 const ChromaDBService = require("../services/chromaDBService");
 
 const chromadb = new ChromaDBService();
@@ -61,6 +61,8 @@ async function isFirstChatOfDay(userId) {
   }
 }
 
+const UserTaskProgress = require("../models/userTaskProgressModel");
+
 async function getDailyReminders(userId) {
   try {
     const startOfDay = new Date();
@@ -97,6 +99,13 @@ async function getDailyReminders(userId) {
     const lastLessonDate = user.lastLessonCompletedAt ? new Date(user.lastLessonCompletedAt) : null;
     if (!lastLessonDate || lastLessonDate < startOfDay) {
       reminders.push("Don't forget to complete a lesson today to maintain your learning streak!");
+    }
+
+    // 4. Check daily tasks
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const progress = await UserTaskProgress.findOne({ user: userId, dateKey });
+    if (!progress || (progress.taskIds.length > 0 && progress.completedTaskIds.length < progress.taskIds.length)) {
+      reminders.push("Don't forget to complete your daily tasks to stay on track!");
     }
 
     if (reminders.length > 0) {
@@ -295,7 +304,7 @@ async function suggestCourses(query) {
 
 async function determineRole(userMessage) {
   if (!process.env.OPENAI_API_KEY) return "general";
-  
+
   try {
     const response = await openai.chat.completions.create({
       model: getModelName(),
@@ -313,7 +322,7 @@ Respond ONLY with one of the three words: journal, course, or general.`
       temperature: 0,
       max_tokens: 10
     });
-    
+
     const intent = response.choices[0].message.content.trim().toLowerCase();
     return ["journal", "course", "general"].includes(intent) ? intent : "general";
   } catch (err) {
@@ -327,21 +336,19 @@ async function getAiReply(history, context = "", tools = null, roleKey = "genera
     return { content: "OPENAI_API_KEY is not set in backend/.env" };
   }
 
-  // Get instructions for the selected role
-  const roleInstructions = roles[roleKey] || roles.general;
-
   // Combine history with retrieved context if available
   const messages = (history || [])
     .slice(-20)
     .map((m) => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id }));
 
-  if (context || roleInstructions) {
+  if (roleKey || context) {
     // Check if system message already exists
     const hasSystem = messages.some(m => m.role === "system");
     if (!hasSystem) {
+      const systemPrompt = generateSystemPrompt(roleKey, userName, context);
       messages.unshift({
         role: "system",
-        content: `${roleInstructions}\n\nYou are SeraniAI, a helpful assistant talking to ${userName}. Below is additional context for this conversation, which may include past memories, today's journal/lesson activities, and content from uploaded files. Use this information to provide accurate and personalized responses.\n\nCONTEXT:\n${context}`
+        content: systemPrompt
       });
     }
   }
@@ -363,7 +370,7 @@ exports.sendMessage = async (req, res) => {
 
     const { message, sessionId, editIndex } = req.body;
     const clean = (message || "").trim();
-    
+
     // Check if we have a file OR message
     if (!clean && !req.file) {
       return res.status(400).json({ message: "Message or file is required" });
@@ -401,8 +408,8 @@ exports.sendMessage = async (req, res) => {
     }
 
     // 1) Save user message
-    chat.messages.push({ 
-      role: "user", 
+    chat.messages.push({
+      role: "user",
       content: clean || (req.file ? `Uploaded file: ${req.file.originalname}` : ""),
       fileUrl: fileMeta.url,
       fileType: fileMeta.type
@@ -410,22 +417,22 @@ exports.sendMessage = async (req, res) => {
 
     // 2) Prepare Context (Today's Data + Semantic Search + File Content)
     let todayContext = await getTodayContext(userId);
-    
+
     // Prepend file content to message if present
-    const augmentedMessage = fileData 
-      ? `[IMPORTANT SYSTEM NOTE: I have just uploaded a new file. The content of this NEW file is provided below. You MUST base your answer primarily on THIS file's content, rather than any previous files or past context, unless I explicitly ask otherwise.]\n\n--- CURRENT UPLOADED FILE CONTENT ---\n${fileData}\n--- END OF FILE CONTENT ---\n\nUSER MESSAGE: ${clean}` 
+    const augmentedMessage = fileData
+      ? `[IMPORTANT SYSTEM NOTE: I have just uploaded a new file. The content of this NEW file is provided below. You MUST base your answer primarily on THIS file's content, rather than any previous files or past context, unless I explicitly ask otherwise.]\n\n--- CURRENT UPLOADED FILE CONTENT ---\n${fileData}\n--- END OF FILE CONTENT ---\n\nUSER MESSAGE: ${clean}`
       : clean;
     let searchContext = "";
     try {
       // 1. Search journals for context
-      const journalData = await chromadb.search(clean, "journals", 5);
+      const journalData = await chromadb.search(clean, "journals", 5, { userId: userId.toString() });
       if (journalData && journalData.results && journalData.results.length > 0) {
         const docs = journalData.results.map(r => r.document);
         searchContext += "PAST JOURNALS:\n" + docs.join("\n") + "\n\n";
       }
 
       // 2. Search past chat messages for memory
-      const chatData = await chromadb.search(clean, "chat_messages", 10);
+      const chatData = await chromadb.search(clean, "chat_messages", 10, { userId: userId.toString() });
       if (chatData && chatData.results && chatData.results.length > 0) {
         const docs = chatData.results.map(r => r.document);
         searchContext += "PAST CONVERSATION MEMORIES:\n" + docs.join("\n") + "\n\n";
@@ -440,9 +447,9 @@ exports.sendMessage = async (req, res) => {
 
     // 3) Generate AI reply (with Tool support and selected role)
     const fullContext = (todayContext + "\n" + searchContext).trim();
-    
-    const messagesForAI = chat.messages.map(m => ({ 
-      role: m.role, 
+
+    const messagesForAI = chat.messages.map(m => ({
+      role: m.role,
       content: m.content,
       tool_calls: m.tool_calls,
       tool_call_id: m.tool_call_id

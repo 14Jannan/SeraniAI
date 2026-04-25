@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  BookOpen, 
-  Book, 
-  MessageSquare, 
-  Plus, 
-  Play, 
-  ChevronRight, 
-  TrendingUp, 
-  PenTool, 
+import {
+  BookOpen,
+  Book,
+  MessageSquare,
+  Plus,
+  Play,
+  ChevronRight,
+  TrendingUp,
+  PenTool,
   GraduationCap,
   Calendar,
   Clock,
@@ -39,11 +39,11 @@ const DashboardHome = () => {
             "Authorization": `Bearer ${token}`
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch dashboard data');
         }
-        
+
         const result = await response.json();
         setData(result);
       } catch (err) {
@@ -66,11 +66,11 @@ const DashboardHome = () => {
           "Authorization": `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to generate weekly report');
       }
-      
+
       const result = await response.json();
       setWeeklyReport(result.report);
       setShowReportModal(true);
@@ -101,7 +101,7 @@ const DashboardHome = () => {
           <div>
             <h3 className="font-bold">Error</h3>
             <p className="text-sm">{error}</p>
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="mt-2 text-xs font-bold uppercase tracking-wider underline underline-offset-4"
             >
@@ -131,9 +131,9 @@ const DashboardHome = () => {
 
   return (
     <div className="p-6 lg:p-10 space-y-10 max-w-[1600px] mx-auto overflow-y-auto h-full scrollbar-hide relative">
-      
+
       {/* Welcome Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -182,12 +182,12 @@ const DashboardHome = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        
+
         {/* Left Column: Progress & Actions */}
         <div className="lg:col-span-2 space-y-10">
-          
+
           {/* Productivity Graph */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="bg-white dark:bg-gray-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group"
@@ -198,38 +198,50 @@ const DashboardHome = () => {
                 <p className="text-sm text-gray-500 mt-1">Consistency over the last 7 days</p>
               </div>
               <div className="hidden sm:flex gap-2">
-                {['M','T','W','T','F','S','S'].map((d, i) => (
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                   <span key={i} className="text-[10px] font-bold text-gray-400">{d}</span>
                 ))}
               </div>
             </div>
 
             {/* Simple SVG Chart */}
-            <div className="h-48 w-full flex items-end justify-between gap-3 group/chart">
+            <div className="h-48 w-full flex items-end justify-between gap-3 px-2">
               {(() => {
-                const maxVal = Math.max(...journalTrends, 5);
+                const trends = Array.isArray(journalTrends) ? journalTrends : [0, 0, 0, 0, 0, 0, 0];
+                const maxVal = Math.max(...trends, 5);
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                const today = new Date();
+                const todayRef = new Date();
                 
-                return journalTrends.map((val, i) => {
+                return trends.map((val, i) => {
                   const d = new Date();
-                  d.setDate(today.getDate() - (6 - i));
+                  d.setDate(todayRef.getDate() - (6 - i));
                   const dayName = dayNames[d.getDay()];
+                  const isToday = i === 6;
+                  const barHeight = val > 0 ? Math.max((val / maxVal) * 100, 15) : 0;
                   
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-3">
+                    <div key={i} className="flex-1 flex flex-col items-center gap-3 h-full justify-end">
+                      {/* Outer Bar Container */}
                       <div 
-                        className="w-full bg-blue-100 dark:bg-blue-900/30 rounded-full relative group-hover:opacity-50 hover:!opacity-100 transition-all duration-500 overflow-hidden"
-                        style={{ height: `${Math.max((val / maxVal) * 100, 5)}%` }}
+                        className={`w-full max-w-[40px] rounded-t-xl relative transition-all duration-500 ${
+                          isToday ? 'bg-blue-600' : 'bg-blue-300 dark:bg-blue-800'
+                        }`}
+                        style={{ height: `${barHeight}%` }}
                       >
-                        <motion.div 
-                          initial={{ height: 0 }}
-                          animate={{ height: '100%' }}
-                          transition={{ delay: 0.5 + (i * 0.1), duration: 0.8 }}
-                          className="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-full"
-                        />
+                        {/* Value Label */}
+                        {val > 0 && (
+                          <span className="absolute -top-6 left-0 w-full text-center text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                            {val}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-[10px] font-bold text-gray-400">{dayName}</span>
+                      
+                      {/* Day Label */}
+                      <span className={`text-[10px] font-bold transition-colors ${
+                        isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'
+                      }`}>
+                        {dayName}
+                      </span>
                     </div>
                   );
                 });
@@ -250,7 +262,7 @@ const DashboardHome = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {quickActions.map((action, i) => (
                 <Link to={action.link} key={action.title}>
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="p-5 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-blue-200 dark:hover:border-blue-900 transition-all"
@@ -271,7 +283,7 @@ const DashboardHome = () => {
         </div>
 
         {/* Right Column: Recent Activity */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="bg-white dark:bg-gray-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-gray-700"
@@ -285,41 +297,41 @@ const DashboardHome = () => {
 
           <div className="space-y-6">
             {recentActivity.length === 0 ? (
-                <div className="text-center py-10">
-                    <p className="text-sm text-gray-400 font-medium tracking-tight">No recent activity found.</p>
-                </div>
+              <div className="text-center py-10">
+                <p className="text-sm text-gray-400 font-medium tracking-tight">No recent activity found.</p>
+              </div>
             ) : (
-                recentActivity.map((item, i) => (
-                    <div key={i} className="flex gap-4 group">
-                        <div className="pt-1">
-                        <div className={`p-2 rounded-xl bg-gray-50 dark:bg-gray-900 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors`}>
-                            {item.type === 'journal' ? (
-                                <PenTool className="text-purple-500 group-hover:scale-110 transition-transform" size={18} />
-                            ) : (
-                                <MessageSquare className="text-blue-500 group-hover:scale-110 transition-transform" size={18} />
-                            )}
-                        </div>
-                        </div>
-                        <div className="flex-1 pb-6 border-b border-gray-50 dark:border-gray-700 last:border-0">
-                        <div className="flex justify-between items-start">
-                            <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
-                            {item.title}
-                            </h4>
-                            <span className="text-[10px] text-gray-400 font-bold whitespace-nowrap ml-2 uppercase">
-                            {new Date(item.time).toLocaleDateString()}
-                            </span>
-                        </div>
-                        <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1 font-medium capitalize">
-                            <Clock size={10} />
-                            {item.type} interaction
-                        </p>
-                        </div>
+              recentActivity.map((item, i) => (
+                <div key={i} className="flex gap-4 group">
+                  <div className="pt-1">
+                    <div className={`p-2 rounded-xl bg-gray-50 dark:bg-gray-900 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors`}>
+                      {item.type === 'journal' ? (
+                        <PenTool className="text-purple-500 group-hover:scale-110 transition-transform" size={18} />
+                      ) : (
+                        <MessageSquare className="text-blue-500 group-hover:scale-110 transition-transform" size={18} />
+                      )}
                     </div>
-                ))
+                  </div>
+                  <div className="flex-1 pb-6 border-b border-gray-50 dark:border-gray-700 last:border-0">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
+                        {item.title}
+                      </h4>
+                      <span className="text-[10px] text-gray-400 font-bold whitespace-nowrap ml-2 uppercase">
+                        {new Date(item.time).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1 font-medium capitalize">
+                      <Clock size={10} />
+                      {item.type} interaction
+                    </p>
+                  </div>
+                </div>
+              ))
             )}
           </div>
 
-          <button 
+          <button
             onClick={handleGenerateReport}
             disabled={isGeneratingReport}
             className="w-full mt-6 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 group"
@@ -342,13 +354,13 @@ const DashboardHome = () => {
       {/* Weekly Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onClick={() => setShowReportModal(false)}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90vh]"
@@ -364,7 +376,7 @@ const DashboardHome = () => {
                   <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">AI Analysis & Insights</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setShowReportModal(false)}
                 className="p-3 rounded-2xl bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shadow-sm border border-gray-100 dark:border-gray-700 transition-all"
               >
@@ -383,7 +395,7 @@ const DashboardHome = () => {
 
             {/* Footer */}
             <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 flex justify-end gap-4">
-              <button 
+              <button
                 onClick={() => setShowReportModal(false)}
                 className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/20 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
               >

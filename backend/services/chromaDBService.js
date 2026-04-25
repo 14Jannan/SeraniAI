@@ -66,14 +66,16 @@ class ChromaDBService {
    * @param {string} query - Search query text
    * @param {string} collection - Collection name
    * @param {number} nResults - Number of results to return (default: 5)
+   * @param {Object} where - Optional metadata filter (e.g., { userId: "..." })
    * @returns {Promise<Object>} Search results with documents and distances
    */
-  async search(query, collection, nResults = 5) {
+  async search(query, collection, nResults = 5, where = null) {
     try {
       const response = await this.client.post("/search", {
         query,
         collection,
         n_results: nResults,
+        where,
       });
       return response.data;
     } catch (error) {

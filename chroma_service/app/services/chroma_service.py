@@ -61,12 +61,13 @@ class ChromaServiceSingleton:
         )
         return ids
 
-    def search(self, query: str, collection: str, n_results: int = 5) -> tuple[List[Dict], List[List[float]]]:
-        """Search for similar documents"""
+    def search(self, query: str, collection: str, n_results: int = 5, where: Optional[Dict] = None) -> tuple[List[Dict], List[List[float]]]:
+        """Search for similar documents with optional filtering"""
         col = self._client.get_collection(name=collection)
         results = col.query(
             query_texts=[query],
-            n_results=n_results
+            n_results=n_results,
+            where=where
         )
         
         # Format results

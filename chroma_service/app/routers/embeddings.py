@@ -58,7 +58,8 @@ async def search(request: SearchRequest):
         results, distances = chroma_service.search(
             query=request.query,
             collection=request.collection,
-            n_results=request.n_results
+            n_results=request.n_results,
+            where=request.where
         )
         return {
             "results": results,

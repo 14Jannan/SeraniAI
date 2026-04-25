@@ -15,6 +15,7 @@ class SearchRequest(BaseModel):
     query: str
     collection: str
     n_results: int = 5
+    where: Optional[Dict[str, Any]] = None
 
 class SimilaritySearchRequest(BaseModel):
     embedding: List[float]
