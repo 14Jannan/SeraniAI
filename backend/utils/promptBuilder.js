@@ -9,7 +9,7 @@ const roles = require('../config/roles.json');
  */
 function generateSystemPrompt(roleKey, userName, context = "") {
   const role = roles[roleKey] || roles.general;
-  
+
   // Adapt tone based on context clues (basic implementation)
   let adaptiveTone = role.tone;
   if (context.toLowerCase().includes("stress") || context.toLowerCase().includes("anxious") || context.toLowerCase().includes("sad") || context.toLowerCase().includes("bad")) {

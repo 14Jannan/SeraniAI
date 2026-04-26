@@ -11,6 +11,7 @@ const path = require("path");
 const pdf = require("pdf-parse");
 const { generateSystemPrompt } = require("../utils/promptBuilder");
 const ChromaDBService = require("../services/chromaDBService");
+const UserTaskProgress = require("../models/userTaskProgressModel");
 
 const chromadb = new ChromaDBService();
 
@@ -61,7 +62,7 @@ async function isFirstChatOfDay(userId) {
   }
 }
 
-const UserTaskProgress = require("../models/userTaskProgressModel");
+
 
 async function getDailyReminders(userId) {
   try {
