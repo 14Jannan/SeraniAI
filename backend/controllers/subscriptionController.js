@@ -333,8 +333,82 @@ exports.cancelSubscriptionPayment = async (req, res) => {
       return res.status(404).json({ message: 'Subscription not found' });
     }
 
+    const requesterId = String(req.user?._id || '');
+    const subscriptionOwnerId = String(subscription.userId || '');
+    const isAdmin = req.user?.role === 'admin';
+    if (!isAdmin && requesterId !== subscriptionOwnerId) {
+      return res.status(403).json({ message: 'Not authorized to cancel this subscription' });
+    }
+
+    // Backfill missing PayHere subscription ID for older rows by matching merchant subscriptions.
+    if (!subscription.subscriptionId && subscription.paymentId) {
+      try {
+        const merchantSubscriptions = await payHereService.getSubscriptions();
+        const paymentRef = String(subscription.paymentId).trim();
+
+        const matched = merchantSubscriptions.find((item) => {
+          const values = [
+            item?.order_id,
+            item?.orderId,
+            item?.reference,
+            item?.reference_no,
+            item?.payment_id,
+            item?.paymentId,
+          ]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+
+          return values.includes(paymentRef);
+        });
+
+        const recoveredSubscriptionId = String(matched?.subscription_id || matched?.subscriptionId || '').trim();
+        if (recoveredSubscriptionId) {
+          subscription.subscriptionId = recoveredSubscriptionId;
+          await subscription.save();
+        }
+      } catch (lookupError) {
+        // Lookup errors should not crash the endpoint; we'll return a clear message below if still unresolved.
+        console.error('Subscription backfill lookup failed:', lookupError.message);
+      }
+    }
+
     if (!subscription.subscriptionId) {
-      return res.status(400).json({ message: 'PayHere subscription ID not available' });
+      // Fallback for legacy rows that never stored PayHere subscription IDs.
+      // We still honor the user cancellation request locally to stop app access.
+      subscription.status = 'Cancelled';
+      subscription.payHereStatus = 'CANCELLED';
+      await subscription.save();
+
+      const ownerUser = await User.findById(subscription.userId).select('enterpriseId role');
+      const enterpriseId = ownerUser?.enterpriseId || null;
+      const isBusinessPlan =
+        subscription.plan === 'Business' || subscription.planCode === 'business';
+
+      if (ownerUser) {
+        ownerUser.role = 'user';
+        ownerUser.enterpriseId = null;
+        await ownerUser.save();
+      }
+
+      if (enterpriseId && isBusinessPlan) {
+        await User.updateMany(
+          { enterpriseId },
+          {
+            $set: {
+              role: 'user',
+              enterpriseId: null,
+            },
+          }
+        );
+
+        await Enterprise.findByIdAndDelete(enterpriseId);
+      }
+
+      return res.status(200).json({
+        message:
+          'Subscription cancelled locally. PayHere subscription ID was not available in this legacy record.',
+        data: subscription,
+      });
     }
 
     // Call PayHere API to cancel

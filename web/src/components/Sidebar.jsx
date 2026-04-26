@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 // 1. Import LogOut icon and useAuth hook
-import { Home, MessageSquare, BookOpen, GraduationCap, LogOut } from "lucide-react"; 
+import { Home, MessageSquare, BookOpen, GraduationCap, LogOut, Settings } from "lucide-react"; 
 import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext"; // Import AuthContext
@@ -62,13 +62,18 @@ const Sidebar = () => {
 
         {/* User Profile & Logout */}
         <div className="flex items-center justify-between bg-white/10 p-2 rounded-xl">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-purple-500 flex items-center justify-center font-bold shadow-sm">
               A
             </div>
-            <div className="text-sm leading-tight">
+            <div className="text-sm leading-tight flex-1">
               <p className="font-semibold">Alexandra</p>
-              <p className="text-[10px] opacity-70">Free Plan</p>
+              <NavLink 
+                to="/subscription"
+                className="text-[10px] opacity-70 hover:opacity-100 transition text-blue-200 font-medium"
+              >
+                Free Plan
+              </NavLink>
             </div>
           </div>
 
