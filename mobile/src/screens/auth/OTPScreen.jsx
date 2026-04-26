@@ -18,7 +18,7 @@ export const OTPScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  const { verifyOTP, error, register } = useAuth();
+  const { verifyOTP, resendVerificationOTP, error } = useAuth();
   const { colors } = useTheme();
 
   // Resend countdown
@@ -50,7 +50,7 @@ export const OTPScreen = ({ navigation, route }) => {
   const handleResendOTP = async () => {
     setResendLoading(true);
     try {
-      await register(email, ""); // Re-trigger OTP (need password - use stored if available)
+      await resendVerificationOTP(email);
       setResendTimer(60);
       Alert.alert("Success", "OTP resent to your email");
     } catch (err) {

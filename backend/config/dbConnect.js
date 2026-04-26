@@ -4,7 +4,13 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]); // use google dns for relaiable dns reso
 
 const dbConnect = async () => {
   try {
-    const connect = await mongoose.connect(process.env.CONNECTION_STRING); // connect to mongodb using connection string
+    const connectionString =
+      process.env.CONNECTION_STRING ||
+      process.env.MONGODB_URI ||
+      process.env.MONGO_URI ||
+      "mongodb://localhost:27017/seraniai";
+
+    const connect = await mongoose.connect(connectionString); // connect to mongodb using connection string
     console.log(
       // if connection is successful
       `Database Connected : ${connect.connection.host}, ${connect.connection.name}`,
@@ -12,7 +18,6 @@ const dbConnect = async () => {
   } catch (err) {
     // if connection fails
     console.log("Database connection failed:", err.message);
-    
   }
 };
 module.exports = dbConnect;

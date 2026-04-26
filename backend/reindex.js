@@ -4,51 +4,59 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 
 async function reindex() {
-    try {
-        await mongoose.connect(process.env.CONNECTION_STRING);
-        console.log("Connected to MongoDB.");
+  try {
+    const connectionString =
+      process.env.CONNECTION_STRING ||
+      process.env.MONGODB_URI ||
+      process.env.MONGO_URI ||
+      "mongodb://localhost:27017/seraniai";
 
-        const collection = await getOrCreateCollection();
-        console.log("Connected to Vectra.");
+    await mongoose.connect(connectionString);
+    console.log("Connected to MongoDB.");
 
-        const chats = await Chat.find({});
-        console.log(`Found ${chats.length} chat sessions.`);
+    const collection = await getOrCreateCollection();
+    console.log("Connected to Vectra.");
 
-        for (const chat of chats) {
-            const userId = chat.user.toString();
-            const sessionId = chat._id.toString();
+    const chats = await Chat.find({});
+    console.log(`Found ${chats.length} chat sessions.`);
 
-            const documents = [];
-            const ids = [];
-            const metadatas = [];
+    for (const chat of chats) {
+      const userId = chat.user.toString();
+      const sessionId = chat._id.toString();
 
-            chat.messages.forEach((m, idx) => {
-                ids.push(`${sessionId}-${m.role}-${idx}`);
-                documents.push(m.content);
-                metadatas.push({
-                    userId,
-                    sessionId,
-                    role: m.role,
-                    timestamp: m.timestamp?.toISOString() || new Date().toISOString()
-                });
-            });
+      const documents = [];
+      const ids = [];
+      const metadatas = [];
 
-            if (documents.length > 0) {
-                console.log(`Indexing ${documents.length} messages for session ${sessionId}...`);
-                await collection.add({
-                    ids,
-                    documents,
-                    metadatas
-                });
-            }
-        }
+      chat.messages.forEach((m, idx) => {
+        ids.push(`${sessionId}-${m.role}-${idx}`);
+        documents.push(m.content);
+        metadatas.push({
+          userId,
+          sessionId,
+          role: m.role,
+          timestamp: m.timestamp?.toISOString() || new Date().toISOString(),
+        });
+      });
 
-        console.log("Re-indexing complete!");
-        process.exit(0);
-    } catch (error) {
-        console.error("Re-indexing error:", error);
-        process.exit(1);
+      if (documents.length > 0) {
+        console.log(
+          `Indexing ${documents.length} messages for session ${sessionId}...`,
+        );
+        await collection.add({
+          ids,
+          documents,
+          metadatas,
+        });
+      }
     }
+
+    console.log("Re-indexing complete!");
+    process.exit(0);
+  } catch (error) {
+    console.error("Re-indexing error:", error);
+    process.exit(1);
+  }
 }
 
 reindex();

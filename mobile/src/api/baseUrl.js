@@ -27,6 +27,7 @@ const getMetroHostUrl = () => {
 
 export const getApiBaseUrl = () => {
   if (Platform.OS === "web") {
+    console.log("[API] Using web platform URL:", DEFAULT_LOCAL_API_URL);
     return DEFAULT_LOCAL_API_URL;
   }
 
@@ -36,11 +37,20 @@ export const getApiBaseUrl = () => {
     Constants.expoConfig?.extra?.apiUrl,
   );
 
-  return (
+  const selectedUrl =
     explicitUrl ||
     metroHostUrl ||
     expoConfiguredUrl ||
     "http://10.0.2.2:7001/api" ||
-    DEFAULT_LOCAL_API_URL
-  );
+    DEFAULT_LOCAL_API_URL;
+
+  console.log("[API] Selected base URL:", selectedUrl);
+  console.log("[API] Resolution debug:", {
+    explicitUrl,
+    metroHostUrl,
+    expoConfiguredUrl,
+    platform: Platform.OS,
+  });
+
+  return selectedUrl;
 };

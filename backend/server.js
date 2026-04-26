@@ -4,6 +4,8 @@ const cors = require("cors");
 const dotenv = require("dotenv").config();
 const cookieParser = require("cookie-parser");
 const passport = require("passport");
+const helmet = require("helmet");
+
 require("dotenv").config();
 
 const dbConnect = require("./config/dbConnect");
@@ -33,6 +35,8 @@ const allowedOrigins = new Set(
     "http://localhost:8081",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8081",
+    "http://localhost:7001", // Mobile app development
+    "http://127.0.0.1:7001",
   ].filter(Boolean),
 );
 
@@ -50,21 +54,32 @@ const isLocalDevOrigin = (origin) => {
 };
 
 app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+  }),
+);
+app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) {
-        return callback(null, true);
-      }
+      // Allow requests without origin (mobile apps, curl, Postman, etc.)
+      if (!origin) return callback(null, true);
 
+      // Allow whitelisted origins
       if (allowedOrigins.has(origin) || isLocalDevOrigin(origin)) {
         return callback(null, true);
       }
 
+      // Log rejected origins for debugging
+      console.warn(`[CORS] Blocked origin: ${origin}`);
       return callback(new Error(`CORS blocked origin: ${origin}`));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

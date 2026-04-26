@@ -3,12 +3,10 @@
     "name": "SeraniAI",
     "slug": "seraniaiapp",
     "version": "1.0.0",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "scheme": "seraniaiapp",
     "extra": {
-      "apiUrl": ""
+      "apiUrl": "http://localhost:7001/api"
     },
     "ios": {
       "supportsTablet": true,

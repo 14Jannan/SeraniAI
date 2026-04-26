@@ -8,6 +8,7 @@ const API_URL = getApiBaseUrl();
 const httpClient = axios.create({
   baseURL: API_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -51,6 +52,18 @@ httpClient.interceptors.request.use(
 httpClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Enhanced error logging for network issues
+    if (!error.response) {
+      console.error("Network Error Details:", {
+        message: error.message,
+        code: error.code,
+        config: {
+          baseURL: error.config?.baseURL,
+          url: error.config?.url,
+        },
+      });
+    }
+
     const originalRequest = error.config;
 
     // Check if error is 401 and message contains "token expired"

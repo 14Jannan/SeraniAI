@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const User = require("../models/userModel");
 const sendVerificationEmail = require("../utils/emailService");
 const otpGenerator = require("otp-generator");
-const { getValidProviderAccessToken } = require("../utils/oauthTokenService");
+const oauthTokenService = require("../utils/oauthTokenService");
 
 const normalizeEmail = (email) => String(email || "").trim();
 
@@ -137,6 +137,41 @@ exports.verifyEmail = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// 2b. RESEND VERIFICATION OTP
+// @desc    Resend OTP for email verification
+// @route   POST /api/auth/resend-otp
+exports.resendVerificationOtp = async (req, res) => {
+  const { email } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+
+  try {
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.isVerified) {
+      return res.status(400).json({ message: "User is already verified" });
+    }
+
+    const otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      specialChars: false,
+      lowerCaseAlphabets: false,
+    });
+
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    await sendVerificationEmail(normalizedEmail, otp);
+
+    return res
+      .status(200)
+      .json({ message: "Verification OTP resent to email" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -308,7 +343,7 @@ exports.getOAuthProviderToken = async (req, res) => {
     String(req.query.forceRefresh || "").toLowerCase() === "true";
 
   try {
-    const result = await getValidProviderAccessToken({
+    const result = await oauthTokenService.getValidProviderAccessToken({
       userId: req.user._id,
       provider,
       forceRefresh,
