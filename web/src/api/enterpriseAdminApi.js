@@ -17,7 +17,7 @@ export const getEnterpriseUsers = () => {
     return axios.get(`${ENTERPRISE_ADMIN_API_URL}/users`, getAuthHeaders());
 };
 
-// Add user to enterprise (by email)
+// Send enterprise invite (by email)
 export const addUserToEnterprise = (email) => {
     return axios.post(`${ENTERPRISE_ADMIN_API_URL}/users`, { email }, getAuthHeaders());
 };
@@ -35,4 +35,9 @@ export const deactivateEnterpriseUser = (id) => {
 // Delete user from enterprise
 export const deleteEnterpriseUser = (id) => {
     return axios.delete(`${ENTERPRISE_ADMIN_API_URL}/users/${id}`, getAuthHeaders());
+};
+
+// Stop pending invite
+export const revokeEnterpriseInvite = (id) => {
+    return axios.patch(`${ENTERPRISE_ADMIN_API_URL}/invites/${id}/revoke`, {}, getAuthHeaders());
 };

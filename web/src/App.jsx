@@ -13,6 +13,9 @@ const PersonalCheckout = lazy(() =>
 const EnterpriseCheckout = lazy(() =>
   import("./pages/user/checkout/EnterpriseCheckout")
 );
+const AcceptEnterpriseInvite = lazy(() =>
+  import("./pages/user/AcceptEnterpriseInvite")
+);
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const LoginSuccess = lazy(() => import("./pages/LoginSuccess"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -64,6 +67,10 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify" element={<Verify />} />
+          <Route
+            path="/enterprise/invite/accept"
+            element={<AcceptEnterpriseInvite />}
+          />
           <Route path="/subscription" element={<Subscription />} />
           <Route
             path="/subscription/checkout/personal/:planId"
@@ -158,6 +165,7 @@ function App() {
                   </PlanFeatureGate>
                 }
               />
+
             </Route>
           </Route>
 

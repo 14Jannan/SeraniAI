@@ -9,6 +9,8 @@ const PLAN_DETAILS = {
   business: { plan: "Business", amount: 3000, role: "enterpriseAdmin" },
 };
 
+const MIN_BUSINESS_SEATS = 5;
+
 const md5Upper = (value) =>
   crypto.createHash("md5").update(String(value)).digest("hex").toUpperCase();
 
@@ -77,7 +79,9 @@ const parseCustom2Payload = (custom2) => {
       plan: PLAN_DETAILS[kv.planid].plan,
       seats:
         kv.planid === "business" && Number.isFinite(parsedSeats)
-          ? Math.max(1, Math.floor(parsedSeats))
+          ? Math.max(MIN_BUSINESS_SEATS, Math.floor(parsedSeats))
+          : kv.planid === "business"
+            ? MIN_BUSINESS_SEATS
           : 1,
     };
   }
@@ -91,7 +95,7 @@ const parseCustom2Payload = (custom2) => {
   return {
     planCode: legacyPlanCode,
     plan: PLAN_DETAILS[legacyPlanCode].plan,
-    seats: legacyPlanCode === "business" ? 1 : 1,
+    seats: legacyPlanCode === "business" ? MIN_BUSINESS_SEATS : 1,
   };
 };
 
@@ -138,6 +142,27 @@ exports.initializePayHerePayment = async (req, res) => {
     const { planId, seats } = req.body;
     const user = req.user;
 
+    if (user?.role === "enterpriseUser") {
+      return res.status(409).json({
+        error:
+          "You currently have enterprise premium access. Cancel your current premium access before upgrading to another plan.",
+      });
+    }
+
+    const activeSubscription = await Subscription.findOne({
+      userId: user?._id,
+      status: "Active",
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (activeSubscription) {
+      return res.status(409).json({
+        error:
+          "You already have an active plan. Cancel your current subscription before upgrading to another plan.",
+      });
+    }
+
     const plan = PLAN_DETAILS[planId];
     if (!plan) {
       return res.status(400).json({
@@ -155,9 +180,12 @@ exports.initializePayHerePayment = async (req, res) => {
     }
 
     const seatCountRaw = Number(seats);
-    const seatCount = Number.isFinite(seatCountRaw)
-      ? Math.max(1, Math.floor(seatCountRaw))
-      : 1;
+    const seatCount =
+      planId === "business"
+        ? Number.isFinite(seatCountRaw)
+          ? Math.max(MIN_BUSINESS_SEATS, Math.floor(seatCountRaw))
+          : MIN_BUSINESS_SEATS
+        : 1;
 
     const unitAmount = Number(plan.amount);
     const totalAmount =
@@ -245,6 +273,8 @@ exports.handlePayHereNotify = async (req, res) => {
       status_code,
       md5sig,
       payment_id,
+      subscription_id,
+      subscriptionId,
       custom_1,
       custom_2,
     } = req.body;
@@ -307,6 +337,8 @@ exports.handlePayHereNotify = async (req, res) => {
         amount: parsedAmount,
         currency,
         status: "Active",
+        subscriptionId: String(subscription_id || subscriptionId || "").trim() || undefined,
+        payHereStatus: "ACTIVE",
         startDate,
         endDate,
         paymentId: String(payment_id || order_id),

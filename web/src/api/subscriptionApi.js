@@ -26,3 +26,7 @@ export const getSubscriptionById = (id) => API.get(`/subscriptions/${id}`);
 
 // DELETE subscription by ID (admin)
 export const deleteSubscriptionById = (id) => API.delete(`/subscriptions/${id}`);
+
+// CANCEL subscription by ID (user)
+export const cancelSubscription = (id) =>
+  API.post(`/subscriptions/${id}/cancel`);

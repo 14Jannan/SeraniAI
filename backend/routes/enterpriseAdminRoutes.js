@@ -6,6 +6,7 @@ const {
   updateEnterpriseUser,
   deactivateEnterpriseUser,
   deleteEnterpriseUser,
+  revokeEnterpriseInvite,
 } = require("../controllers/enterpriseAdminController");
 const { protect } = require("../middleware/authMiddleware");
 const { authorize } = require("../middleware/roleMiddleware");
@@ -22,5 +23,8 @@ router.route("/users/:id")
 
 // Deactivate user endpoint
 router.route("/users/:id/deactivate").patch(deactivateEnterpriseUser);
+
+// Stop pending invite
+router.route("/invites/:id/revoke").patch(revokeEnterpriseInvite);
 
 module.exports = router;

@@ -24,3 +24,9 @@ export const resetPassword = (data) =>
   httpClient.post(`${API_URL}/reset-password`, data);
 export const getCurrentUser = () =>
   httpClient.get(`${API_URL}/me`);
+
+export const acceptEnterpriseInvite = (token) =>
+  httpClient.post(`${API_URL}/invites/accept`, { token });
+
+export const cancelEnterprisePremiumAccess = () =>
+  httpClient.post(`${API_URL}/enterprise/cancel-premium`);

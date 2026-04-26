@@ -27,6 +27,13 @@ const Login = () => {
       // Always start a fresh AI chat after login
       localStorage.removeItem("lastActiveChatSessionId");
 
+      const pendingInviteToken = localStorage.getItem("pendingEnterpriseInviteToken");
+      if (pendingInviteToken) {
+        localStorage.removeItem("pendingEnterpriseInviteToken");
+        navigate(`/enterprise/invite/accept?token=${pendingInviteToken}`);
+        return;
+      }
+
       if (data.user.role === "admin") {
         navigate("/admin/users");
       } else if (data.user.role === "enterpriseAdmin") {

@@ -77,7 +77,7 @@ const subscriptionSchema = new mongoose.Schema(
 
     payHereStatus: {
       type: String,
-      enum: ['ACTIVE', 'COMPLETED', 'FAILED'],
+      enum: ['ACTIVE', 'COMPLETED', 'FAILED', 'CANCELLED'],
     },
 
     lastCharged: {

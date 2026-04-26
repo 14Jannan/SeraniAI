@@ -34,6 +34,15 @@ const LoginSuccess = () => {
       };
       localStorage.setItem("user", JSON.stringify(userObj));
 
+      const pendingInviteToken = localStorage.getItem("pendingEnterpriseInviteToken");
+      if (pendingInviteToken) {
+        localStorage.removeItem("pendingEnterpriseInviteToken");
+        navigate(`/enterprise/invite/accept?token=${pendingInviteToken}`, {
+          replace: true,
+        });
+        return;
+      }
+
       // 4. Role-based Redirect
       const role = decoded?.role || "user";
 

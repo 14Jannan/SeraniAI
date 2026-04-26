@@ -4,6 +4,8 @@ import { useNavigate, useParams } from "react-router-dom";
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
+const MIN_BUSINESS_SEATS = 5;
+
 const ENTERPRISE_PLANS = {
   business: {
     id: "business",
@@ -27,7 +29,7 @@ export default function EnterpriseCheckout() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [seats, setSeats] = useState(5);
+  const [seats, setSeats] = useState(MIN_BUSINESS_SEATS);
 
   const plan = useMemo(() => ENTERPRISE_PLANS[planId], [planId]);
   const totalAmount = useMemo(() => {
@@ -42,6 +44,7 @@ export default function EnterpriseCheckout() {
     setError("");
 
     try {
+      const safeSeats = Math.max(MIN_BUSINESS_SEATS, Math.floor(Number(seats) || 0));
       const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE}/api/billing/payhere`, {
         method: "POST",
@@ -49,7 +52,7 @@ export default function EnterpriseCheckout() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ planId: plan.id, seats }),
+        body: JSON.stringify({ planId: plan.id, seats: safeSeats }),
       });
 
       const data = await res.json();
@@ -128,8 +131,8 @@ export default function EnterpriseCheckout() {
                 <button
                   type="button"
                   className="h-10 w-10 rounded-full border border-neutral-300 text-xl"
-                  onClick={() => setSeats((prev) => Math.max(1, prev - 1))}
-                  disabled={loading || seats <= 1}
+                  onClick={() => setSeats((prev) => Math.max(MIN_BUSINESS_SEATS, prev - 1))}
+                  disabled={loading || seats <= MIN_BUSINESS_SEATS}
                 >
                   -
                 </button>
@@ -145,6 +148,9 @@ export default function EnterpriseCheckout() {
               </div>
               <p className="mt-2 text-xs text-neutral-500">
                 LKR {Number(plan.price).toFixed(2)} per seat / month
+              </p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Minimum {MIN_BUSINESS_SEATS} seats
               </p>
             </div>
 
