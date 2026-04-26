@@ -93,6 +93,12 @@ const FreePlanJournal = () => {
     });
   }, [entries, selectedDate]);
 
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [entries]);
+
   const handleCreate = async (newEntry) => {
     try {
       setError("");
@@ -204,9 +210,10 @@ const FreePlanJournal = () => {
   };
 
   const handleBackFromDateEvent = () => {
+    setSelectedDate(getLocalDateString());
     setMode("list");
     setSelectedEntry(null);
-    navigate("/dashboard/journal");
+    navigate("/dashboard/journal", { replace: true });
   };
 
   const handleTodayClick = () => {
@@ -231,7 +238,7 @@ const FreePlanJournal = () => {
     return new Date(year, month - 1, day).toLocaleDateString();
   };
 
-  const displayedEntries = filteredEntries;
+  const displayedEntries = sortedEntries;
 
   if (mode === "add") {
     return <AddJournal onBack={handleBack} onSave={handleCreate} />;
@@ -396,6 +403,7 @@ const FreePlanJournal = () => {
                 value={selectedDate}
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
+                  setMode("dateEvent");
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
@@ -445,9 +453,7 @@ const FreePlanJournal = () => {
           </p>
         ) : displayedEntries.length === 0 ? (
           <p className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>
-            {selectedDate
-              ? "No journal entries for the selected date."
-              : "No journal entries yet."}
+            No journal entries yet.
           </p>
         ) : (
           displayedEntries.map((entry) => (

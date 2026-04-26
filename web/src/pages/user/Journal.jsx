@@ -44,20 +44,20 @@ const MOOD_COLORS = {
 };
 
 const MOOD_RING_COLORS = {
-  happy: "#7adf7a",
-  grateful: "#7adf7a",
-  hopeful: "#f3c74f",
-  calm: "#9f7aea",
-  excited: "#ff8a5b",
-  stressed: "#f87171",
-  anxious: "#fbbf24",
-  overwhelmed: "#fb7185",
-  sad: "#60a5fa",
-  lonely: "#34d399",
-  tired: "#cbd5e1",
+  happy: "#34d399",
+  grateful: "#34d399",
+  hopeful: "#f472b6",
+  calm: "#a78bfa",
+  excited: "#fbbf24",
+  stressed: "#fb7185",
+  anxious: "#fb923c",
+  overwhelmed: "#f87171",
+  sad: "#38bdf8",
+  lonely: "#60a5fa",
+  tired: "#94a3b8",
   angry: "#f97316",
-  depressed: "#a78bfa",
-  neutral: "#cbd5e1",
+  depressed: "#8b5cf6",
+  neutral: "#94a3b8",
 };
 
 const MOOD_DOT_CLASSES = {
@@ -179,6 +179,7 @@ const Journal = () => {
   const [showInsightDropdown, setShowInsightDropdown] = useState(false);
   const [moodTimeRange, setMoodTimeRange] = useState("week");
   const [showMoodDropdown, setShowMoodDropdown] = useState(false);
+  const [showMoodModal, setShowMoodModal] = useState(false);
 
   const token = localStorage.getItem("token");
 
@@ -455,6 +456,22 @@ const Journal = () => {
     return new Date(dateString).toLocaleString();
   };
 
+  const formatDayLabel = (dateInput) => {
+    const date = new Date(dateInput);
+    return date.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const formatTimeLabel = (dateInput) => {
+    return new Date(dateInput).toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
   const dominantMood = useMemo(() => {
     if (!summary?.moodCounts) {
       return "neutral";
@@ -482,15 +499,106 @@ const Journal = () => {
       moodLabel,
       legend,
       ring: entries.length
-        ? entries
-            .map(([mood, count]) => {
-              const percent = total ? (count / total) * 100 : 0;
-              return `${MOOD_RING_COLORS[mood] || MOOD_RING_COLORS.neutral} 0 ${percent}%`;
-            })
-            .join(", ")
+        ? (() => {
+            let cursor = 0;
+            return entries
+              .map(([mood, count]) => {
+                const start = cursor;
+                const percent = total ? (count / total) * 100 : 0;
+                cursor += percent;
+                return `${MOOD_RING_COLORS[mood] || MOOD_RING_COLORS.neutral} ${start}% ${cursor}%`;
+              })
+              .join(", ");
+          })()
         : `${MOOD_RING_COLORS.neutral} 0 100%`,
     };
   }, [summary, dominantMood, moodTimeRange]);
+
+  const periodMoodDetails = useMemo(() => {
+    const rangeStart = new Date();
+    rangeStart.setHours(0, 0, 0, 0);
+
+    if (moodTimeRange === "month") {
+      rangeStart.setDate(1);
+    } else {
+      rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay());
+    }
+
+    const rangeEnd = new Date(rangeStart);
+    if (moodTimeRange === "month") {
+      rangeEnd.setMonth(rangeEnd.getMonth() + 1);
+    } else {
+      rangeEnd.setDate(rangeEnd.getDate() + 7);
+    }
+
+    const periodEntries = entries
+      .filter((entry) => {
+        if (!entry?.createdAt) {
+          return false;
+        }
+        const createdAt = new Date(entry.createdAt);
+        return createdAt >= rangeStart && createdAt < rangeEnd;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const moodCounts = periodEntries.reduce((acc, entry) => {
+      const mood = String(entry.mood || "neutral").toLowerCase();
+      acc[mood] = (acc[mood] || 0) + 1;
+      return acc;
+    }, {});
+
+    const moodRows = Object.entries(moodCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([mood, count]) => ({ mood, count }));
+
+    const total = moodRows.reduce((sum, row) => sum + row.count, 0);
+    const moodRowsWithPercent = moodRows.map((row) => ({
+      ...row,
+      percent: total ? Math.round((row.count / total) * 100) : 0,
+    }));
+
+    const ring = moodRowsWithPercent.length
+      ? (() => {
+          let cursor = 0;
+          return moodRowsWithPercent
+            .map(({ mood, count }) => {
+              const start = cursor;
+              const percent = total ? (count / total) * 100 : 0;
+              cursor += percent;
+              return `${MOOD_RING_COLORS[mood] || MOOD_RING_COLORS.neutral} ${start}% ${cursor}%`;
+            })
+            .join(", ");
+        })()
+      : `${MOOD_RING_COLORS.neutral} 0 100%`;
+
+    const totalDays = moodTimeRange === "month"
+      ? new Date(rangeStart.getFullYear(), rangeStart.getMonth() + 1, 0).getDate()
+      : 7;
+
+    const dayBuckets = Array.from({ length: totalDays }, (_, index) => {
+      const dayDate = new Date(rangeStart);
+      dayDate.setDate(rangeStart.getDate() + index);
+      const dayKey = getLocalDateString(dayDate);
+
+      return {
+        dayKey,
+        dayLabel: formatDayLabel(dayDate),
+        entries: periodEntries.filter(
+          (entry) => getLocalDateString(new Date(entry.createdAt)) === dayKey
+        ),
+      };
+    });
+
+    return {
+      rangeStart,
+      rangeEnd,
+      entries: periodEntries,
+      total,
+      moodRows: moodRowsWithPercent,
+      ring,
+      dayBuckets,
+    };
+  }, [entries, moodTimeRange]);
 
   const weeklyActivity = summary?.weeklyActivity || [
     { label: "W", count: 0 },
@@ -838,19 +946,36 @@ const Journal = () => {
             </button>
           </section>
 
-          <section className={`rounded-[18px] border p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-white"}`}>
+          <section
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowMoodModal(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setShowMoodModal(true);
+              }
+            }}
+            className={`rounded-[18px] border p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] cursor-pointer ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-white"}`}
+          >
             <div className="flex items-center justify-between">
               <h4 className="font-semibold text-[18px] leading-none">Mood</h4>
               <div className="relative">
                 <button
-                  onClick={() => setShowMoodDropdown(!showMoodDropdown)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowMoodDropdown(!showMoodDropdown);
+                  }}
                   className={`inline-flex items-center gap-1 text-[15px] leading-none ${theme === "dark" ? "text-gray-300 hover:text-gray-100" : "text-gray-700 hover:text-gray-900"}`}
                 >
                   {moodTimeRange === "week" ? "This Week" : "This Month"}
                   <ChevronDown size={14} />
                 </button>
                 {showMoodDropdown && (
-                  <div className={`absolute right-0 mt-2 w-32 rounded-lg border shadow-lg z-10 ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-white"}`}>
+                  <div
+                    onClick={(event) => event.stopPropagation()}
+                    className={`absolute right-0 mt-2 w-32 rounded-lg border shadow-lg z-10 ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-white"}`}
+                  >
                     <button
                       onClick={() => {
                         setMoodTimeRange("week");
@@ -908,6 +1033,111 @@ const Journal = () => {
               </div>
             )}
           </section>
+
+          {showMoodModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="absolute inset-0 bg-black/45"
+                onClick={() => setShowMoodModal(false)}
+              />
+              <div
+                className={`relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border p-5 ${theme === "dark" ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      {moodTimeRange === "month" ? "Monthly Mood Progress" : "Weekly Mood Progress"}
+                    </h3>
+                    <p className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-500 text-sm"}>
+                      {`${formatDayLabel(periodMoodDetails.rangeStart)} - ${formatDayLabel(
+                        new Date(periodMoodDetails.rangeEnd.getTime() - 1)
+                      )}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMoodModal(false)}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium ${theme === "dark" ? "bg-slate-800 text-gray-200 hover:bg-slate-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-5 items-start">
+                  <div className={`sticky top-0 self-start rounded-xl border p-4 ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-gray-50"}`}>
+                    <div
+                      className="mx-auto relative h-[180px] w-[180px] rounded-full p-5"
+                      style={{ background: `conic-gradient(${periodMoodDetails.ring})` }}
+                    >
+                      <div className={`absolute inset-[36px] rounded-full flex items-center justify-center ${theme === "dark" ? "bg-slate-950" : "bg-white"}`}>
+                        <Smile size={30} className="text-slate-500" />
+                      </div>
+                    </div>
+                    <p className="mt-4 text-center text-sm font-semibold">
+                      {periodMoodDetails.total} mood-tagged entries this {moodTimeRange}
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {periodMoodDetails.moodRows.length > 0 ? periodMoodDetails.moodRows.map((item) => (
+                        <div key={item.mood} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2.5 w-2.5 rounded-full ${MOOD_DOT_CLASSES[item.mood] || MOOD_DOT_CLASSES.neutral}`} />
+                            <span className="capitalize">{item.mood}</span>
+                          </div>
+                          <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>
+                            {item.count} ({item.percent}%)
+                          </span>
+                        </div>
+                      )) : (
+                        <p className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-500 text-sm"}>
+                          {`No mood data this ${moodTimeRange}.`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`max-h-[calc(90vh-140px)] overflow-y-auto rounded-xl border p-4 ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-gray-50"}`}>
+                    <h4 className="font-semibold">{moodTimeRange === "month" ? "Date Breakdown" : "Daily Breakdown"}</h4>
+                    <div className="mt-3 space-y-3">
+                      {periodMoodDetails.dayBuckets.map((day) => (
+                        <div
+                          key={day.dayKey}
+                          className={`rounded-lg border p-3 ${theme === "dark" ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold">{day.dayLabel}</p>
+                            <span className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-gray-500"}>
+                              {day.entries.length} {day.entries.length === 1 ? "entry" : "entries"}
+                            </span>
+                          </div>
+
+                          {day.entries.length > 0 ? (
+                            <div className="mt-2 space-y-2">
+                              {day.entries.map((entry) => (
+                                <div key={entry._id} className="rounded-md border border-transparent p-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-medium truncate">{entry.title || "Untitled Entry"}</p>
+                                    <span className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-gray-500"}>
+                                      {formatTimeLabel(entry.createdAt)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-2">
+                                    <span className={`h-2 w-2 rounded-full ${MOOD_DOT_CLASSES[String(entry.mood || "neutral").toLowerCase()] || MOOD_DOT_CLASSES.neutral}`} />
+                                    <span className="text-xs capitalize">{entry.mood || "neutral"}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className={theme === "dark" ? "text-xs text-gray-400 mt-2" : "text-xs text-gray-500 mt-2"}>No journal entries.</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <section className={`rounded-[18px] border p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-white"}`}>
             <div className="flex items-center justify-between">

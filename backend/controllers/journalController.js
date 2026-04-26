@@ -453,8 +453,11 @@ const getJournalSummary = async (req, res) => {
     const now = new Date();
     const moodRange = req.query.moodRange === "month" ? "month" : "week";
     const insightRange = req.query.insightRange === "month" ? "month" : "week";
-    const moodRangeStart = getRangeStart(moodRange);
-    const weekStart = getRangeStart("week");
+    const weekStart = getStartOfDay(now);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const moodRangeStart = moodRange === "month"
+      ? getRangeStart("month")
+      : weekStart;
 
     const [allJournals, moodRangeJournals, weekJournals] = await Promise.all([
       Journal.find({ user: req.user._id }).select("mood tags createdAt").lean(),
