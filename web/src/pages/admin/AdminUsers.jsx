@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
-import { getUsers, addUser, updateUser, deleteUser } from "../../api/adminApi";
+import { addUser, updateUser, deleteUser } from "../../api/adminApi";
 import Modal from "../../components/Modal";
-import { useForm } from "react-hook-form";
 import { useFetchUSers } from "../../hooks/useFetch";
 import { queryClient } from "../../main";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const ROLE_CONFIG = {
   user: {
@@ -53,23 +54,30 @@ const formFieldClassName =
   "mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500";
 
 const AdminUsers = () => {
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null); // null for 'add', user object for 'edit'
+  const [currentUser, setCurrentUser] = useState(null);
+  const [formError, setFormError] = useState("");
 
-  // Form State
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "user",
   });
-  const { register, handleSubmit: handleSubmitForm, reset } = useForm();
 
-  const { data, isError: error, isLoading: loading } = useFetchUSers();
+  const {
+    data,
+    isError: isUsersError,
+    error: usersQueryError,
+    isLoading: loading,
+  } = useFetchUSers();
+
   const users = data?.data || [];
+
   const handleOpenModal = (user = null) => {
     setCurrentUser(user);
+    setFormError("");
+
     if (user) {
       setFormData({
         name: user.name,
@@ -80,38 +88,78 @@ const AdminUsers = () => {
     } else {
       setFormData({ name: "", email: "", password: "", role: "user" });
     }
+
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setCurrentUser(null);
+    setFormError("");
   };
 
   const handleChange = (e) => {
+    if (formError) setFormError("");
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
+
+    const normalizedName = String(formData.name || "").trim();
+    const normalizedEmail = String(formData.email || "").trim();
+
+    if (!normalizedName) {
+      setFormError("Name is required.");
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      setFormError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!currentUser && (!formData.password || formData.password.length < 6)) {
+      setFormError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (currentUser && formData.password && formData.password.length < 6) {
+      setFormError("If changing password, it must be at least 6 characters.");
+      return;
+    }
+
     try {
       const normalizedRole =
         formData.role === "enterprise" ? "enterpriseUser" : formData.role;
 
       if (currentUser) {
-        // Update user
-        const dataToUpdate = { ...formData, role: normalizedRole };
-        if (!dataToUpdate.password) delete dataToUpdate.password; // Don't send empty password
+        const dataToUpdate = {
+          ...formData,
+          name: normalizedName,
+          email: normalizedEmail,
+          role: normalizedRole,
+        };
+
+        if (!dataToUpdate.password) {
+          delete dataToUpdate.password;
+        }
+
         await updateUser(currentUser._id, dataToUpdate);
       } else {
-        // Add new user
-        await addUser({ ...formData, role: normalizedRole });
+        await addUser({
+          ...formData,
+          name: normalizedName,
+          email: normalizedEmail,
+          role: normalizedRole,
+        });
       }
+
       await queryClient.invalidateQueries({ queryKey: ["users"] });
-      // Refresh list
       handleCloseModal();
     } catch (err) {
-      setError(err.response?.data?.message || "Operation failed.");
+      setFormError(err.response?.data?.message || "Operation failed.");
     }
   };
 
@@ -120,8 +168,8 @@ const AdminUsers = () => {
       try {
         await deleteUser(id);
         await queryClient.invalidateQueries({ queryKey: ["users"] });
-      } catch {
-        setError("Failed to delete user.");
+      } catch (err) {
+        setFormError(err.response?.data?.message || "Failed to delete user.");
       }
     }
   };
@@ -140,7 +188,17 @@ const AdminUsers = () => {
         </button>
       </div>
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {isUsersError && (
+        <p className="text-red-500 mb-4">
+          {usersQueryError?.response?.data?.message ||
+            usersQueryError?.message ||
+            "Failed to load users."}
+        </p>
+      )}
+
+      {formError && !isModalOpen && (
+        <p className="text-red-500 mb-4">{formError}</p>
+      )}
 
       <div className="bg-white dark:bg-[#0d1a2e] p-4 rounded-lg shadow-lg">
         <div className="overflow-x-auto">
@@ -173,6 +231,8 @@ const AdminUsers = () => {
                   const displayRole =
                     user.role === "enterprise" ? "enterpriseUser" : user.role;
 
+                  const roleConfig = getRoleConfig(displayRole);
+
                   return (
                     <tr
                       key={user._id}
@@ -183,17 +243,14 @@ const AdminUsers = () => {
                       </td>
                       <td className="px-6 py-4">{user.email}</td>
                       <td className="px-6 py-4">
-                        {(() => {
-                          const roleConfig = getRoleConfig(displayRole);
-
-                          return (
-                            <span
-                              className={`inline-flex items-center rounded-full border-2 px-3 py-1 text-xs font-semibold ${roleConfig.badgeClass}`}
-                            >
-                              {roleConfig.label}
-                            </span>
-                          );
-                        })()}
+                        <span
+                          className={
+                            "inline-flex items-center rounded-full border-2 px-3 py-1 text-xs font-semibold " +
+                            roleConfig.badgeClass
+                          }
+                        >
+                          {roleConfig.label}
+                        </span>
                       </td>
                       <td className="px-6 py-4 flex justify-end gap-4">
                         <button
@@ -218,19 +275,19 @@ const AdminUsers = () => {
         </div>
       </div>
 
-      {/* Add/Edit User Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         title={currentUser ? "Edit User" : "Add New User"}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {formError && <p className="text-red-500 mb-4">{formError}</p>}
+
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Name
             </label>
             <input
-              {...register("name", { required: true })}
               type="text"
               name="name"
               value={formData.name}
@@ -239,12 +296,12 @@ const AdminUsers = () => {
               className={formFieldClassName}
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Email
             </label>
             <input
-              {...register("email", { required: true })}
               type="email"
               name="email"
               value={formData.email}
@@ -253,12 +310,12 @@ const AdminUsers = () => {
               className={formFieldClassName}
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Password
             </label>
             <input
-              {...register("password", { required: !currentUser })}
               type="password"
               name="password"
               value={formData.password}
@@ -268,6 +325,7 @@ const AdminUsers = () => {
               className={formFieldClassName}
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Role
@@ -285,6 +343,7 @@ const AdminUsers = () => {
               ))}
             </select>
           </div>
+
           <div className="flex justify-end gap-4 pt-4">
             <button
               type="button"

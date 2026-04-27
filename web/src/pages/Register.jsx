@@ -33,8 +33,8 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await register(formData);
-      navigate('/verify', { state: { email: formData.email } });
+      await register(formData); // calls auth/api.js
+      navigate('/verify', { state: { email: formData.email } }); // if success goes to verify page
     } catch (err) {
       setError(err.response?.data?.message || 'Registration Failed');
     } finally {
