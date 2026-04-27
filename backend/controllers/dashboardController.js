@@ -22,33 +22,37 @@ exports.getDashboardStats = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 2. Total Journals Count
+    // 2. Total Journals Count - lean query
     const totalJournals = await Journal.countDocuments({ user: userId });
 
     // 3. Completed Lessons Count
     const completedLessons = user.lessonProgress.length;
 
-    // 4. Daily Tasks Count (for today)
-    const today = new Date().toISOString().slice(0, 10);
-    const todayTaskProgress = await UserTaskProgress.findOne({ user: userId, dateKey: today });
+    // 4. Daily Tasks Count (for today) - use local date string
+    const todayDate = new Date();
+    // Ensure we get local YYYY-MM-DD without timezone offset
+    const today = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + String(todayDate.getDate()).padStart(2, '0');
+    const todayTaskProgress = await UserTaskProgress.findOne({ user: userId, dateKey: today }).lean();
     const dailyTasksCount = todayTaskProgress ? todayTaskProgress.taskIds.length : 0;
 
-    // 5. AI Interactions Count (User messages)
-    const chats = await Chat.find({ user: userId });
-    let aiInteractions = 0;
-    chats.forEach((chat) => {
-      aiInteractions += chat.messages.filter((m) => m.role === "user").length;
-    });
+    // 5. AI Interactions Count (User messages) - use aggregation for scalability
+    const aiInteractionAgg = await Chat.aggregate([
+      { $match: { user: userId } },
+      { $unwind: "$messages" },
+      { $match: { "messages.role": "user" } },
+      { $group: { _id: null, count: { $sum: 1 } } }
+    ]);
+    const aiInteractions = (aiInteractionAgg[0] && aiInteractionAgg[0].count) || 0;
 
     // 6. Recent Activity (Mix of Journals and Chats)
     const recentJournals = await Journal.find({ user: userId })
       .sort({ createdAt: -1 })
-      .limit(5);
-
+      .limit(5)
+      .lean();
     const recentChats = await Chat.find({ user: userId })
       .sort({ updatedAt: -1 })
-      .limit(5);
-
+      .limit(5)
+      .lean();
     // Combine and format activity
     let activities = [
       ...recentJournals.map((j) => ({
@@ -88,7 +92,7 @@ exports.getDashboardStats = async (req, res) => {
         },
       },
       { $sort: { _id: 1 } },
-    ]);
+    ]).allowDiskUse(true);
 
     // Fill in zeros for days without activity
     const dailyActivity = [];
@@ -124,51 +128,66 @@ exports.getWeeklyReport = async (req, res) => {
   try {
     const userId = req.user._id;
     const sevenDaysAgo = new Date();
+    // Start from local midnight
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    // Subtract 7 days to get exact 7‑day window (excluding today)
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const now = new Date();
+    // No need to modify now; use as upper bound in queries
+    
 
-    // 1. Fetch data from last 7 days
-    const journals = await Journal.find({
-      user: userId,
-      createdAt: { $gte: sevenDaysAgo }
-    }).select("title content createdAt");
+    // 1. Fetch data from last 7 days using lean queries and local date range
+    const [journals, chats] = await Promise.all([
+      Journal.find({
+        user: userId,
+        createdAt: { $gte: sevenDaysAgo, $lt: now }
+      })
+        .select("title content createdAt")
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
 
-    const chats = await Chat.find({
-      user: userId,
-      updatedAt: { $gte: sevenDaysAgo }
-    }).select("title updatedAt");
+      Chat.find({
+        user: userId,
+        updatedAt: { $gte: sevenDaysAgo, $lt: now }
+      })
+        .select("title updatedAt messages")
+        .sort({ updatedAt: -1 })
+        .limit(5)
+        .lean()
+    ]);
 
     if (!openai) {
       return res.status(500).json({ message: "AI service not configured" });
     }
 
-    // 2. Prepare context for AI
-    let context = "USER ACTIVITY IN THE LAST 7 DAYS:\n\n";
+    // 2. Build a concise, structured context for the AI
+    const contextParts = [];
+    contextParts.push("USER ACTIVITY IN THE LAST 7 DAYS:\n");
 
     if (journals.length > 0) {
-      context += "--- JOURNAL ENTRIES ---\n";
-      journals.forEach(j => {
-        context += `Title: ${j.title || "Untitled"}\nContent: ${j.content}\nDate: ${j.createdAt.toDateString()}\n\n`;
-      });
+      const journalSummary = journals.map(j => `- ${j.title || "Untitled"} (${j.createdAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })})`).join("\n");
+      contextParts.push("--- JOURNAL ENTRIES (titles) ---\n" + journalSummary + "\n\n");
     } else {
-      context += "No journal entries this week.\n\n";
+      contextParts.push("No journal entries this week.\n\n");
     }
 
     if (chats.length > 0) {
-      context += "--- RECENT CHAT TOPICS ---\n";
-      chats.forEach(c => {
-        context += `- ${c.title || "New Chat"} (${c.updatedAt.toDateString()})\n`;
-      });
+      const chatSummary = chats.map(c => `- ${c.title || "New Chat"} (${c.updatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })})`).join("\n");
+      contextParts.push("--- RECENT CHAT TOPICS ---\n" + chatSummary + "\n\n");
     } else {
-      context += "No AI chat interactions this week.\n\n";
+      contextParts.push("No AI chat interactions this week.\n\n");
     }
 
-    // 3. Call AI to generate report
+    const context = contextParts.join("");
+
+    // 3. Call AI to generate report with a more specific system prompt
     const response = await openai.chat.completions.create({
       model: process.env.MODEL || "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are an empathetic personal growth assistant. Your task is to generate a 'Weekly Progress Report' based on the user's journals and chat activity. Format the report using the following sections: 'Emotional Trends', 'Learning Progress', and 'Goals for Next Week'. Use a warm, professional, and encouraging tone. If data is sparse, provide gentle encouragement and general guidance for reflection."
+          content: "You are an empathetic personal growth assistant. Analyze the provided weekly user activity (journal excerpts and chat topics) and generate a concise 'Weekly Progress Report' with three sections: 'Emotional Trends', 'Learning Progress', and 'Goals for Next Week'. Highlight positive patterns, suggest improvements, and keep the tone warm, professional, and encouraging. Keep the report under 800 words."
         },
         {
           role: "user",
@@ -179,8 +198,25 @@ exports.getWeeklyReport = async (req, res) => {
       max_tokens: 1000
     });
 
-    const report = response.choices[0].message.content;
+    // Safely extract the report content from AI response
+    let report = "";
+    if (
+      response &&
+      response.choices &&
+      response.choices[0] &&
+      response.choices[0].message &&
+      typeof response.choices[0].message.content === "string"
+    ) {
+      report = response.choices[0].message.content;
+    } else {
+      console.error("Unexpected AI response format:", response);
+      return res
+        .status(500)
+        .json({ message: "AI response missing expected content" });
+    }
 
+
+    // Send the generated report back to the client
     res.json({ report });
   } catch (error) {
     console.error("Weekly report error:", error);

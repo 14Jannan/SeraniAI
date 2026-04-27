@@ -103,7 +103,8 @@ async function getDailyReminders(userId) {
     }
 
     // 4. Check daily tasks
-    const dateKey = new Date().toISOString().slice(0, 10);
+    const todayDate = new Date();
+    const dateKey = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + String(todayDate.getDate()).padStart(2, '0');
     const progress = await UserTaskProgress.findOne({ user: userId, dateKey });
     if (!progress || (progress.taskIds.length > 0 && progress.completedTaskIds.length < progress.taskIds.length)) {
       reminders.push("Don't forget to complete your daily tasks to stay on track!");
