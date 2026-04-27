@@ -12,7 +12,6 @@ const pdf = require("pdf-parse");
 const { generateSystemPrompt } = require("../utils/promptBuilder");
 const ChromaDBService = require("../services/chromaDBService");
 const UserTaskProgress = require("../models/userTaskProgressModel");
-const { Task } = require("../models/taskModel");
 
 const chromadb = new ChromaDBService();
 
@@ -103,8 +102,14 @@ async function getDailyReminders(userId) {
       reminders.push("Don't forget to complete a lesson today to maintain your learning streak!");
     }
 
-    // 4. (Removed task reminder to align with wellness-only focus during stress)
-    
+    // 4. Check daily tasks
+    const todayDate = new Date();
+    const dateKey = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + String(todayDate.getDate()).padStart(2, '0');
+    const progress = await UserTaskProgress.findOne({ user: userId, dateKey });
+    if (!progress || (progress.taskIds.length > 0 && progress.completedTaskIds.length < progress.taskIds.length)) {
+      reminders.push("Don't forget to complete your daily tasks to stay on track!");
+    }
+
     if (reminders.length > 0) {
       return "\n\n--- DAILY REMINDER ---\n" + reminders.map(r => `• ${r}`).join("\n");
     }
@@ -187,21 +192,12 @@ async function getMoodBasedCourseSuggestions(userId) {
   }
 }
 
-async function getTodayContext(userId, userMessage = "", localDateStr = "") {
+async function getTodayContext(userId) {
   try {
-    const startOfDay = localDateStr ? new Date(localDateStr) : new Date();
+    const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const dateKey = startOfDay.getFullYear() + '-' + String(startOfDay.getMonth() + 1).padStart(2, '0') + '-' + String(startOfDay.getDate()).padStart(2, '0');
 
-    let context = `CURRENT_DATE: ${startOfDay.toDateString()}\n`;
-    context += `FILTERED_GOOGLE_CALENDAR_EVENTS: [No calendar data provided in this request]\n\n`;
-    const recentJournals = await Journal.find({
-      user: userId,
-    })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select("title content mood createdAt");
-
+    // 1. Get Today's Journal Entries
     const todayJournals = await Journal.find({
       user: userId,
       createdAt: { $gte: startOfDay }
@@ -211,44 +207,14 @@ async function getTodayContext(userId, userMessage = "", localDateStr = "") {
     const user = await User.findById(userId).select("lessonProgress");
     const todayLessonActivities = user.lessonProgress?.filter(lp => lp.updatedAt >= startOfDay) || [];
 
-    // 3. Get Today's Tasks (ONLY if stress/anxiety detected or explicitly asked about wellness/exercises)
-    const lowerMsg = userMessage.toLowerCase();
-    const stressKeywords = ["stress", "anxious", "sad", "bad", "overwhelmed", "tired", "worried", "nervous"];
-    const wellnessKeywords = ["wellness", "exercise", "calm", "relax", "breathing", "daily task"];
-    const isStressed = stressKeywords.some(word => lowerMsg.includes(word));
-    const askedAboutWellness = wellnessKeywords.some(word => lowerMsg.includes(word));
-
-    let taskContext = "";
-    if (isStressed || askedAboutWellness) {
-      const progress = await UserTaskProgress.findOne({ user: userId, dateKey });
-      if (progress && progress.taskIds.length > 0) {
-        const todayTasks = await Task.find({ taskId: { $in: progress.taskIds } });
-        if (todayTasks.length > 0) {
-          taskContext = "DAILY WELLNESS EXERCISES:\n" + todayTasks.map(t => {
-            const isCompleted = progress.completedTaskIds.includes(t.taskId);
-            return `- [${isCompleted ? "COMPLETED" : "PENDING"}] ${t.title} (${t.category}, ${t.duration} mins)`;
-          }).join("\n") + "\n\n";
-        }
-      }
-    }
-
-    // (Already declared above, appending now)
+    let context = "";
     if (todayJournals.length > 0) {
       context += "TODAY'S JOURNAL ENTRIES:\n" + todayJournals.map(j => `- [Title: ${j.title || "Untitled"}] Content: ${j.content}`).join("\n") + "\n\n";
-    }
-
-    if (recentJournals.length > 0) {
-      context += "RECENT JOURNAL ENTRIES (latest first):\n" + recentJournals.map((j) => {
-        const journalDate = j.createdAt ? new Date(j.createdAt).toDateString() : "Unknown date";
-        return `- [${journalDate}] [Title: ${j.title || "Untitled"}] Mood: ${j.mood || "unknown"} Content: ${j.content}`;
-      }).join("\n") + "\n\n";
     }
 
     if (todayLessonActivities.length > 0) {
       context += "TODAY'S LESSON PROGRESS & NOTES:\n" + todayLessonActivities.map(lp => `- Notes: ${lp.notes || "None"}, Journal: ${lp.journal || "None"}`).join("\n") + "\n\n";
     }
-
-    context += taskContext;
 
     return context;
   } catch (err) {
@@ -367,12 +333,10 @@ Respond ONLY with one of the three words: journal, course, or general.`
   }
 }
 
-async function getAiReply(history, context = "", tools = null, roleKey = "general", user = null, isNewChat = false, localDateStr = "") {
+async function getAiReply(history, context = "", tools = null, roleKey = "general", userName = "User") {
   if (!process.env.OPENAI_API_KEY) {
     return { content: "OPENAI_API_KEY is not set in backend/.env" };
   }
-
-  const userName = user?.name || "User";
 
   // Combine history with retrieved context if available
   const messages = (history || [])
@@ -383,7 +347,7 @@ async function getAiReply(history, context = "", tools = null, roleKey = "genera
     // Check if system message already exists
     const hasSystem = messages.some(m => m.role === "system");
     if (!hasSystem) {
-      const systemPrompt = generateSystemPrompt(roleKey, user, context, isNewChat, localDateStr);
+      const systemPrompt = generateSystemPrompt(roleKey, userName, context);
       messages.unshift({
         role: "system",
         content: systemPrompt
@@ -406,7 +370,7 @@ exports.sendMessage = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Not authorized" });
 
-    const { message, sessionId, editIndex, localDate } = req.body;
+    const { message, sessionId, editIndex } = req.body;
     const clean = (message || "").trim();
 
     // Check if we have a file OR message
@@ -454,29 +418,23 @@ exports.sendMessage = async (req, res) => {
     });
 
     // 2) Prepare Context (Today's Data + Semantic Search + File Content)
-    let todayContext = await getTodayContext(userId, clean, localDate);
+    let todayContext = await getTodayContext(userId);
 
     // Prepend file content to message if present
     const augmentedMessage = fileData
       ? `[IMPORTANT SYSTEM NOTE: I have just uploaded a new file. The content of this NEW file is provided below. You MUST base your answer primarily on THIS file's content, rather than any previous files or past context, unless I explicitly ask otherwise.]\n\n--- CURRENT UPLOADED FILE CONTENT ---\n${fileData}\n--- END OF FILE CONTENT ---\n\nUSER MESSAGE: ${clean}`
       : clean;
-    
     let searchContext = "";
-    const lowerMsg = clean.toLowerCase();
-    const isAskingAboutToday = lowerMsg.includes("today") || lowerMsg.includes("now") || lowerMsg.includes("current");
-
     try {
-      // 1. Search journals for context (Skip past journals if explicitly asking about today)
-      if (!isAskingAboutToday) {
-        const journalData = await chromadb.search(clean, "journals", 3, { userId: userId.toString() });
-        if (journalData && journalData.results && journalData.results.length > 0) {
-          const docs = journalData.results.map(r => r.document);
-          searchContext += "PAST JOURNALS (for background context):\n" + docs.join("\n") + "\n\n";
-        }
+      // 1. Search journals for context
+      const journalData = await chromadb.search(clean, "journals", 5, { userId: userId.toString() });
+      if (journalData && journalData.results && journalData.results.length > 0) {
+        const docs = journalData.results.map(r => r.document);
+        searchContext += "PAST JOURNALS:\n" + docs.join("\n") + "\n\n";
       }
 
       // 2. Search past chat messages for memory
-      const chatData = await chromadb.search(clean, "chat_messages", 5, { userId: userId.toString() });
+      const chatData = await chromadb.search(clean, "chat_messages", 10, { userId: userId.toString() });
       if (chatData && chatData.results && chatData.results.length > 0) {
         const docs = chatData.results.map(r => r.document);
         searchContext += "PAST CONVERSATION MEMORIES:\n" + docs.join("\n") + "\n\n";
@@ -488,9 +446,6 @@ exports.sendMessage = async (req, res) => {
     // 2.5) Select Role based on message
     const selectedRole = await determineRole(clean);
     console.log(`Automatically selected role: ${selectedRole}`);
-
-    // Check if this is the very first message in the chat
-    const isNewChat = chat.messages.length <= 1;
 
     // 3) Generate AI reply (with Tool support and selected role)
     const fullContext = (todayContext + "\n" + searchContext).trim();
@@ -504,7 +459,7 @@ exports.sendMessage = async (req, res) => {
     // Override the last user message with augmented content for AI context
     messagesForAI[messagesForAI.length - 1].content = augmentedMessage;
 
-    let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
+    let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user.name || "User");
 
     let suggestedCourses = [];
 
@@ -559,7 +514,7 @@ exports.sendMessage = async (req, res) => {
         tool_calls: m.tool_calls,
         tool_call_id: m.tool_call_id
       }));
-      aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
+      aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole, req.user.name || "User");
     }
 
     let reply = aiResponse.content || "No reply";

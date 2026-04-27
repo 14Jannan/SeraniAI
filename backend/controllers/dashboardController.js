@@ -187,7 +187,7 @@ exports.getWeeklyReport = async (req, res) => {
       messages: [
         {
           role: "system",
-          content: "You are an empathetic personal growth assistant. Analyze the provided weekly user activity (journal excerpts and chat topics) and generate a concise 'Weekly Progress Report'. Use **BOLD** (markdown like **Section**) for section headers: **Emotional Trends**, **Learning Progress**, and **Goals for Next Week**. Highlight positive patterns, suggest improvements, and keep the tone warm, professional, and encouraging. Keep the report under 800 words."
+          content: "You are an empathetic personal growth assistant. Analyze the provided weekly user activity (journal excerpts and chat topics) and generate a concise 'Weekly Progress Report' with three sections: 'Emotional Trends', 'Learning Progress', and 'Goals for Next Week'. Highlight positive patterns, suggest improvements, and keep the tone warm, professional, and encouraging. Keep the report under 800 words."
         },
         {
           role: "user",
