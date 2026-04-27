@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -28,6 +28,29 @@ const parseDateInputAsLocal = (dateString) => {
   return new Date(year, month - 1, day);
 };
 
+const getLocalDateKey = (date) => {
+  if (!date) {
+    return "";
+  }
+
+  return getLocalDateString(date);
+};
+
+const monthOptions = [
+  { value: 0, label: "January" },
+  { value: 1, label: "February" },
+  { value: 2, label: "March" },
+  { value: 3, label: "April" },
+  { value: 4, label: "May" },
+  { value: 5, label: "June" },
+  { value: 6, label: "July" },
+  { value: 7, label: "August" },
+  { value: 8, label: "September" },
+  { value: 9, label: "October" },
+  { value: 10, label: "November" },
+  { value: 11, label: "December" },
+];
+
 const FreePlanJournal = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -39,14 +62,17 @@ const FreePlanJournal = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
-  const dateInputRef = useRef(null);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const token = localStorage.getItem("token");
   const dateFromQuery = searchParams.get("date");
 
   useEffect(() => {
     if (dateFromQuery) {
+      const parsed = parseDateInputAsLocal(dateFromQuery);
       setSelectedDate(dateFromQuery);
+      setCalendarMonth(parsed);
       setMode("dateEvent");
     }
   }, [dateFromQuery]);
@@ -98,6 +124,67 @@ const FreePlanJournal = () => {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [entries]);
+
+  const calendarData = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    const firstWeekday = monthStart.getDay();
+    const daysInMonth = monthEnd.getDate();
+    const prevMonthEnd = new Date(year, month, 0).getDate();
+
+    const cells = [];
+    for (let index = 0; index < 42; index += 1) {
+      let day;
+      let isCurrentMonth = true;
+
+      if (index < firstWeekday) {
+        day = prevMonthEnd - firstWeekday + index + 1;
+        isCurrentMonth = false;
+      } else if (index >= firstWeekday + daysInMonth) {
+        day = index - (firstWeekday + daysInMonth) + 1;
+        isCurrentMonth = false;
+      } else {
+        day = index - firstWeekday + 1;
+      }
+
+      const today = new Date();
+      const isToday =
+        isCurrentMonth &&
+        day === today.getDate() &&
+        month === today.getMonth() &&
+        year === today.getFullYear();
+
+      cells.push({ day, isCurrentMonth, isToday, key: `${index}-${day}` });
+    }
+
+    return {
+      monthLabel: calendarMonth.toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      }),
+      cells,
+    };
+  }, [calendarMonth]);
+
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 50;
+    const endYear = currentYear + 10;
+    const years = [];
+
+    for (let year = endYear; year >= startYear; year -= 1) {
+      years.push(year);
+    }
+
+    return years;
+  }, []);
+
+  useEffect(() => {
+    const parsed = parseDateInputAsLocal(selectedDate);
+    setCalendarMonth(parsed);
+  }, [selectedDate]);
 
   const handleCreate = async (newEntry) => {
     try {
@@ -218,8 +305,22 @@ const FreePlanJournal = () => {
 
   const handleTodayClick = () => {
     const today = getLocalDateString();
+    setCalendarMonth(new Date());
     setSelectedDate(today);
     setMode("dateEvent");
+    setShowCalendar(false);
+  };
+
+  const handleDateClick = (day) => {
+    const newDate = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth(),
+      day
+    );
+    const dateKey = getLocalDateKey(newDate);
+    setSelectedDate(dateKey);
+    setMode("dateEvent");
+    setShowCalendar(false);
   };
 
   const handleViewSelectedDate = () => {
@@ -376,39 +477,174 @@ const FreePlanJournal = () => {
       }`}
     >
       <div className="bg-blue-500 px-6 py-4 flex justify-end">
-        <div className="flex items-center gap-3">
+        <div className="relative flex items-center gap-3">
           <button
             onClick={handleTodayClick}
-            className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-lg font-semibold"
+            type="button"
+            className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-lg font-semibold relative z-10"
           >
             Today
           </button>
 
-          <div className="flex items-stretch overflow-hidden rounded-lg shadow-sm">
-            <label
-              className="relative flex items-center gap-2 bg-blue-700 text-white px-3 py-2 cursor-pointer"
-              onClick={() => {
-                if (dateInputRef.current?.showPicker) {
-                  dateInputRef.current.showPicker();
-                } else {
-                  dateInputRef.current?.focus();
-                }
+          <div className="inline-flex items-center overflow-hidden rounded-lg shadow-sm bg-blue-700 text-white relative z-20">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setShowCalendar((prev) => !prev);
               }}
+              className="flex items-center gap-2 px-3 py-2 font-semibold hover:bg-blue-800 cursor-pointer relative z-30"
             >
               <CalendarDays size={18} />
               <span>{formatSelectedDate(selectedDate)}</span>
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setMode("dateEvent");
-                }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-            </label>
+            </button>
           </div>
+
+          {showCalendar && (
+            <div
+              className={`absolute right-0 top-full z-50 mt-2 w-[280px] rounded-2xl border p-4 shadow-2xl ${
+                theme === "dark"
+                  ? "border-slate-700 bg-slate-950"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                  <h4
+                    className={`font-semibold ${
+                      theme === "dark" ? "text-gray-100" : "text-gray-700"
+                    }`}
+                  >
+                    Calendar
+                  </h4>
+              </div>
+
+                <div className="mb-3 grid grid-cols-2 gap-2">
+                  <select
+                    value={calendarMonth.getFullYear()}
+                    onChange={(event) => {
+                      setCalendarMonth(
+                        new Date(
+                          Number(event.target.value),
+                          calendarMonth.getMonth(),
+                          1
+                        )
+                      );
+                    }}
+                    className={`rounded-lg border px-2 py-2 text-sm outline-none ${
+                      theme === "dark"
+                        ? "border-slate-700 bg-slate-900 text-gray-100"
+                        : "border-gray-200 bg-white text-gray-700"
+                    }`}
+                  >
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={calendarMonth.getMonth()}
+                    onChange={(event) => {
+                      setCalendarMonth(
+                        new Date(
+                          calendarMonth.getFullYear(),
+                          Number(event.target.value),
+                          1
+                        )
+                      );
+                    }}
+                    className={`rounded-lg border px-2 py-2 text-sm outline-none ${
+                      theme === "dark"
+                        ? "border-slate-700 bg-slate-900 text-gray-100"
+                        : "border-gray-200 bg-white text-gray-700"
+                    }`}
+                  >
+                    {monthOptions.map((month) => (
+                      <option key={month.value} value={month.value}>
+                        {month.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+              <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs">
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+                  <div
+                    key={day}
+                    className={`font-semibold ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {calendarData.cells.map((cell) => {
+                  const cellDate = cell.isCurrentMonth
+                    ? new Date(
+                        calendarMonth.getFullYear(),
+                        calendarMonth.getMonth(),
+                        cell.day
+                      )
+                    : null;
+                  const isSelected =
+                    cellDate && getLocalDateKey(cellDate) === selectedDate;
+
+                  return (
+                    <button
+                      key={cell.key}
+                      type="button"
+                      onClick={() => cell.isCurrentMonth && handleDateClick(cell.day)}
+                      disabled={!cell.isCurrentMonth}
+                      className={`h-8 w-8 rounded-full text-xs font-medium disabled:cursor-default ${
+                        isSelected
+                          ? "bg-blue-600 text-white"
+                          : cell.isToday
+                            ? "bg-blue-500 text-white"
+                            : cell.isCurrentMonth
+                              ? theme === "dark"
+                                ? "text-gray-200 hover:bg-slate-800"
+                                : "text-gray-700 hover:bg-gray-100"
+                              : theme === "dark"
+                                ? "text-gray-600"
+                                : "text-gray-300"
+                      }`}
+                    >
+                      {cell.day}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDate(getLocalDateString());
+                    setCalendarMonth(new Date());
+                    setMode("dateEvent");
+                    setShowCalendar(false);
+                  }}
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  Jump to today
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowCalendar(false)}
+                  className={`text-sm font-semibold ${
+                    theme === "dark" ? "text-gray-300" : "text-gray-600"
+                  }`}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
 
           <button
             onClick={handleAddClick}
