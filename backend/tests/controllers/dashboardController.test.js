@@ -5,7 +5,22 @@ jest.mock("../../models/userModel");
 jest.mock("../../models/journalModel");
 jest.mock("../../models/chatModels");
 jest.mock("../../models/userTaskProgressModel");
-jest.mock("openai");
+
+// Create a shared mock state that can be updated per test
+const mockState = {
+  createFn: jest.fn(),
+};
+
+// Mock OpenAI with an implementation that uses the shared mock state
+jest.mock("openai", () => {
+  return jest.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: (...args) => mockState.createFn(...args),
+      },
+    },
+  }));
+});
 
 // Require AFTER mocks are registered so the module-level openai instance
 // is constructed from the jest-mocked OpenAI constructor
@@ -17,15 +32,18 @@ const Chat = require("../../models/chatModels");
 const UserTaskProgress = require("../../models/userTaskProgressModel");
 
 // ---------------------------------------------------------------------------
-// Shared mock create fn — replaced per-test where needed
+// Helpers
 // ---------------------------------------------------------------------------
 let mockCreate;
 
 beforeAll(() => {
-  mockCreate = jest.fn();
-  OpenAI.mockImplementation(() => ({
-    chat: { completions: { create: mockCreate } },
-  }));
+  // mockCreate will reference the mockState.createFn
+  mockCreate = mockState.createFn;
+});
+
+beforeEach(() => {
+  // Reset the create function before each test, but keep the reference
+  mockState.createFn.mockClear();
 });
 
 // ---------------------------------------------------------------------------
@@ -106,10 +124,8 @@ describe("Dashboard Controller", () => {
         lean: jest.fn().mockResolvedValue({ taskIds: ["t1", "t2"] }),
       });
 
-      // Chat.aggregate().allowDiskUse() for AI interaction count
-      Chat.aggregate.mockReturnValue({
-        allowDiskUse: jest.fn().mockResolvedValue([{ _id: null, count: 5 }]),
-      });
+      // Chat.aggregate() for AI interaction count - NO .allowDiskUse()
+      Chat.aggregate.mockResolvedValue([{ _id: null, count: 5 }]);
 
       Chat.find.mockReturnValue(
         makeChatFindChain([{ _id: "c1", title: "C1", updatedAt: new Date() }])
@@ -153,9 +169,8 @@ describe("Dashboard Controller", () => {
         lean: jest.fn().mockResolvedValue(null),
       });
 
-      Chat.aggregate.mockReturnValue({
-        allowDiskUse: jest.fn().mockResolvedValue([]),
-      });
+      // Chat.aggregate() for AI interaction count - NO .allowDiskUse()
+      Chat.aggregate.mockResolvedValue([]);
       Chat.find.mockReturnValue(makeChatFindChain([]));
 
       await dashboardController.getDashboardStats(mockReq, mockRes);
