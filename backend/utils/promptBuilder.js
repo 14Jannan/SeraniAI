@@ -3,36 +3,12 @@ const roles = require('../config/roles.json');
 /**
  * Generates a dynamic system prompt based on structured role data.
  * @param {string} roleKey - The key for the role (journal, course, general).
- * @param {object} user - The user object containing preferences.
+ * @param {string} userName - The name of the user.
  * @param {string} context - Additional context (retrieved memory, today's activity).
- * @param {boolean} isNewChat - Whether this is the first message of a new session.
- * @param {string} localDateStr - The user's local date string.
  * @returns {string} - The generated system prompt.
  */
-function generateSystemPrompt(roleKey, user, context = "", isNewChat = false, localDateStr = "") {
+function generateSystemPrompt(roleKey, userName, context = "") {
   const role = roles[roleKey] || roles.general;
-  const userName = user?.name || "User";
-  const preferences = user?.preferences || {};
-
-  const currentLocal = localDateStr ? new Date(localDateStr).toDateString() : new Date().toDateString();
-
-  // Construct personalization snippet
-  let personalization = "";
-  if (preferences.profession || preferences.goals) {
-    personalization = `\n# USER PROFILE & CONTEXT
-- Profession: ${preferences.profession || "Not specified"}
-- Interests: ${preferences.interests?.join(", ") || "Not specified"}
-- Core Goals: ${preferences.goals || "Not specified"}
-- Expectations from AI: ${preferences.expectations || "Not specified"}
-- Communication Style: ${preferences.communicationStyle || "Supportive"}
-- Use this information to tailor your advice, suggestions, and tone. If they are a professional in a specific field, use relevant analogies.
-`;
-  }
-
-  // Greeting logic: Only use name for NEW chats
-  const greetingInstruction = isNewChat 
-    ? `- This is a NEW chat. You MUST greet the user by their name: ${userName} (e.g., "Hi ${userName}!", "Hello ${userName}!").`
-    : `- This is an ONGOING conversation. DO NOT repeat the user's name (${userName}) in every message. Only use it if the moment feels particularly significant or supportive.`;
 
   // Adapt tone based on context clues (basic implementation)
   let adaptiveTone = role.tone;
@@ -45,32 +21,19 @@ function generateSystemPrompt(roleKey, user, context = "", isNewChat = false, lo
   const goals = Array.isArray(role.goals) ? role.goals.map(g => `- ${g}`).join('\n') : role.goals;
   const behaviors = Array.isArray(role.behaviorRules) ? role.behaviorRules.map(b => `- ${b}`).join('\n') : role.behaviorRules;
 
-  const journalGuidance = `
-# JOURNAL & WELLBEING CONTEXT
-- You may receive journal entries, mood summaries, and past conversation memories in the context.
-- When the user asks about previous feelings, journal entries, emotional patterns, or mental health reflections, use the provided journal context if available.
-- Do not claim you have no access to journal history if journal data is included in the context.
-- If no journal data is provided, say you do not have enough journal context to answer.
-`;
-
   return `
 # IDENTITY
 ${role.identity}
-- The user you are speaking with is: ${userName}
-${personalization}
-${greetingInstruction}
-You are SeraniAI, an assistant that helps with the user's schedule, wellbeing, and journal reflections.
+You are SeraniAI, an assistant that manages and explains the user's schedule using Google Calendar as the ONLY source of truth.
 
 # CRITICAL RULES (STRICT ADHERENCE REQUIRED)
-1. **GOOGLE CALENDAR IS THE SOURCE OF TRUTH FOR SCHEDULES**: All schedule events come from Google Calendar. Do NOT assume or guess events. If an event is not in the provided Google Calendar data, it does NOT exist.
-2. **STRICT DATE CONTROL**: Treat CURRENT_DATE as absolute truth. Today is ${currentLocal}. Never guess today's date.
+1. **GOOGLE CALENDAR IS THE ONLY SOURCE OF TRUTH**: All schedule events come from Google Calendar. Do NOT assume or guess events. If an event is not in the provided Google Calendar data, it does NOT exist.
+2. **STRICT DATE CONTROL**: Treat CURRENT_DATE (provided in context) as absolute truth. Never guess today's date.
 3. **NO HALLUCINATION**: Never use past/future events as today's events. Never shift dates or reinterpret timings.
 4. **ONLY USE PROVIDED EVENTS**: Only use the events provided in the FILTERED_GOOGLE_CALENDAR_EVENTS section of the context.
 5. **EMPTY DATA HANDLING**: If no events are provided for the requested date, respond: "You have no scheduled events for today."
 6. **HARD SAFETY RULE**: If calendar data is missing from the context, you MUST say: "I don't have enough calendar data to answer this."
 7. **RESPONSE STYLE**: Be clear, short, and factual. Do not invent explanations.
-
-${journalGuidance}
 
 # TONE & STYLE
 - Tone: ${adaptiveTone}

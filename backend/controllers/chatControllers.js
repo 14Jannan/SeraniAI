@@ -12,6 +12,7 @@ const pdf = require("pdf-parse");
 const { generateSystemPrompt } = require("../utils/promptBuilder");
 const ChromaDBService = require("../services/chromaDBService");
 const UserTaskProgress = require("../models/userTaskProgressModel");
+const { Task } = require("../models/taskModel");
 
 const chromadb = new ChromaDBService();
 
@@ -102,14 +103,8 @@ async function getDailyReminders(userId) {
       reminders.push("Don't forget to complete a lesson today to maintain your learning streak!");
     }
 
-    // 4. Check daily tasks
-    const todayDate = new Date();
-    const dateKey = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + String(todayDate.getDate()).padStart(2, '0');
-    const progress = await UserTaskProgress.findOne({ user: userId, dateKey });
-    if (!progress || (progress.taskIds.length > 0 && progress.completedTaskIds.length < progress.taskIds.length)) {
-      reminders.push("Don't forget to complete your daily tasks to stay on track!");
-    }
-
+    // 4. (Removed task reminder to align with wellness-only focus during stress)
+    
     if (reminders.length > 0) {
       return "\n\n--- DAILY REMINDER ---\n" + reminders.map(r => `• ${r}`).join("\n");
     }
@@ -192,12 +187,14 @@ async function getMoodBasedCourseSuggestions(userId) {
   }
 }
 
-async function getTodayContext(userId) {
+async function getTodayContext(userId, userMessage = "") {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
+    const dateKey = startOfDay.toISOString().slice(0, 10);
 
-    // 1. Get Today's Journal Entries
+    let context = `CURRENT_DATE: ${new Date().toDateString()}\n`;
+    context += `FILTERED_GOOGLE_CALENDAR_EVENTS: [No calendar data provided in this request]\n\n`;
     const todayJournals = await Journal.find({
       user: userId,
       createdAt: { $gte: startOfDay }
@@ -207,7 +204,28 @@ async function getTodayContext(userId) {
     const user = await User.findById(userId).select("lessonProgress");
     const todayLessonActivities = user.lessonProgress?.filter(lp => lp.updatedAt >= startOfDay) || [];
 
-    let context = "";
+    // 3. Get Today's Tasks (ONLY if stress/anxiety detected or explicitly asked about wellness/exercises)
+    const lowerMsg = userMessage.toLowerCase();
+    const stressKeywords = ["stress", "anxious", "sad", "bad", "overwhelmed", "tired", "worried", "nervous"];
+    const wellnessKeywords = ["wellness", "exercise", "calm", "relax", "breathing", "daily task"];
+    const isStressed = stressKeywords.some(word => lowerMsg.includes(word));
+    const askedAboutWellness = wellnessKeywords.some(word => lowerMsg.includes(word));
+
+    let taskContext = "";
+    if (isStressed || askedAboutWellness) {
+      const progress = await UserTaskProgress.findOne({ user: userId, dateKey });
+      if (progress && progress.taskIds.length > 0) {
+        const todayTasks = await Task.find({ taskId: { $in: progress.taskIds } });
+        if (todayTasks.length > 0) {
+          taskContext = "DAILY WELLNESS EXERCISES:\n" + todayTasks.map(t => {
+            const isCompleted = progress.completedTaskIds.includes(t.taskId);
+            return `- [${isCompleted ? "COMPLETED" : "PENDING"}] ${t.title} (${t.category}, ${t.duration} mins)`;
+          }).join("\n") + "\n\n";
+        }
+      }
+    }
+
+    // (Already declared above, appending now)
     if (todayJournals.length > 0) {
       context += "TODAY'S JOURNAL ENTRIES:\n" + todayJournals.map(j => `- [Title: ${j.title || "Untitled"}] Content: ${j.content}`).join("\n") + "\n\n";
     }
@@ -215,6 +233,8 @@ async function getTodayContext(userId) {
     if (todayLessonActivities.length > 0) {
       context += "TODAY'S LESSON PROGRESS & NOTES:\n" + todayLessonActivities.map(lp => `- Notes: ${lp.notes || "None"}, Journal: ${lp.journal || "None"}`).join("\n") + "\n\n";
     }
+
+    context += taskContext;
 
     return context;
   } catch (err) {
@@ -418,7 +438,7 @@ exports.sendMessage = async (req, res) => {
     });
 
     // 2) Prepare Context (Today's Data + Semantic Search + File Content)
-    let todayContext = await getTodayContext(userId);
+    let todayContext = await getTodayContext(userId, clean);
 
     // Prepend file content to message if present
     const augmentedMessage = fileData
