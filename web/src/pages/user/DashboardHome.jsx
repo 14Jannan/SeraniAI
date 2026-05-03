@@ -15,9 +15,11 @@ import {
   ArrowUpRight,
   AlertCircle,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 
 const API_URL = "http://localhost:7001";
 
@@ -56,6 +58,86 @@ const DashboardHome = () => {
 
     fetchStats();
   }, []);
+
+  const handleDownloadReport = () => {
+    if (!weeklyReport) return;
+    
+    const doc = new jsPDF();
+    const margin = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const title = "Weekly Progress Report - SeraniAI";
+    
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(37, 99, 235); // Blue-600
+    doc.text(title, margin, 25);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128); // Gray-500
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, 35);
+    
+    // Divider
+    doc.setDrawColor(229, 231, 235); // Gray-200
+    doc.line(margin, 40, pageWidth - margin, 40);
+    
+    // Content
+    doc.setFontSize(11);
+    doc.setTextColor(55, 65, 81); // Gray-700
+    doc.setLineHeightFactor(1.5);
+    
+    const splitText = doc.splitTextToSize(weeklyReport, pageWidth - (margin * 2));
+    let cursorY = 50;
+    const lineHeight = 7; // Approximate line height for font size 11
+
+    splitText.forEach((line) => {
+      if (cursorY > pageHeight - 30) {
+        doc.addPage();
+        cursorY = 20; // Reset cursor on new page
+      }
+
+      // Handle bold formatting in PDF
+      if (line.includes('**')) {
+        const parts = line.split(/(\*\*.*?\*\*)/g);
+        let currentX = margin;
+        
+        parts.forEach((part) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(37, 99, 235); // Blue-600 for emphasis
+            const cleanPart = part.slice(2, -2);
+            doc.text(cleanPart, currentX, cursorY);
+            currentX += doc.getTextWidth(cleanPart);
+          } else {
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(55, 65, 81); // Gray-700
+            doc.text(part, currentX, cursorY);
+            currentX += doc.getTextWidth(part);
+          }
+        });
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(55, 65, 81);
+        doc.text(line, margin, cursorY);
+      }
+      
+      cursorY += lineHeight;
+    });
+    
+    // Footer - Add to all pages
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(156, 163, 175); // Gray-400
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text("SeraniAI - Your Personal Growth Companion", margin, pageHeight - 10);
+    }
+    
+    doc.save(`SeraniAI_Weekly_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   const handleGenerateReport = async () => {
     try {
@@ -388,13 +470,29 @@ const DashboardHome = () => {
             <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
               <div className="prose prose-blue dark:prose-invert max-w-none">
                 <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                  {weeklyReport}
+                  {(() => {
+                    if (!weeklyReport) return null;
+                    const parts = weeklyReport.split(/(\*\*.*?\*\*)/g);
+                    return parts.map((part, i) => {
+                      if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={i} className="text-blue-600 dark:text-blue-400 font-extrabold">{part.slice(2, -2)}</strong>;
+                      }
+                      return part;
+                    });
+                  })()}
                 </div>
               </div>
             </div>
 
             {/* Footer */}
             <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 flex justify-end gap-4">
+              <button
+                onClick={handleDownloadReport}
+                className="px-6 py-3 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 rounded-2xl font-bold shadow-sm border border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex items-center gap-2"
+              >
+                <Download size={18} />
+                Download PDF
+              </button>
               <button
                 onClick={() => setShowReportModal(false)}
                 className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/20 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
