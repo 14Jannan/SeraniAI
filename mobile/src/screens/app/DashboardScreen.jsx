@@ -85,6 +85,12 @@ export const DashboardScreen = ({ navigation }) => {
             onPress: () => navigation.navigate("Courses"),
           },
           {
+            label: "Subscription",
+            description: "Review plan and billing",
+            icon: <Feather name="credit-card" size={20} color={colors.accent} />,
+            onPress: () => navigation.navigate("Subscription"),
+          },
+          {
             label: "Journal",
             description: "Track your progress",
             icon: <Feather name="edit-3" size={20} color={colors.accentAlt} />,

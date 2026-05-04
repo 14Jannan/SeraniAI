@@ -230,6 +230,35 @@ export const AuthProvider = ({ children }) => {
         throw err;
       }
     }, []),
+
+    // Refresh current user profile from the backend
+    refreshUser: useCallback(async () => {
+      try {
+        setError(null);
+        const response = await authApi.getCurrentUser();
+        const nextUser =
+          response.user || response.data?.user || response.data || response;
+
+        if (!nextUser) {
+          return null;
+        }
+
+        await userStorage.saveUser(nextUser);
+        dispatch((prev) => ({
+          ...prev,
+          isLoading: false,
+          isSignedIn: true,
+          user: nextUser,
+        }));
+
+        return nextUser;
+      } catch (err) {
+        const errorMessage =
+          err.response?.data?.message || err.message || "Failed to refresh user";
+        setError(errorMessage);
+        throw err;
+      }
+    }, []),
   };
 
   return (

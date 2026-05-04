@@ -4,6 +4,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
 import { CoursesScreen } from "../screens/app/CoursesScreen";
+import { SubscriptionScreen } from "../screens/app/SubscriptionScreen";
+import { SubscriptionCheckoutScreen } from "../screens/app/SubscriptionCheckoutScreen";
 import { AdminUsersScreen } from "../screens/app/AdminUsersScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -28,6 +30,20 @@ const CoursesStack = () => (
     }}
   >
     <Stack.Screen name="CoursesList" component={CoursesScreen} />
+  </Stack.Navigator>
+);
+
+const SubscriptionStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+    }}
+  >
+    <Stack.Screen name="SubscriptionHome" component={SubscriptionScreen} />
+    <Stack.Screen
+      name="SubscriptionCheckout"
+      component={SubscriptionCheckoutScreen}
+    />
   </Stack.Navigator>
 );
 
@@ -84,6 +100,17 @@ export const AppStack = () => {
           tabBarLabel: "Courses",
           tabBarIcon: ({ color, size }) => (
             <Feather name="book-open" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Subscription"
+        component={SubscriptionStack}
+        options={{
+          title: "Subscription",
+          tabBarLabel: "Plan",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="credit-card" size={size} color={color} />
           ),
         }}
       />

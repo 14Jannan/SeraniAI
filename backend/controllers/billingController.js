@@ -137,9 +137,137 @@ const getMonthRange = () => {
   return { startDate, endDate };
 };
 
+const getSafeMobileReturnUrl = (value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return /^(seraniaiapp|exp):\/\//i.test(trimmed) ? trimmed : null;
+};
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const buildPayHerePayload = (subscription) => {
+  const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
+  const merchantSecret = getNormalizedMerchantSecret();
+  if (!merchantId || !merchantSecret) {
+    return null;
+  }
+
+  const planCode = subscription.planCode || getPlanCodeFromLabel(subscription.plan);
+  const plan = PLAN_DETAILS[planCode];
+  if (!plan) {
+    return null;
+  }
+
+  const amount = Number(subscription.amount || 0).toFixed(2);
+  const currency = String(subscription.currency || "LKR").toUpperCase();
+  const orderId = String(subscription.paymentId || subscription.orderId || "").trim();
+  if (!orderId) {
+    return null;
+  }
+
+  const merchantSecretMd5 = md5Upper(merchantSecret);
+  const hash = md5Upper(
+    `${merchantId}${orderId}${amount}${currency}${merchantSecretMd5}`
+  );
+
+  return {
+    merchant_id: merchantId,
+    return_url:
+      subscription.returnUrl ||
+      process.env.PAYHERE_RETURN_URL ||
+      "http://localhost:5173/subscription?payment=success",
+    cancel_url:
+      subscription.cancelUrl ||
+      process.env.PAYHERE_CANCEL_URL ||
+      "http://localhost:5173/subscription?payment=cancelled",
+    notify_url:
+      subscription.notifyUrl ||
+      process.env.PAYHERE_NOTIFY_URL ||
+      "http://localhost:7001/api/billing/payhere/notify",
+    order_id: orderId,
+    items:
+      planCode === "business"
+        ? `${plan.plan} Monthly Plan (${subscription.seats || MIN_BUSINESS_SEATS} seats)`
+        : `${plan.plan} Monthly Plan`,
+    currency,
+    amount,
+    first_name: subscription.userName || "Serani",
+    last_name: "User",
+    email: subscription.userEmail || "no-email@serani.ai",
+    phone: "0000000000",
+    address: "N/A",
+    city: "Colombo",
+    country: "Sri Lanka",
+    custom_1: String(subscription.userId || ""),
+    custom_2:
+      planCode === "business"
+        ? `planId:${planCode}|plan:${plan.plan}|seats:${subscription.seats || MIN_BUSINESS_SEATS}`
+        : `planId:${planCode}|plan:${plan.plan}`,
+    hash,
+    actionUrl: getCheckoutUrl(),
+  };
+};
+
+const renderPayHereLaunchPage = (payload) => {
+  const hiddenInputs = Object.entries(payload)
+    .filter(([key]) => key !== "actionUrl")
+    .map(
+      ([key, value]) =>
+        `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}" />`
+    )
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirecting to PayHere</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 32px; text-align: center; background: #f8fafc; color: #0f172a; }
+      .card { max-width: 420px; margin: 48px auto; background: #fff; border-radius: 20px; padding: 28px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08); }
+      .spinner { width: 38px; height: 38px; border: 4px solid #dbeafe; border-top-color: #2563eb; border-radius: 999px; margin: 0 auto 18px; animation: spin 1s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      p { line-height: 1.5; color: #475569; }
+      noscript button { margin-top: 18px; padding: 12px 18px; border: 0; border-radius: 999px; background: #2563eb; color: #fff; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="spinner"></div>
+      <h1>Redirecting to PayHere</h1>
+      <p>Your payment page is loading now.</p>
+      <form id="payhere-form" method="POST" action="${escapeHtml(payload.actionUrl)}">
+        ${hiddenInputs}
+      </form>
+      <noscript>
+        <p>JavaScript is required to continue.</p>
+        <button type="submit" form="payhere-form">Continue</button>
+      </noscript>
+      <script>
+        document.getElementById('payhere-form').submit();
+      </script>
+    </div>
+  </body>
+</html>`;
+};
+
 exports.initializePayHerePayment = async (req, res) => {
   try {
-    const { planId, seats } = req.body;
+    const { planId, seats, returnUrl, cancelUrl } = req.body;
     const user = req.user;
 
     if (user?.role === "enterpriseUser") {
@@ -207,9 +335,11 @@ exports.initializePayHerePayment = async (req, res) => {
     const payload = {
       merchant_id: merchantId,
       return_url:
+        getSafeMobileReturnUrl(returnUrl) ||
         process.env.PAYHERE_RETURN_URL ||
         `${frontendBase}/subscription?payment=success`,
       cancel_url:
+        getSafeMobileReturnUrl(cancelUrl) ||
         process.env.PAYHERE_CANCEL_URL ||
         `${frontendBase}/subscription?payment=cancelled`,
       notify_url:
@@ -242,6 +372,8 @@ exports.initializePayHerePayment = async (req, res) => {
       { paymentId: orderId },
       {
         userId: user?._id,
+        userName: user?.name || "Serani",
+        userEmail: user?.email || "no-email@serani.ai",
         plan: plan.plan,
         planCode: planId,
         seats: planId === "business" ? seatCount : 1,
@@ -253,13 +385,51 @@ exports.initializePayHerePayment = async (req, res) => {
         endDate,
         paymentId: orderId,
         method: "PayHere",
+        returnUrl:
+          getSafeMobileReturnUrl(returnUrl) ||
+          process.env.PAYHERE_RETURN_URL ||
+          `${frontendBase}/subscription?payment=success`,
+        cancelUrl:
+          getSafeMobileReturnUrl(cancelUrl) ||
+          process.env.PAYHERE_CANCEL_URL ||
+          `${frontendBase}/subscription?payment=cancelled`,
+        notifyUrl:
+          process.env.PAYHERE_NOTIFY_URL ||
+          "http://localhost:7001/api/billing/payhere/notify",
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    return res.status(200).json({ actionUrl, payload });
+    return res.status(200).json({
+      actionUrl,
+      checkoutUrl: `/api/billing/payhere/launch/${encodeURIComponent(orderId)}`,
+      payload,
+    });
   } catch (error) {
     return res.status(500).json({ error: "Payment initialization failed" });
+  }
+};
+
+exports.launchPayHereCheckout = async (req, res) => {
+  try {
+    const orderId = String(req.params.orderId || "").trim();
+    if (!orderId) {
+      return res.status(400).send("orderId is required");
+    }
+
+    const subscription = await Subscription.findOne({ paymentId: orderId }).lean();
+    if (!subscription) {
+      return res.status(404).send("Subscription not found");
+    }
+
+    const payload = buildPayHerePayload(subscription);
+    if (!payload) {
+      return res.status(500).send("Unable to prepare PayHere checkout");
+    }
+
+    return res.status(200).set("Content-Type", "text/html").send(renderPayHereLaunchPage(payload));
+  } catch (error) {
+    return res.status(500).send("Unable to launch PayHere checkout");
   }
 };
 
