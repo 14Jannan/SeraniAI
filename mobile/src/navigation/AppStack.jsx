@@ -4,6 +4,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
 import { CoursesScreen } from "../screens/app/CoursesScreen";
+import { JournalScreen } from "../screens/app/JournalScreen";
+import { AddJournalScreen } from "../screens/app/AddJournalScreen";
 import { AdminUsersScreen } from "../screens/app/AdminUsersScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -28,6 +30,17 @@ const CoursesStack = () => (
     }}
   >
     <Stack.Screen name="CoursesList" component={CoursesScreen} />
+  </Stack.Navigator>
+);
+
+const JournalStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+    }}
+  >
+    <Stack.Screen name="JournalHome" component={JournalScreen} />
+    <Stack.Screen name="JournalEditor" component={AddJournalScreen} />
   </Stack.Navigator>
 );
 
@@ -84,6 +97,17 @@ export const AppStack = () => {
           tabBarLabel: "Courses",
           tabBarIcon: ({ color, size }) => (
             <Feather name="book-open" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Journal"
+        component={JournalStack}
+        options={{
+          title: "Journal",
+          tabBarLabel: "Journal",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="edit-3" size={size} color={color} />
           ),
         }}
       />
