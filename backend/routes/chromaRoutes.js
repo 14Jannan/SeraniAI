@@ -6,7 +6,7 @@ const router = express.Router();
 const chromadb = new ChromaDBService();
 
 /**
- * @route   POST /api/chroma/health
+ * @route   GET /api/chroma/health
  * @desc    Check ChromaDB service health
  * @access  Public
  */

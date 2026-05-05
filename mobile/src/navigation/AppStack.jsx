@@ -3,6 +3,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
+import { AIChatbotScreen } from "../screens/app/AIChatbotScreen";
 import { CoursesScreen } from "../screens/app/CoursesScreen";
 import { SubscriptionScreen } from "../screens/app/SubscriptionScreen";
 import { SubscriptionCheckoutScreen } from "../screens/app/SubscriptionCheckoutScreen";
@@ -22,7 +23,9 @@ const DashboardStack = () => (
     }}
   >
     <Stack.Screen name="DashboardHome" component={DashboardScreen} />
-  </Stack.Navigator>
+
+      <Stack.Screen name="AIChatbot" component={AIChatbotScreen} />
+    </Stack.Navigator>
 );
 
 const CoursesStack = () => (

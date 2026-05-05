@@ -222,7 +222,7 @@ exports.getUserSubscription = async (req, res) => {
       .sort({ createdAt: -1 });
 
     if (!subscription) {
-      return res.status(404).json({ message: 'No active subscription found' });
+      return res.status(200).json(null);
     }
 
     res.status(200).json(subscription);

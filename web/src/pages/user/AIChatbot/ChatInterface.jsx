@@ -5,6 +5,7 @@ import HistoryDrawer from "./HistoryDrawer";
 import SeraniAILogo from "./SeraniAILogo";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
+import OnboardingForm from "./OnboardingForm";
 
 function ChatInterface() {
   const [messages, setMessages] = useState([]);
@@ -23,10 +24,19 @@ function ChatInterface() {
   // History Drawer state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
   // Load history and last active session on mount
   useEffect(() => {
     (async () => {
       try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const premiumRoles = ["enterpriseUser", "enterpriseAdmin", "(Pro)PlanUser"];
+        if (premiumRoles.includes(user.role) && user.onboardingStatus !== "completed") {
+          setShowOnboarding(true);
+        }
+
         const res = await fetchHistory();
         setConversations(res.data || []);
         
@@ -116,6 +126,7 @@ function ChatInterface() {
 
       const formData = new FormData();
       formData.append("message", clean);
+      formData.append("localDate", new Date().toDateString());
       if (activeSessionId) formData.append("sessionId", activeSessionId);
       if (file) formData.append("file", file);
       if (editingMessageIndex !== null) formData.append("editIndex", editingMessageIndex);
@@ -145,6 +156,8 @@ function ChatInterface() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[#f0f9ff] dark:bg-[#0F172A] p-4 lg:p-6 gap-4 lg:gap-6 transition-colors duration-500">
+      {showOnboarding && <OnboardingForm onComplete={() => setShowOnboarding(false)} />}
+      
       {/* History Drawer - Floating Overlay */}
       <HistoryDrawer
         conversations={conversations}

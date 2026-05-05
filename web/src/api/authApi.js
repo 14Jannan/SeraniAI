@@ -37,3 +37,6 @@ export const acceptEnterpriseInvite = (token) =>
 
 export const cancelEnterprisePremiumAccess = () =>
   httpClient.post(`${API_URL}/enterprise/cancel-premium`);
+
+export const updateOnboarding = (data) =>
+  httpClient.post(`${API_URL}/onboarding`, data);

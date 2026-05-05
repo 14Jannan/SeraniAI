@@ -12,6 +12,8 @@ const oauthTokenService = require("../utils/oauthTokenService");
 const normalizeEmail = (email) => String(email || "").trim();
 const hashInviteToken = (token) =>
   crypto.createHash("sha256").update(String(token)).digest("hex");
+const hashInviteToken = (token) =>
+  crypto.createHash("sha256").update(String(token)).digest("hex");
 
 const generateAuthTokens = (user) => {
   const accessToken = jwt.sign(
@@ -382,6 +384,8 @@ exports.getCurrentUser = async (req, res) => {
       role: req.user.role,
       enterpriseId: req.user.enterpriseId || null,
       status: req.user.status,
+      onboardingStatus: req.user.onboardingStatus || "pending",
+      preferences: req.user.preferences || {}
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch user profile" });

@@ -106,7 +106,7 @@ export const DashboardScreen = ({ navigation }) => {
                 color={colors.accent}
               />
             ),
-            onPress: () => navigation.navigate("AIChatbot"),
+            onPress: () => navigation.navigate('AIChatbot'),
           },
         ].map((item) => (
           <TouchableOpacity
