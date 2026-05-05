@@ -5,7 +5,8 @@ export const useFetchUSers = () => {
   return useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      return await getUsers();
+      const response= await getUsers();
+      return response.data;
     },
   });
 };

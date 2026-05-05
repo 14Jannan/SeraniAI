@@ -18,9 +18,16 @@ export const login = async (userData) => {
   return response.data;
 };
 
+export const resendOtp = async (data) => {
+  const response = await httpClient.post(`${API_URL}/resend-otp`, data);
+  return response.data;
+};
+
 export const forgotPassword = (data) =>
   httpClient.post(`${API_URL}/forgot-password`, data);
+
 export const resetPassword = (data) =>
   httpClient.post(`${API_URL}/reset-password`, data);
+
 export const getCurrentUser = () =>
   httpClient.get(`${API_URL}/me`);

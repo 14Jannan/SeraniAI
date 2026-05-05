@@ -5,9 +5,6 @@
     "version": "1.0.0",
     "assetBundlePatterns": ["**/*"],
     "scheme": "seraniaiapp",
-    "extra": {
-      "apiUrl": "http://localhost:7001/api"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.seraniaiapp.mobile"

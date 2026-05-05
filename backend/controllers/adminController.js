@@ -30,12 +30,6 @@ exports.createUser = async (req, res) => {
       .json({ message: "Please provide a valid email address" });
   }
 
-  if (String(password).length < 6) {
-    return res
-      .status(400)
-      .json({ message: "Password must be at least 6 characters" });
-  }
-
   try {
     const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
@@ -88,15 +82,6 @@ exports.updateUser = async (req, res) => {
         return res
           .status(400)
           .json({ message: "Please provide a valid email address" });
-      }
-
-      const existing = await User.findOne({
-        email: normalizedEmail,
-        _id: { $ne: user._id },
-      });
-
-      if (existing) {
-        return res.status(400).json({ message: "Email already in use" });
       }
 
       user.email = normalizedEmail;

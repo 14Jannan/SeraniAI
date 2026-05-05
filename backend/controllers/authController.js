@@ -57,12 +57,13 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 5. Generate OTP
+    // 5. Generate OTP (Only digits)
     const otp = otpGenerator.generate(6, {
       upperCaseAlphabets: false,
       specialChars: false,
       lowerCaseAlphabets: false,
     });
+    // expires in 10 mins
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     // 6. Create User (Notice we do NOT save confirmPassword to the database)

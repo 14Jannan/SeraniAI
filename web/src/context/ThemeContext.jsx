@@ -1,23 +1,26 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext } from "react";
 
-const ThemeContext = createContext();
+const ThemeContext = createContext({
+  theme: "light",
+  toggleTheme: () => {},
+});
 
 export const ThemeProvider = ({ children }) => {
   // Check local storage or default to 'light'
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
   useEffect(() => {
     const root = window.document.documentElement;
-    // Remove old class and add new one
-    root.classList.remove('light', 'dark');
+    // Remove old class and add new one to html elements
+    root.classList.remove("light", "dark");
     root.classList.add(theme);
-    
+
     // Save to local storage
-    localStorage.setItem('theme', theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = (selectedTheme) => {
-    setTheme(selectedTheme);
+    setTheme(selectedTheme); // called with dark or light
   };
 
   return (
@@ -27,4 +30,8 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-export const useTheme = () => useContext(ThemeContext);
+export const useTheme = () =>
+  useContext(ThemeContext) ?? {
+    theme: "light",
+    toggleTheme: () => {},
+  };

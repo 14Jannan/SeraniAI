@@ -33,6 +33,11 @@ const ROLE_CONFIG = {
     badgeClass:
       "border-fuchsia-500 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-400 dark:bg-fuchsia-500/10 dark:text-fuchsia-200",
   },
+  enterprise: {
+    label: "Enterprise User",
+    badgeClass:
+      "border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-200",
+  },
 };
 
 const ROLE_OPTIONS = [
@@ -72,7 +77,7 @@ const AdminUsers = () => {
     isLoading: loading,
   } = useFetchUSers();
 
-  const users = data?.data || [];
+  const users = data || [];
 
   const handleOpenModal = (user = null) => {
     setCurrentUser(user);
@@ -180,6 +185,7 @@ const AdminUsers = () => {
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
           User Management
         </h1>
+        {/*Add User Button*/}
         <button
           onClick={() => handleOpenModal()}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
@@ -255,12 +261,14 @@ const AdminUsers = () => {
                       <td className="px-6 py-4 flex justify-end gap-4">
                         <button
                           onClick={() => handleOpenModal(user)}
+                          aria-label={`Edit user ${user.name}`}
                           className="text-blue-500 hover:text-blue-700"
                         >
                           <FiEdit size={18} />
                         </button>
                         <button
                           onClick={() => handleDelete(user._id)}
+                          aria-label={`Delete user ${user.name}`}
                           className="text-red-500 hover:text-red-700"
                         >
                           <FiTrash2 size={18} />
