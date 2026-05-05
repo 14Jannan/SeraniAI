@@ -346,6 +346,8 @@ exports.getCurrentUser = async (req, res) => {
       role: req.user.role,
       enterpriseId: req.user.enterpriseId || null,
       status: req.user.status,
+      onboardingStatus: req.user.onboardingStatus || "pending",
+      preferences: req.user.preferences || {}
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch user profile" });
@@ -499,5 +501,47 @@ exports.acceptEnterpriseInvite = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to accept enterprise invite" });
+  }
+};
+
+// @desc    Update user onboarding preferences
+// @route   POST /api/auth/onboarding
+// @access  Private (Pro/Enterprise)
+exports.updateOnboarding = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ message: "Not authorized" });
+
+    // Only allow premium users to onboard
+    const premiumRoles = ["enterpriseUser", "enterpriseAdmin", "(Pro)PlanUser"];
+    if (!premiumRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: "Onboarding is only available for Pro/Enterprise users" });
+    }
+
+    const { profession, interests, goals, expectations, communicationStyle } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Update preferences
+    user.preferences = {
+      profession: profession || user.preferences.profession,
+      interests: interests || user.preferences.interests,
+      goals: goals || user.preferences.goals,
+      expectations: expectations || user.preferences.expectations,
+      communicationStyle: communicationStyle || user.preferences.communicationStyle,
+    };
+    user.onboardingStatus = "completed";
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Onboarding completed successfully",
+      preferences: user.preferences,
+      onboardingStatus: user.onboardingStatus,
+    });
+  } catch (error) {
+    console.error("Onboarding Update Error:", error);
+    res.status(500).json({ message: "Failed to update onboarding data" });
   }
 };

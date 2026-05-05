@@ -97,6 +97,20 @@ const userSchema = new mongoose.Schema({
   otp: { type: String },
   otpExpires: { type: Date },
 
+  // Onboarding & Personalization
+  onboardingStatus: {
+    type: String,
+    enum: ["pending", "completed"],
+    default: "pending",
+  },
+  preferences: {
+    profession: { type: String, default: "" },
+    interests: { type: [String], default: [] },
+    goals: { type: String, default: "" },
+    expectations: { type: String, default: "" },
+    communicationStyle: { type: String, default: "Professional" },
+  },
+
   createdAt: { type: Date, default: Date.now },
   taskStreakCount: {
     type: Number,
