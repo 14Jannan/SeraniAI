@@ -5,20 +5,18 @@ const jwt = require("jsonwebtoken");
 const { protect } = require("../middleware/authMiddleware");
 const validateRequest = require("../middleware/validateRequest");
 
-const {
+const{
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailSchema,
-  resendVerificationOtpSchema,
-} = require("../validations/authValidation");
+}=require("../validations/authValidation");
 // Import your existing controllers
 const {
   registerUser,
   loginUser,
   verifyEmail,
-  resendVerificationOtp,
   forgotPassword,
   resetPassword,
   refreshAccessToken,
@@ -27,19 +25,24 @@ const {
   getCurrentUser,
   acceptEnterpriseInvite,
   cancelEnterprisePremiumAccess,
+  updateOnboarding,
 } = require("../controllers/authController");
+
+// =============================
+// 🔐 JWT GENERATORS
+// =============================
 
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, role: user.role, name: user.name, email: user.email },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" },
+    { expiresIn: "15m" }, // Access token is short-lived
   );
 
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" },
+    { expiresIn: "7d" }, // Refresh token is long-lived
   );
 
   return { accessToken, refreshToken };
@@ -49,7 +52,7 @@ const generateTokens = (user) => {
 const setRefreshCookie = (res, refreshToken) => {
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: false, // Set to true in production with HTTPS
     sameSite: "Lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
@@ -61,22 +64,9 @@ const setRefreshCookie = (res, refreshToken) => {
 
 router.post("/register", validateRequest(registerSchema), registerUser);
 router.post("/login", validateRequest(loginSchema), loginUser);
-router.post(
-  "/forgot-password",
-  validateRequest(forgotPasswordSchema),
-  forgotPassword,
-);
-router.post(
-  "/reset-password",
-  validateRequest(resetPasswordSchema),
-  resetPassword,
-);
+router.post("/forgot-password", validateRequest(forgotPasswordSchema), forgotPassword);
+router.post("/reset-password", validateRequest(resetPasswordSchema), resetPassword);
 router.post("/verify", validateRequest(verifyEmailSchema), verifyEmail);
-router.post(
-  "/resend-otp",
-  validateRequest(resendVerificationOtpSchema),
-  resendVerificationOtp,
-);
 
 // NEW: Refresh & Logout
 router.post("/refresh", refreshAccessToken);
@@ -84,11 +74,8 @@ router.post("/logout", logoutUser);
 router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
 router.get("/me", protect, getCurrentUser);
 router.post("/invites/accept", protect, acceptEnterpriseInvite);
-router.post(
-  "/enterprise/cancel-premium",
-  protect,
-  cancelEnterprisePremiumAccess,
-);
+router.post("/enterprise/cancel-premium", protect, cancelEnterprisePremiumAccess);
+router.post("/onboarding", protect, updateOnboarding);
 
 // =============================
 // 🔵 GOOGLE OAUTH

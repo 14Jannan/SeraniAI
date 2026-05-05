@@ -187,13 +187,13 @@ async function getMoodBasedCourseSuggestions(userId) {
   }
 }
 
-async function getTodayContext(userId, userMessage = "") {
+async function getTodayContext(userId, userMessage = "", localDateStr = "") {
   try {
-    const startOfDay = new Date();
+    const startOfDay = localDateStr ? new Date(localDateStr) : new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const dateKey = startOfDay.toISOString().slice(0, 10);
+    const dateKey = startOfDay.getFullYear() + '-' + String(startOfDay.getMonth() + 1).padStart(2, '0') + '-' + String(startOfDay.getDate()).padStart(2, '0');
 
-    let context = `CURRENT_DATE: ${new Date().toDateString()}\n`;
+    let context = `CURRENT_DATE: ${startOfDay.toDateString()}\n`;
     context += `FILTERED_GOOGLE_CALENDAR_EVENTS: [No calendar data provided in this request]\n\n`;
     const todayJournals = await Journal.find({
       user: userId,
@@ -353,10 +353,12 @@ Respond ONLY with one of the three words: journal, course, or general.`
   }
 }
 
-async function getAiReply(history, context = "", tools = null, roleKey = "general", userName = "User") {
+async function getAiReply(history, context = "", tools = null, roleKey = "general", user = null, isNewChat = false, localDateStr = "") {
   if (!process.env.OPENAI_API_KEY) {
     return { content: "OPENAI_API_KEY is not set in backend/.env" };
   }
+
+  const userName = user?.name || "User";
 
   // Combine history with retrieved context if available
   const messages = (history || [])
@@ -367,7 +369,7 @@ async function getAiReply(history, context = "", tools = null, roleKey = "genera
     // Check if system message already exists
     const hasSystem = messages.some(m => m.role === "system");
     if (!hasSystem) {
-      const systemPrompt = generateSystemPrompt(roleKey, userName, context);
+      const systemPrompt = generateSystemPrompt(roleKey, user, context, isNewChat, localDateStr);
       messages.unshift({
         role: "system",
         content: systemPrompt
@@ -390,7 +392,7 @@ exports.sendMessage = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Not authorized" });
 
-    const { message, sessionId, editIndex } = req.body;
+    const { message, sessionId, editIndex, localDate } = req.body;
     const clean = (message || "").trim();
 
     // Check if we have a file OR message
@@ -438,23 +440,29 @@ exports.sendMessage = async (req, res) => {
     });
 
     // 2) Prepare Context (Today's Data + Semantic Search + File Content)
-    let todayContext = await getTodayContext(userId, clean);
+    let todayContext = await getTodayContext(userId, clean, localDate);
 
     // Prepend file content to message if present
     const augmentedMessage = fileData
       ? `[IMPORTANT SYSTEM NOTE: I have just uploaded a new file. The content of this NEW file is provided below. You MUST base your answer primarily on THIS file's content, rather than any previous files or past context, unless I explicitly ask otherwise.]\n\n--- CURRENT UPLOADED FILE CONTENT ---\n${fileData}\n--- END OF FILE CONTENT ---\n\nUSER MESSAGE: ${clean}`
       : clean;
+    
     let searchContext = "";
+    const lowerMsg = clean.toLowerCase();
+    const isAskingAboutToday = lowerMsg.includes("today") || lowerMsg.includes("now") || lowerMsg.includes("current");
+
     try {
-      // 1. Search journals for context
-      const journalData = await chromadb.search(clean, "journals", 5, { userId: userId.toString() });
-      if (journalData && journalData.results && journalData.results.length > 0) {
-        const docs = journalData.results.map(r => r.document);
-        searchContext += "PAST JOURNALS:\n" + docs.join("\n") + "\n\n";
+      // 1. Search journals for context (Skip past journals if explicitly asking about today)
+      if (!isAskingAboutToday) {
+        const journalData = await chromadb.search(clean, "journals", 3, { userId: userId.toString() });
+        if (journalData && journalData.results && journalData.results.length > 0) {
+          const docs = journalData.results.map(r => r.document);
+          searchContext += "PAST JOURNALS (for background context):\n" + docs.join("\n") + "\n\n";
+        }
       }
 
       // 2. Search past chat messages for memory
-      const chatData = await chromadb.search(clean, "chat_messages", 10, { userId: userId.toString() });
+      const chatData = await chromadb.search(clean, "chat_messages", 5, { userId: userId.toString() });
       if (chatData && chatData.results && chatData.results.length > 0) {
         const docs = chatData.results.map(r => r.document);
         searchContext += "PAST CONVERSATION MEMORIES:\n" + docs.join("\n") + "\n\n";
@@ -466,6 +474,9 @@ exports.sendMessage = async (req, res) => {
     // 2.5) Select Role based on message
     const selectedRole = await determineRole(clean);
     console.log(`Automatically selected role: ${selectedRole}`);
+
+    // Check if this is the very first message in the chat
+    const isNewChat = chat.messages.length <= 1;
 
     // 3) Generate AI reply (with Tool support and selected role)
     const fullContext = (todayContext + "\n" + searchContext).trim();
@@ -479,7 +490,7 @@ exports.sendMessage = async (req, res) => {
     // Override the last user message with augmented content for AI context
     messagesForAI[messagesForAI.length - 1].content = augmentedMessage;
 
-    let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user.name || "User");
+    let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
 
     let suggestedCourses = [];
 
@@ -534,7 +545,7 @@ exports.sendMessage = async (req, res) => {
         tool_calls: m.tool_calls,
         tool_call_id: m.tool_call_id
       }));
-      aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole, req.user.name || "User");
+      aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
     }
 
     let reply = aiResponse.content || "No reply";
