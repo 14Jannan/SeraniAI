@@ -7,11 +7,11 @@ const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const Verify = lazy(() => import("./pages/Verify"));
 const Subscription = lazy(() => import("./pages/user/Subscription"));
-const PersonalCheckout = lazy(() =>
-  import("./pages/user/checkout/PersonalCheckout")
+const PersonalCheckout = lazy(
+  () => import("./pages/user/checkout/PersonalCheckout"),
 );
-const EnterpriseCheckout = lazy(() =>
-  import("./pages/user/checkout/EnterpriseCheckout")
+const EnterpriseCheckout = lazy(
+  () => import("./pages/user/checkout/EnterpriseCheckout"),
 );
 const AcceptEnterpriseInvite = lazy(() =>
   import("./pages/user/AcceptEnterpriseInvite")
@@ -59,7 +59,6 @@ function App() {
       >
         <Routes>
           {/* ---------- PUBLIC ROUTES ---------- */}
-
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/login-success" element={<LoginSuccess />} />
@@ -195,7 +194,6 @@ function App() {
               <Route path="subscriptions" element={<AdminSubscriptions />} />
             </Route>
           </Route>
-
         </Routes>
       </Suspense>
     </Router>

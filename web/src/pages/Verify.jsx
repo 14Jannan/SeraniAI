@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { verifyOtp } from '../api/authApi';
+import { verifyOtp, resendOtp } from '../api/authApi';
 import { useTheme } from '../context/ThemeContext';
 
 const Verify = () => {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false); // add this
+  const [resendMessage, setResendMessage] = useState('');
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,17 +37,38 @@ const Verify = () => {
     }
   };
 
+  const handleResend = async()=>{
+    if(!email){
+      setError('Email not found. Please go back and register again');
+      return;
+    }
+
+    setResendLoading(true);
+    setError('');
+    setResendMessage('');
+
+    try{
+      await resendOtp({ email });
+      setResendMessage('OTP resent successfully! Please check your email.');
+      setOtp('');
+    }catch(err){
+      setError(err.response?.data?.message || 'Failed to resend OTP. Please try again.');
+    }finally{
+      setResendLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 transition-colors duration-300 bg-blue-50 dark:bg-gray-900">
       <div className="max-w-5xl w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[600px]">
         
         {/* LEFT SIDE - FORM */}
-        <div className="w-full md:w-1/2 p-10 flex flex-col justify-center bg-[#dbeafe] dark:bg-slate-800 transition-colors duration-300">
+        <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center bg-blue-100/50 dark:bg-slate-800/50 transition-colors duration-500">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-white mb-2 opacity-80">Serani AI</h2>
-            <h1 className="text-3xl font-bold text-white">Verify Email</h1>
-            <p className="text-white/80 mt-2">
-              We sent a code to <br/> <span className="font-bold text-white">{email || 'your email'}</span>
+            <h1 className="text-4xl font-extrabold text-slate-800 dark:text-white">Verify Email</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">
+              We sent a code to <br/> <span className="font-bold text-slate-700 dark:text-white">{email || 'your email'}</span>
             </p>
           </div>
 
@@ -53,7 +76,7 @@ const Verify = () => {
 
           <form onSubmit={handleVerify} className="space-y-6 w-full max-w-sm mx-auto">
             <div>
-              <label className="block text-white text-sm mb-1 text-center">Enter 6-Digit Code</label>
+              <label className="block text-slate-700 dark:text-slate-300 text-sm font-semibold mb-2 text-center">Enter 6-Digit Code</label>
               <input
                 type="text"
                 placeholder="000000"
@@ -75,11 +98,13 @@ const Verify = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-white text-xs">
-              Didn't receive code? <button className="font-bold hover:underline">Resend</button>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-8">
+              Didn't receive code? <button onClick={handleResend} disabled={resendLoading} className="text-blue-600 dark:text-blue-400 font-bold hover:underline"
+              >{resendLoading ? 'Sending...':'Resend'}</button>
             </p>
-            <p className="text-white text-xs mt-4">
-              <button onClick={() => navigate('/register')} className="hover:underline">Back to Register</button>
+            {resendMessage && <p className="text-green-300 text-xs mt-2">{resendMessage}</p>}
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
+              <button onClick={() => navigate('/register')} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Back to Register</button>
             </p>
           </div>
         </div>
