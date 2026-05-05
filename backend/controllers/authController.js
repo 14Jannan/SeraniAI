@@ -12,8 +12,6 @@ const oauthTokenService = require("../utils/oauthTokenService");
 const normalizeEmail = (email) => String(email || "").trim();
 const hashInviteToken = (token) =>
   crypto.createHash("sha256").update(String(token)).digest("hex");
-const hashInviteToken = (token) =>
-  crypto.createHash("sha256").update(String(token)).digest("hex");
 
 const generateAuthTokens = (user) => {
   const accessToken = jwt.sign(

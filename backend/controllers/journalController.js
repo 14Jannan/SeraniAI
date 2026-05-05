@@ -269,113 +269,6 @@ async function generatePeriodInsight(userId, timeRange = "week") {
     return "Your reflections show progress. Keep focusing on one practical step each day.";
   }
 }
-const OpenAI = require("openai");
-
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-
-function getModelName() {
-  return process.env.MODEL || "gpt-4o-mini";
-}
-
-const MOOD_WHITELIST = [
-  "happy",
-  "sad",
-  "anxious",
-  "stressed",
-  "calm",
-  "neutral",
-  "overwhelmed",
-  "excited",
-  "depressed",
-  "angry",
-  "lonely",
-  "grateful",
-  "hopeful",
-  "tired",
-];
-
-const FALLBACK_MOOD_MAP = [
-  { mood: "stressed", keywords: ["stress", "deadline", "pressure", "overwhelmed"] },
-  { mood: "anxious", keywords: ["anxious", "nervous", "worried", "panic"] },
-  { mood: "sad", keywords: ["sad", "down", "upset", "cry"] },
-  { mood: "happy", keywords: ["happy", "joy", "great", "excited", "awesome"] },
-  { mood: "grateful", keywords: ["grateful", "thankful", "blessed"] },
-  { mood: "angry", keywords: ["angry", "mad", "frustrated", "annoyed"] },
-  { mood: "tired", keywords: ["tired", "exhausted", "drained", "sleepy"] },
-];
-
-function normalizeMood(value) {
-  if (!value || typeof value !== "string") {
-    return "";
-  }
-
-  const lowered = value.trim().toLowerCase();
-  if (!lowered) {
-    return "";
-  }
-
-  if (MOOD_WHITELIST.includes(lowered)) {
-    return lowered;
-  }
-
-  const fuzzy = MOOD_WHITELIST.find((mood) => lowered.includes(mood));
-  return fuzzy || "";
-}
-
-function normalizeTags(tags) {
-  if (!tags) {
-    return [];
-  }
-
-  if (Array.isArray(tags)) {
-    return tags
-      .map((tag) => String(tag || "").trim())
-      .filter(Boolean)
-      .slice(0, 12);
-  }
-
-  return String(tags)
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-    .slice(0, 12);
-}
-
-function fallbackMoodAndInsight(content) {
-  const text = String(content || "").toLowerCase();
-  let mood = "neutral";
-
-  for (const entry of FALLBACK_MOOD_MAP) {
-    if (entry.keywords.some((word) => text.includes(word))) {
-      mood = entry.mood;
-      break;
-    }
-  }
-
-  const summary = String(content || "")
-    .trim()
-    .split(/(?<=[.!?])\s+/)
-    .slice(0, 2)
-    .join(" ")
-    .slice(0, 280);
-
-  return {
-    mood,
-    moodConfidence: 0.42,
-    moodSource: "fallback",
-    aiInsight: {
-      summary: summary || "No summary available yet.",
-      emotionalTone: `You seem ${mood}.`,
-      keyThemes: [],
-      suggestedAction: "Take one small positive step for your well-being today.",
-      generatedAt: new Date(),
-      provider: "fallback",
-      model: "heuristic",
-    },
-  };
-}
 
 async function generateMoodAndInsight({ title, content, explicitMood }) {
   const manualMood = normalizeMood(explicitMood);
@@ -549,21 +442,10 @@ const createJournal = async (req, res) => {
       content,
       explicitMood: mood,
     });
-    const normalizedTags = normalizeTags(tags);
-    const analysis = await generateMoodAndInsight({
-      title,
-      content,
-      explicitMood: mood,
-    });
 
     const journal = await saveJournalEntry(req.user._id, {
       title,
       content,
-      mood: analysis.mood,
-      tags: normalizedTags,
-      moodConfidence: analysis.moodConfidence,
-      moodSource: analysis.moodSource,
-      aiInsight: analysis.aiInsight,
       mood: analysis.mood,
       tags: normalizedTags,
       moodConfidence: analysis.moodConfidence,
@@ -654,28 +536,10 @@ const updateJournal = async (req, res) => {
     const nextContent = content !== undefined ? content : journal.content;
     const contentChanged = content !== undefined || title !== undefined;
 
-    const nextTitle = title !== undefined ? title : journal.title;
-    const nextContent = content !== undefined ? content : journal.content;
-    const contentChanged = content !== undefined || title !== undefined;
-
     if (title !== undefined) journal.title = title;
     if (content !== undefined) journal.content = content;
     if (tags !== undefined) journal.tags = normalizeTags(tags);
-    if (tags !== undefined) journal.tags = normalizeTags(tags);
     if (isFavorite !== undefined) journal.isFavorite = isFavorite;
-
-    if (contentChanged || mood !== undefined) {
-      const analysis = await generateMoodAndInsight({
-        title: nextTitle,
-        content: nextContent,
-        explicitMood: mood !== undefined ? mood : journal.mood,
-      });
-
-      journal.mood = analysis.mood;
-      journal.moodConfidence = analysis.moodConfidence;
-      journal.moodSource = analysis.moodSource;
-      journal.aiInsight = analysis.aiInsight;
-    }
 
     if (contentChanged || mood !== undefined) {
       const analysis = await generateMoodAndInsight({

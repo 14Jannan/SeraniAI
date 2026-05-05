@@ -16,9 +16,6 @@ const EnterpriseCheckout = lazy(
 const AcceptEnterpriseInvite = lazy(() =>
   import("./pages/user/AcceptEnterpriseInvite")
 );
-const AcceptEnterpriseInvite = lazy(() =>
-  import("./pages/user/AcceptEnterpriseInvite")
-);
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const LoginSuccess = lazy(() => import("./pages/LoginSuccess"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
