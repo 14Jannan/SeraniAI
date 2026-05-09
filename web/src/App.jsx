@@ -36,6 +36,7 @@ import AdminTasks from "./pages/admin/AdminTasks";
 // ==================== DIRECT IMPORTS - USER PAGES ====================
 import DashboardHome from "./pages/user/DashboardHome";
 import AIChat from "./pages/user/AIChatbot/AIChat";
+import Journal from "./pages/user/Journal";
 import Courses from "./pages/user/Courses";
 import CourseDetails from "./pages/user/CourseDetails";
 import TasksPage from "./pages/user/TasksPage";
@@ -43,7 +44,6 @@ import EnterpriseAdmin from "./pages/user/enterpriseAdmin/EnterpriseAdmin";
 
 // ==================== DIRECT IMPORTS - COMPONENTS ====================
 import PrivateRoute from "./components/PrivateRoute";
-import JournalRouteGuard from "./components/JournalRouteGuard";
 import PlanFeatureGate from "./components/PlanFeatureGate";
 
 function App() {
@@ -121,7 +121,7 @@ function App() {
               />
 
               {/* Journal - User personal journal with vectorized entries */}
-              <Route path="journal" element={<JournalRouteGuard />} />
+              <Route path="journal" element={<Journal />} />
 
               {/* Courses - Premium feature displaying all available courses */}
               <Route

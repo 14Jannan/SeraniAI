@@ -10,7 +10,7 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
 
-const API_URL = "http://localhost:7001/api/journals";
+const API_URL = "http://localhost:7001";
 
 const getLocalDateString = (date = new Date()) => {
   const year = date.getFullYear();
@@ -82,7 +82,7 @@ const FreePlanJournal = () => {
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL, {
+      const response = await fetch(`${API_URL}/api/journals`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -190,7 +190,7 @@ const FreePlanJournal = () => {
     try {
       setError("");
 
-      const response = await fetch(API_URL, {
+      const response = await fetch(`${API_URL}/api/journals`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -221,7 +221,7 @@ const FreePlanJournal = () => {
     try {
       setError("");
 
-      const response = await fetch(`${API_URL}/${updatedEntry._id}`, {
+      const response = await fetch(`${API_URL}/api/journals/${updatedEntry._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -257,7 +257,7 @@ const FreePlanJournal = () => {
     try {
       setError("");
 
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await fetch(`${API_URL}/api/journals/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -302,8 +302,6 @@ const FreePlanJournal = () => {
     setSelectedEntry(null);
     navigate("/dashboard/journal", { replace: true });
   };
-
-  // `Today` action removed for free plan UI
 
   const handleDateClick = (day) => {
     const newDate = new Date(
