@@ -303,13 +303,7 @@ const FreePlanJournal = () => {
     navigate("/dashboard/journal", { replace: true });
   };
 
-  const handleTodayClick = () => {
-    const today = getLocalDateString();
-    setCalendarMonth(new Date());
-    setSelectedDate(today);
-    setMode("dateEvent");
-    setShowCalendar(false);
-  };
+  // `Today` action removed for free plan UI
 
   const handleDateClick = (day) => {
     const newDate = new Date(
@@ -478,13 +472,6 @@ const FreePlanJournal = () => {
     >
       <div className="bg-blue-500 px-6 py-4 flex justify-end">
         <div className="relative flex items-center gap-3">
-          <button
-            onClick={handleTodayClick}
-            type="button"
-            className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-lg font-semibold relative z-10"
-          >
-            Today
-          </button>
 
           <div className="inline-flex items-center overflow-hidden rounded-lg shadow-sm bg-blue-700 text-white relative z-20">
             <button

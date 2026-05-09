@@ -181,6 +181,18 @@ const Journal = () => {
   const [showMoodDropdown, setShowMoodDropdown] = useState(false);
   const [showMoodModal, setShowMoodModal] = useState(false);
 
+  // selected month for monthly mood view (default: current month)
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const start = currentYear - 3;
+    const end = currentYear + 1;
+    const years = [];
+    for (let y = start; y <= end; y += 1) years.push(y);
+    return years;
+  }, []);
+
   const token = localStorage.getItem("token");
 
   const commonHeaders = {
@@ -236,6 +248,13 @@ const Journal = () => {
   useEffect(() => {
     fetchSummary({ moodRange: moodTimeRange, insightRange: insightTimeRange });
   }, [token, moodTimeRange, insightTimeRange]);
+
+  // Reset selectedMonth to current month whenever the Mood modal is opened
+  useEffect(() => {
+    if (showMoodModal) {
+      setSelectedMonth(new Date());
+    }
+  }, [showMoodModal]);
 
   const filteredEntries = useMemo(() => {
     const lowerSearch = searchText.trim().toLowerCase();
@@ -515,18 +534,21 @@ const Journal = () => {
   }, [summary, dominantMood, moodTimeRange]);
 
   const periodMoodDetails = useMemo(() => {
-    const rangeStart = new Date();
+    // compute the period start/end depending on week or month view
+    let rangeStart = new Date();
     rangeStart.setHours(0, 0, 0, 0);
 
     if (moodTimeRange === "month") {
-      rangeStart.setDate(1);
+      // use selectedMonth's year/month as the basis for the monthly range
+      const sm = selectedMonth || new Date();
+      rangeStart = new Date(sm.getFullYear(), sm.getMonth(), 1);
     } else {
       rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay());
     }
 
-    const rangeEnd = new Date(rangeStart);
+    let rangeEnd = new Date(rangeStart);
     if (moodTimeRange === "month") {
-      rangeEnd.setMonth(rangeEnd.getMonth() + 1);
+      rangeEnd = new Date(rangeStart.getFullYear(), rangeStart.getMonth() + 1, 1);
     } else {
       rangeEnd.setDate(rangeEnd.getDate() + 7);
     }
@@ -598,7 +620,76 @@ const Journal = () => {
       ring,
       dayBuckets,
     };
-  }, [entries, moodTimeRange]);
+  }, [entries, moodTimeRange, selectedMonth]);
+
+  // Always compute current month details for the sidebar (should not change when modal month changes)
+  const currentMonthMoodDetails = useMemo(() => {
+    const now = new Date();
+    const rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const rangeEnd = new Date(rangeStart.getFullYear(), rangeStart.getMonth() + 1, 1);
+
+    const periodEntries = entries
+      .filter((entry) => entry?.createdAt)
+      .map((entry) => ({ ...entry }))
+      .filter((entry) => {
+        const createdAt = new Date(entry.createdAt);
+        return createdAt >= rangeStart && createdAt < rangeEnd;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const moodCounts = periodEntries.reduce((acc, entry) => {
+      const mood = String(entry.mood || "neutral").toLowerCase();
+      acc[mood] = (acc[mood] || 0) + 1;
+      return acc;
+    }, {});
+
+    const moodRows = Object.entries(moodCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([mood, count]) => ({ mood, count }));
+
+    const total = moodRows.reduce((sum, row) => sum + row.count, 0);
+    const moodRowsWithPercent = moodRows.map((row) => ({
+      ...row,
+      percent: total ? Math.round((row.count / total) * 100) : 0,
+    }));
+
+    const ring = moodRowsWithPercent.length
+      ? (() => {
+          let cursor = 0;
+          return moodRowsWithPercent
+            .map(({ mood, count }) => {
+              const start = cursor;
+              const percent = total ? (count / total) * 100 : 0;
+              cursor += percent;
+              return `${MOOD_RING_COLORS[mood] || MOOD_RING_COLORS.neutral} ${start}% ${cursor}%`;
+            })
+            .join(", ");
+        })()
+      : `${MOOD_RING_COLORS.neutral} 0 100%`;
+
+    const totalDays = new Date(rangeStart.getFullYear(), rangeStart.getMonth() + 1, 0).getDate();
+    const dayBuckets = Array.from({ length: totalDays }, (_, index) => {
+      const dayDate = new Date(rangeStart);
+      dayDate.setDate(rangeStart.getDate() + index);
+      const dayKey = getLocalDateString(dayDate);
+
+      return {
+        dayKey,
+        dayLabel: formatDayLabel(dayDate),
+        entries: periodEntries.filter((entry) => getLocalDateString(new Date(entry.createdAt)) === dayKey),
+      };
+    });
+
+    return {
+      rangeStart,
+      rangeEnd,
+      entries: periodEntries,
+      total,
+      moodRows: moodRowsWithPercent,
+      ring,
+      dayBuckets,
+    };
+  }, [entries]);
 
   const weeklyActivity = summary?.weeklyActivity || [
     { label: "W", count: 0 },
@@ -941,9 +1032,6 @@ const Journal = () => {
               })}
             </div>
 
-            <button className={`mt-3 text-sm font-medium ${theme === "dark" ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"}`}>
-              View Calendar
-            </button>
           </section>
 
           <section
@@ -1003,34 +1091,32 @@ const Journal = () => {
               <p className={theme === "dark" ? "text-gray-400 text-sm mt-4" : "text-gray-600 text-sm mt-4"}>Loading...</p>
             ) : (
               <div className="mt-4 flex flex-col items-center text-center">
-                <div
-                  className="relative h-[110px] w-[110px] rounded-full p-3"
-                  style={{ background: `conic-gradient(${moodStats.ring})` }}
-                >
-                  <div className={`absolute inset-[22px] rounded-full flex items-center justify-center ${theme === "dark" ? "bg-slate-950" : "bg-white"}`}>
-                    <Smile size={24} className="text-slate-500" />
+                  <div
+                    className="relative h-[110px] w-[110px] rounded-full p-3"
+                    style={{ background: `conic-gradient(${currentMonthMoodDetails.ring || moodStats.ring})` }}
+                  >
+                    <div className={`absolute inset-[22px] rounded-full flex items-center justify-center ${theme === "dark" ? "bg-slate-950" : "bg-white"}`}>
+                      <Smile size={24} className="text-slate-500" />
+                    </div>
+                  </div>
+
+                  <p className="text-xl font-bold mt-3 leading-tight">Mostly {((currentMonthMoodDetails.moodRows && currentMonthMoodDetails.moodRows[0]?.mood) || moodStats.moodLabel).replace(/^(.)/, (m) => m.toUpperCase())}</p>
+                  <p className={theme === "dark" ? "text-gray-400 text-sm mt-1" : "text-gray-600 text-sm mt-1"}>
+                    {(currentMonthMoodDetails.total ?? moodStats.total) > 0
+                      ? `Based on your monthly entries`
+                      : `No mood entries this month.`}
+                  </p>
+
+                  <div className="mt-3 w-full space-y-2">
+                    {(currentMonthMoodDetails.moodRows && currentMonthMoodDetails.moodRows.length > 0 ? currentMonthMoodDetails.moodRows.slice(0,3) : moodStats.legend).map((item) => (
+                      <div key={item.mood} className="flex items-center justify-center gap-2 text-sm">
+                        <span className={`h-2 w-2 rounded-full ${MOOD_DOT_CLASSES[item.mood] || MOOD_DOT_CLASSES.neutral}`} />
+                        <span className="capitalize">{item.mood}</span>
+                        <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>{item.percent}%</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-
-                <p className="text-xl font-bold mt-3 leading-tight">Mostly {moodStats.moodLabel}</p>
-                <p className={theme === "dark" ? "text-gray-400 text-sm mt-1" : "text-gray-600 text-sm mt-1"}>
-                  {moodStats.total > 0
-                    ? `Based on your ${moodTimeRange === "week" ? "weekly" : "monthly"} entries`
-                    : `No mood entries in this ${moodTimeRange}.`}
-                </p>
-
-                <div className="mt-3 w-full space-y-2">
-                  {moodStats.legend.length > 0 ? moodStats.legend.map((item) => (
-                    <div key={item.mood} className="flex items-center justify-center gap-2 text-sm">
-                      <span className={`h-2 w-2 rounded-full ${MOOD_DOT_CLASSES[item.mood] || MOOD_DOT_CLASSES.neutral}`} />
-                      <span className="capitalize">{item.mood}</span>
-                      <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>{item.percent}%</span>
-                    </div>
-                  )) : (
-                    <div className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-500 text-sm"}>No mood data yet.</div>
-                  )}
-                </div>
-              </div>
             )}
           </section>
 
@@ -1045,9 +1131,52 @@ const Journal = () => {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-xl font-bold">
-                      {moodTimeRange === "month" ? "Monthly Mood Progress" : "Weekly Mood Progress"}
-                    </h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-bold">
+                        {moodTimeRange === "month" ? "Monthly Mood Progress" : "Weekly Mood Progress"}
+                      </h3>
+                      {moodTimeRange === "month" && (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={selectedMonth.getMonth()}
+                            onChange={(e) => setSelectedMonth(new Date(selectedMonth.getFullYear(), Number(e.target.value), 1))}
+                            className={`rounded-lg border px-2 py-1 text-sm ${theme === "dark" ? "bg-slate-900 border-slate-700 text-gray-100" : "bg-white border-gray-200 text-gray-700"}`}
+                          >
+                            {[
+                              "January",
+                              "February",
+                              "March",
+                              "April",
+                              "May",
+                              "June",
+                              "July",
+                              "August",
+                              "September",
+                              "October",
+                              "November",
+                              "December",
+                            ].map((m, idx) => (
+                              <option key={m} value={idx}>
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+
+                          <select
+                            value={selectedMonth.getFullYear()}
+                            onChange={(e) => setSelectedMonth(new Date(Number(e.target.value), selectedMonth.getMonth(), 1))}
+                            className={`rounded-lg border px-2 py-1 text-sm ${theme === "dark" ? "bg-slate-900 border-slate-700 text-gray-100" : "bg-white border-gray-200 text-gray-700"}`}
+                          >
+                            {yearOptions.map((y) => (
+                              <option key={y} value={y}>
+                                {y}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                    </div>
                     <p className={theme === "dark" ? "text-gray-400 text-sm" : "text-gray-500 text-sm"}>
                       {`${formatDayLabel(periodMoodDetails.rangeStart)} - ${formatDayLabel(
                         new Date(periodMoodDetails.rangeEnd.getTime() - 1)
