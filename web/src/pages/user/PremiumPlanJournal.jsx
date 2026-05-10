@@ -23,9 +23,11 @@ import { jsPDF } from "jspdf";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
 
+// API configuration for journal and summary endpoints.
 const API_URL = "http://localhost:7001";
 const SUMMARY_URL = `${API_URL}/api/journals/stats/summary`;
 
+// Mood display styling: background and text colors for each mood category.
 const MOOD_COLORS = {
   happy: "bg-emerald-100 text-emerald-700",
   grateful: "bg-green-100 text-green-700",
@@ -79,6 +81,7 @@ const MOOD_DOT_CLASSES = {
 
 const WEEK_LABELS = ["W", "T", "F", "S", "S", "M", "T"];
 
+// Utility: Format Date to ISO-like local string (YYYY-MM-DD).
 const getLocalDateString = (date = new Date()) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -86,6 +89,7 @@ const getLocalDateString = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+// Utility: Create a safe filename for PDF export from a journal title and date.
 const buildJournalFilename = (title, dateString) => {
   const safeTitle = (title || "journal-entry")
     .toLowerCase()
@@ -96,6 +100,7 @@ const buildJournalFilename = (title, dateString) => {
   return `${safeTitle || "journal-entry"}-${dateString || getLocalDateString()}.pdf`;
 };
 
+// Utility: Estimate reading time in minutes based on word count (200 words per minute).
 const estimateReadTime = (content) => {
   const words = String(content || "")
     .trim()
@@ -109,11 +114,13 @@ const estimateReadTime = (content) => {
   return Math.max(1, Math.round(words / 200));
 };
 
+// Utility: Retrieve CSS class names for mood-specific badge styling.
 const getMoodClass = (mood) => {
   const key = String(mood || "neutral").toLowerCase();
   return MOOD_COLORS[key] || MOOD_COLORS.neutral;
 };
 
+// Utility: Generate a PDF file from journal entry and trigger browser download.
 const downloadJournalPdf = (entry) => {
   const pdf = new jsPDF();
   const marginLeft = 14;
@@ -158,9 +165,11 @@ const downloadJournalPdf = (entry) => {
   );
 };
 
+// Main component: Premium-tier journal with advanced filtering, mood analysis, and insights.
 const PremiumPlanJournal = () => {
   const { theme } = useTheme();
 
+  // Component state: Entries, UI mode, filters, selection, and loading indicators.
   const [mode, setMode] = useState("list");
   const [entries, setEntries] = useState([]);
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -181,7 +190,7 @@ const PremiumPlanJournal = () => {
   const [showMoodDropdown, setShowMoodDropdown] = useState(false);
   const [showMoodModal, setShowMoodModal] = useState(false);
 
-  // selected month for monthly mood view (default: current month)
+  // Tracks the month displayed in the monthly mood analysis modal.
   const [selectedMonth, setSelectedMonth] = useState(new Date());
 
   const yearOptions = useMemo(() => {
@@ -249,7 +258,7 @@ const PremiumPlanJournal = () => {
     fetchSummary({ moodRange: moodTimeRange, insightRange: insightTimeRange });
   }, [token, moodTimeRange, insightTimeRange]);
 
-  // Reset selectedMonth to current month whenever the Mood modal is opened
+  // Reset the modal month to the current month each time the modal opens.
   useEffect(() => {
     if (showMoodModal) {
       setSelectedMonth(new Date());
@@ -309,6 +318,7 @@ const PremiumPlanJournal = () => {
     return sorted;
   }, [entries, searchText, favoritesOnly, selectedMood, sortBy, selectedDate]);
 
+  // Create a new journal entry via API and refresh statistics dashboard.
   const handleCreate = async (newEntry) => {
     try {
       setError("");
@@ -340,6 +350,7 @@ const PremiumPlanJournal = () => {
     }
   };
 
+  // Update an existing journal entry via API and refresh state and stats.
   const handleUpdate = async (updatedEntry) => {
     try {
       setError("");
@@ -376,6 +387,7 @@ const PremiumPlanJournal = () => {
     }
   };
 
+  // Delete a journal entry via API and remove from entries list.
   const handleDelete = async (id) => {
     try {
       setError("");
@@ -397,6 +409,7 @@ const PremiumPlanJournal = () => {
     }
   };
 
+  // Toggle favorite status for an entry and refresh stats.
   const toggleFavorite = async (entry) => {
     try {
       const response = await fetch(`${API_URL}/api/journals/${entry._id}`, {
@@ -417,6 +430,7 @@ const PremiumPlanJournal = () => {
     }
   };
 
+  // Refresh AI insight analysis for a journal entry and update state.
   const handleRefreshInsight = async (id) => {
     try {
       setRefreshingInsightId(id);
@@ -440,6 +454,7 @@ const PremiumPlanJournal = () => {
     }
   };
 
+  // Reset all filters and sorting to default state.
   const clearFilters = () => {
     setSearchText("");
     setSelectedMood("all");
@@ -492,6 +507,7 @@ const PremiumPlanJournal = () => {
   };
 
   const dominantMood = useMemo(() => {
+    // Determine the most frequently occurring mood in the summary statistics.
     if (!summary?.moodCounts) {
       return "neutral";
     }
@@ -500,6 +516,7 @@ const PremiumPlanJournal = () => {
   }, [summary]);
 
   const moodStats = useMemo(() => {
+    // Compute aggregated mood statistics including conic-gradient ring for visualization.
     const moodCounts = summary?.moodCounts || {};
     const entries = Object.entries(moodCounts).sort((a, b) => b[1] - a[1]);
     const total = entries.reduce((sum, [, count]) => sum + count, 0);
@@ -534,12 +551,12 @@ const PremiumPlanJournal = () => {
   }, [summary, dominantMood, moodTimeRange]);
 
   const periodMoodDetails = useMemo(() => {
-    // compute the period start/end depending on week or month view
+    // Calculate the inclusive period window for weekly or monthly mood aggregation.
     let rangeStart = new Date();
     rangeStart.setHours(0, 0, 0, 0);
 
     if (moodTimeRange === "month") {
-      // use selectedMonth's year/month as the basis for the monthly range
+      // Use the selected month and year as the monthly aggregation boundary.
       const sm = selectedMonth || new Date();
       rangeStart = new Date(sm.getFullYear(), sm.getMonth(), 1);
     } else {
@@ -622,7 +639,7 @@ const PremiumPlanJournal = () => {
     };
   }, [entries, moodTimeRange, selectedMonth]);
 
-  // Always compute current month details for the sidebar (should not change when modal month changes)
+  // Keep sidebar metrics fixed to the current month, independent of modal month selection.
   const currentMonthMoodDetails = useMemo(() => {
     const now = new Date();
     const rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -737,6 +754,9 @@ const PremiumPlanJournal = () => {
       cells,
     };
   }, [calendarMonth]);
+
+  // Sidebar mood data source: show weekly period aggregation when 'week' selected, otherwise use current month.
+  const sidebarMoodDetails = moodTimeRange === "week" ? periodMoodDetails : currentMonthMoodDetails;
 
   if (mode === "add") {
     return <AddJournal onBack={handleBack} onSave={handleCreate} />;
@@ -1093,22 +1113,21 @@ const PremiumPlanJournal = () => {
               <div className="mt-4 flex flex-col items-center text-center">
                   <div
                     className="relative h-[110px] w-[110px] rounded-full p-3"
-                    style={{ background: `conic-gradient(${currentMonthMoodDetails.ring || moodStats.ring})` }}
+                    style={{ background: `conic-gradient(${sidebarMoodDetails.ring || moodStats.ring})` }}
                   >
                     <div className={`absolute inset-[22px] rounded-full flex items-center justify-center ${theme === "dark" ? "bg-slate-950" : "bg-white"}`}>
                       <Smile size={24} className="text-slate-500" />
                     </div>
                   </div>
-
-                  <p className="text-xl font-bold mt-3 leading-tight">Mostly {((currentMonthMoodDetails.moodRows && currentMonthMoodDetails.moodRows[0]?.mood) || moodStats.moodLabel).replace(/^(.)/, (m) => m.toUpperCase())}</p>
+                  <p className="text-xl font-bold mt-3 leading-tight">Mostly {((sidebarMoodDetails.moodRows && sidebarMoodDetails.moodRows[0]?.mood) || moodStats.moodLabel).replace(/^(.)/, (m) => m.toUpperCase())}</p>
                   <p className={theme === "dark" ? "text-gray-400 text-sm mt-1" : "text-gray-600 text-sm mt-1"}>
-                    {(currentMonthMoodDetails.total ?? moodStats.total) > 0
-                      ? `Based on your monthly entries`
-                      : `No mood entries this month.`}
+                    {(sidebarMoodDetails.total ?? moodStats.total) > 0
+                      ? `Based on your ${moodTimeRange === "week" ? "weekly" : "monthly"} entries`
+                      : `No mood entries ${moodTimeRange === "week" ? "this week." : "this month."}`}
                   </p>
 
                   <div className="mt-3 w-full space-y-2">
-                    {(currentMonthMoodDetails.moodRows && currentMonthMoodDetails.moodRows.length > 0 ? currentMonthMoodDetails.moodRows.slice(0,3) : moodStats.legend).map((item) => (
+                    {(sidebarMoodDetails.moodRows && sidebarMoodDetails.moodRows.length > 0 ? sidebarMoodDetails.moodRows.slice(0,3) : moodStats.legend).map((item) => (
                       <div key={item.mood} className="flex items-center justify-center gap-2 text-sm">
                         <span className={`h-2 w-2 rounded-full ${MOOD_DOT_CLASSES[item.mood] || MOOD_DOT_CLASSES.neutral}`} />
                         <span className="capitalize">{item.mood}</span>

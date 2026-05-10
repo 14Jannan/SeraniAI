@@ -2,14 +2,17 @@ const Journal = require("../models/journalModel");
 const { saveJournalEntry } = require("../utils/journalUtils");
 const OpenAI = require("openai");
 
+// Initialize OpenAI client with API key from environment; null if not configured.
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
 function getModelName() {
+  // Get the configured AI model name or default to gpt-4o-mini for mood and insight analysis.
   return process.env.MODEL || "gpt-4o-mini";
 }
 
+// Accepted mood values for journal analysis and validation.
 const MOOD_WHITELIST = [
   "happy",
   "sad",
@@ -27,6 +30,7 @@ const MOOD_WHITELIST = [
   "tired",
 ];
 
+// Fallback mood keywords for heuristic-based mood detection when AI API is unavailable.
 const FALLBACK_MOOD_MAP = [
   { mood: "stressed", keywords: ["stress", "deadline", "pressure", "overwhelmed"] },
   { mood: "anxious", keywords: ["anxious", "nervous", "worried", "panic"] },
@@ -38,6 +42,7 @@ const FALLBACK_MOOD_MAP = [
 ];
 
 function normalizeMood(value) {
+  // Normalize and validate mood input: check whitelist, apply fuzzy matching fallback.
   if (!value || typeof value !== "string") {
     return "";
   }
@@ -56,6 +61,7 @@ function normalizeMood(value) {
 }
 
 function normalizeTags(tags) {
+  // Normalize and limit tags: convert to array, trim, deduplicate, enforce max 12 tags.
   if (!tags) {
     return [];
   }
@@ -75,6 +81,7 @@ function normalizeTags(tags) {
 }
 
 function fallbackMoodAndInsight(content) {
+  // Generate mood and insight using keyword-based heuristic when AI service unavailable.
   const text = String(content || "").toLowerCase();
   let mood = "neutral";
 
@@ -108,6 +115,7 @@ function fallbackMoodAndInsight(content) {
   };
 }
 
+// Analyze journal entry via OpenAI API; fall back to keyword heuristics if unavailable.
 async function generateMoodAndInsight({ title, content, explicitMood }) {
   const manualMood = normalizeMood(explicitMood);
   if (!openai) {
@@ -182,12 +190,14 @@ async function generateMoodAndInsight({ title, content, explicitMood }) {
   }
 }
 
+// Normalize a date to the start of its calendar day (midnight UTC-agnostic).
 function getStartOfDay(date) {
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
   return day;
 }
 
+// Compute consecutive days of journaling backwards from today.
 function calculateStreak(days) {
   if (!days.length) {
     return 0;
@@ -205,6 +215,7 @@ function calculateStreak(days) {
   return streak;
 }
 
+// Calculate the start date for mood aggregation (7 days for week, 30 days for month).
 function getRangeStart(timeRange) {
   const start = getStartOfDay(new Date());
   if (timeRange === "month") {
@@ -216,6 +227,7 @@ function getRangeStart(timeRange) {
   return start;
 }
 
+// Generate AI insight summarizing mood patterns and trends for the specified period.
 async function generatePeriodInsight(userId, timeRange = "week") {
   const rangeStart = getRangeStart(timeRange);
 
@@ -432,7 +444,7 @@ async function generatePeriodInsight(userId, timeRange = "week") {
   }
 }
 
-// Create new journal entry
+// Create a new journal entry for the authenticated user with mood analysis and semantic indexing.
 const createJournal = async (req, res) => {
   try {
     const { title, content, mood, tags } = req.body;
@@ -467,7 +479,7 @@ const createJournal = async (req, res) => {
   }
 };
 
-// Get all journal entries of logged-in user
+// Retrieve all journal entries for the authenticated user in reverse chronological order.
 const getMyJournals = async (req, res) => {
   try {
     const journals = await Journal.find({ user: req.user._id }).sort({
@@ -487,7 +499,7 @@ const getMyJournals = async (req, res) => {
   }
 };
 
-// Get single journal entry
+// Retrieve a single journal entry by ID; verify ownership before returning to the user.
 const getJournalById = async (req, res) => {
   try {
     const journal = await Journal.findOne({
@@ -515,7 +527,7 @@ const getJournalById = async (req, res) => {
   }
 };
 
-// Update journal entry
+// Update a journal entry with optional title, content, mood, tags, or favorite status; regenerate mood/insight if content or mood changed.
 const updateJournal = async (req, res) => {
   try {
     const { title, content, mood, tags, isFavorite } = req.body;
@@ -570,6 +582,7 @@ const updateJournal = async (req, res) => {
   }
 };
 
+// Refresh AI-generated mood and insight for a journal entry without creating a new one.
 const refreshJournalInsight = async (req, res) => {
   try {
     const journal = await Journal.findOne({
@@ -610,6 +623,7 @@ const refreshJournalInsight = async (req, res) => {
   }
 };
 
+// Aggregate dashboard statistics: mood counts, tags, streak, weekly activity, and period insights.
 const getJournalSummary = async (req, res) => {
   try {
     const now = new Date();
@@ -694,7 +708,7 @@ const getJournalSummary = async (req, res) => {
   }
 };
 
-// Delete journal entry
+// Delete a journal entry owned by the authenticated user; permanent removal.
 const deleteJournal = async (req, res) => {
   try {
     const journal = await Journal.findOne({
@@ -726,6 +740,7 @@ const deleteJournal = async (req, res) => {
 };
 
 module.exports = {
+  // Express route handlers for journal CRUD and analytics operations.
   createJournal,
   getMyJournals,
   getJournalById,
