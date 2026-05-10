@@ -20,6 +20,7 @@ const PERSONAL_PLANS = [
       { icon: "sparkle", text: "Unlimited daily journal entries" },
       { icon: "shield", text: "Standard privacy & security" },
       { icon: "sparkle", text: "Journal history and tracking" },
+      { icon: "sparkle", text: "Weekly progress reports" },
     ],
   },
   {
@@ -54,6 +55,7 @@ const BUSINESS_PLANS = [
       { icon: "sparkle", text: "Unlimited daily journal entries" },
       { icon: "shield", text: "Standard privacy & security" },
       { icon: "sparkle", text: "Journal history and tracking" },
+      { icon: "sparkle", text: "Weekly progress reports" },
     ],
   },
   {
