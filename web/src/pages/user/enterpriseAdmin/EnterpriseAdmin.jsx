@@ -9,24 +9,27 @@ import {
 } from "../../../api/enterpriseAdminApi";
 import Modal from "../../../components/Modal";
 
+/* Enterprise admin management component for handling users and invitations */
 const EnterpriseAdmin = () => {
+  /* State management for users list and enterprise data */
   const [users, setUsers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  /* Seat usage tracking */
   const [seatSummary, setSeatSummary] = useState({
     seatLimit: 1,
     seatsUsed: 0,
     seatsRemaining: 1,
   });
 
-  // Modal States
+  /* Modal and form state management */
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Form States
+  /* Form state for adding and editing users */
   const [addFormData, setAddFormData] = useState({ email: "" });
   const [editFormData, setEditFormData] = useState({
     name: "",
@@ -34,10 +37,12 @@ const EnterpriseAdmin = () => {
     status: "active",
   });
 
+  /* Load enterprise users on component mount */
   useEffect(() => {
     fetchUsers();
   }, []);
 
+  /* Fetch all enterprise users and invites with seat information */
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -57,6 +62,7 @@ const EnterpriseAdmin = () => {
     }
   };
 
+  /* Open add user modal with seat availability check */
   // Add User Modal Handlers
   const handleOpenAddModal = () => {
     if (seatSummary.seatsUsed >= seatSummary.seatLimit) {
@@ -68,15 +74,18 @@ const EnterpriseAdmin = () => {
     setIsAddModalOpen(true);
   };
 
+  /* Close add user modal and reset form */
   const handleCloseAddModal = () => {
     setIsAddModalOpen(false);
     setAddFormData({ email: "" });
   };
 
+  /* Handle form input changes for add user form */
   const handleAddChange = (e) => {
     setAddFormData({ ...addFormData, [e.target.name]: e.target.value });
   };
 
+  /* Submit add user form and invite to enterprise */
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -91,7 +100,7 @@ const EnterpriseAdmin = () => {
     }
   };
 
-  // Edit User Modal Handlers
+  /* Edit User Modal Handlers - Open modal with selected user data */
   const handleOpenEditModal = (user) => {
     setCurrentUser(user);
     setEditFormData({
@@ -102,15 +111,18 @@ const EnterpriseAdmin = () => {
     setIsEditModalOpen(true);
   };
 
+  /* Close edit modal and clear selected user */
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
     setCurrentUser(null);
   };
 
+  /* Handle form input changes for edit user form */
   const handleEditChange = (e) => {
     setEditFormData({ ...editFormData, [e.target.name]: e.target.value });
   };
 
+  /* Submit edit user form and update user information */
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -123,6 +135,7 @@ const EnterpriseAdmin = () => {
     }
   };
 
+  /* Delete user from enterprise with confirmation */
   // Delete User
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to remove this user from the enterprise?")) {
@@ -138,6 +151,7 @@ const EnterpriseAdmin = () => {
     }
   };
 
+  /* Revoke pending invitation */
   const handleStopInvite = async (id) => {
     if (window.confirm("Are you sure you want to stop this invite?")) {
       try {
@@ -152,6 +166,7 @@ const EnterpriseAdmin = () => {
     }
   };
 
+  /* Filter out accepted invites to show only pending ones */
   const visibleInvites = invites.filter((invite) => invite.status !== "accepted");
 
   return (

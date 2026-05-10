@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { fetchSubscriptions, deleteSubscriptionById } from "../../api/subscriptionApi";
 
+/* Admin page component for managing all user subscriptions */
 const AdminSubscriptions = () => {
+  /* State management for subscriptions list and UI feedback */
   const [subscriptions, setSubscriptions] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
 
+  /* Fetch all subscriptions on component mount */
   useEffect(() => {
     const loadSubscriptions = async () => {
       try {
@@ -23,6 +26,7 @@ const AdminSubscriptions = () => {
     loadSubscriptions();
   }, []);
 
+  /* Filter subscriptions based on search query (email or payment ID) */
   const query = search.trim().toLowerCase();
   const filteredData = subscriptions.filter((sub) => {
     if (!query) return true;
@@ -32,6 +36,7 @@ const AdminSubscriptions = () => {
     return email.includes(query) || paymentId.includes(query);
   });
 
+  /* Handle subscription deletion with confirmation */
   const handleDelete = async (subscriptionId) => {
     const ok = window.confirm(
       "Delete this subscription? The user will be downgraded to Free."
@@ -50,14 +55,17 @@ const AdminSubscriptions = () => {
     }
   };
 
+  /* Show loading state while fetching data */
   if (loading) {
     return <p className="mt-10 text-center">Loading subscriptions...</p>;
   }
 
+  /* Show error message if data fetch fails */
   if (error) {
     return <p className="mt-10 text-center text-red-500">{error}</p>;
   }
 
+  /* Main admin subscriptions management table */
   return (
     <div>
       <div className="mb-6">

@@ -1,20 +1,24 @@
 import httpClient from "./httpClient";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
-const API_URL = `${BASE_URL}/api/subscriptions`;
+/* API configuration for subscription endpoints */
+const API_URL = "http://localhost:7001";
+const SUBSCRIPTIONS_API_URL = `${API_URL}/api/subscriptions`;
 
-// GET all subscriptions
-export const fetchSubscriptions = () => httpClient.get(API_URL);
+/* Fetch all subscriptions (admin only) */
+export const fetchSubscriptions = () => httpClient.get(SUBSCRIPTIONS_API_URL);
 
-// GET user's current subscription
-export const getUserSubscription = () => httpClient.get(`${API_URL}/user/current`);
+/* Fetch current user's subscription details */
+export const getUserSubscription = () =>
+  httpClient.get(`${SUBSCRIPTIONS_API_URL}/user/current`);
 
-// GET subscription by ID
-export const getSubscriptionById = (id) => httpClient.get(`${API_URL}/${id}`);
+/* Fetch subscription by ID */
+export const getSubscriptionById = (id) =>
+  httpClient.get(`${SUBSCRIPTIONS_API_URL}/${id}`);
 
-// DELETE subscription by ID (admin)
-export const deleteSubscriptionById = (id) => API.delete(`/subscriptions/${id}`);
+/* Delete subscription by ID (admin only) */
+export const deleteSubscriptionById = (id) =>
+  httpClient.delete(`${SUBSCRIPTIONS_API_URL}/${id}`);
 
-// CANCEL subscription by ID (user)
+/* Cancel subscription by ID (user action) */
 export const cancelSubscription = (id) =>
-  API.post(`/subscriptions/${id}/cancel`);
+  httpClient.post(`${SUBSCRIPTIONS_API_URL}/${id}/cancel`);

@@ -4,78 +4,79 @@ import Modal from "../../components/Modal";
 import { cancelSubscription, getUserSubscription } from "../../api/subscriptionApi";
 import { cancelEnterprisePremiumAccess } from "../../api/authApi";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+/* API configuration */
+const API_URL = "http://localhost:7001";
 
+/* Personal subscription plans array */
 const PERSONAL_PLANS = [
   {
     id: "free",
     name: "Free",
     price: "0",
-    subtitle: "See what Serani AI can do",
+    subtitle: "Daily journal entries only",
     isCurrent: true,
     cta: "Start Free",
     features: [
-      { icon: "sparkle", text: "Get simple emotional insights" },
-      { icon: "chat", text: "Short AI chats for common questions" },
-      { icon: "sparkle", text: "Basic journaling and mood tracking" },
+      { icon: "sparkle", text: "Unlimited daily journal entries" },
       { icon: "shield", text: "Standard privacy & security" },
+      { icon: "sparkle", text: "Journal history and tracking" },
     ],
   },
   {
     id: "pro",
     name: "Pro",
     price: "4000",
-    subtitle: "Maximize productivity & growth",
+    subtitle: "Everything included",
     badge: "POPULAR",
     highlight: true,
     cta: "Upgrade to Pro",
     features: [
-      { icon: "sparkle", text: "Maximum AI usage + best insights" },
-      { icon: "chat", text: "Faster responses & priority handling" },
-      { icon: "sparkle", text: "Deep analytics (mood + tasks)" },
-      { icon: "sparkle", text: "Full access to all content & courses" },
-      { icon: "shield", text: "Premium support channel" },
-      { icon: "sparkle", text: "Best for heavy usage users" },
+      { icon: "sparkle", text: "Unlimited AI conversations" },
+      { icon: "chat", text: "AI-powered emotional insights" },
+      { icon: "sparkle", text: "Full access to all courses & content" },
+      { icon: "sparkle", text: "Advanced analytics & mood tracking" },
+      { icon: "sparkle", text: "Unlimited daily journal entries" },
+      { icon: "shield", text: "Priority support" },
     ],
   },
 ];
 
+/* Business subscription plans array */
 const BUSINESS_PLANS = [
   {
     id: "free_business",
     name: "Free",
     price: "0",
-    subtitle: "Try Serani AI for teams (limited)",
+    subtitle: "Daily journal entries only",
     isCurrent: true,
     cta: "Start Free",
     features: [
-      { icon: "sparkle", text: "Limited seats for testing" },
-      { icon: "chat", text: "Limited AI usage per seat" },
-      { icon: "shield", text: "Basic admin controls" },
-      { icon: "sparkle", text: "Simple usage view" },
+      { icon: "sparkle", text: "Unlimited daily journal entries" },
+      { icon: "shield", text: "Standard privacy & security" },
+      { icon: "sparkle", text: "Journal history and tracking" },
     ],
   },
   {
     id: "business",
     name: "Business",
     price: "3000",
-    subtitle: "Get more work done with Serani AI for teams",
+    subtitle: "Complete team management & AI access",
     badge: "RECOMMENDED",
     highlight: true,
     cta: "Upgrade to Business",
     features: [
-      { icon: "shield", text: "Organization dashboard + roles" },
-      { icon: "sparkle", text: "Team usage analytics & insights" },
-      { icon: "chat", text: "Higher AI usage per seat" },
-      { icon: "shield", text: "SSO-ready (future)" },
-      { icon: "sparkle", text: "Central billing + invoices" },
-      { icon: "sparkle", text: "Bulk invites and onboarding" },
-      { icon: "shield", text: "Admin controls for licenses" },
+      { icon: "shield", text: "Manage enterprise users" },
+      { icon: "sparkle", text: "Full AI access for all team members" },
+      { icon: "chat", text: "Unlimited conversations per seat" },
+      { icon: "sparkle", text: "Advanced team analytics" },
+      { icon: "sparkle", text: "Centralized billing & invoices" },
+      { icon: "shield", text: "Team role management" },
+      { icon: "sparkle", text: "Bulk user invitations" },
     ],
   },
 ];
 
+/* SVG icon component for sparkle feature indicator */
 function IconSparkle({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -95,6 +96,7 @@ function IconSparkle({ className }) {
   );
 }
 
+/* SVG icon component for chat feature indicator */
 function IconChat({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -114,6 +116,7 @@ function IconChat({ className }) {
   );
 }
 
+/* SVG icon component for shield/security feature indicator */
 function IconShield({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -134,6 +137,7 @@ function IconShield({ className }) {
   );
 }
 
+/* Render appropriate feature icon based on kind parameter */
 function FeatureIcon({ kind }) {
   const common = "h-5 w-5 text-neutral-700";
   if (kind === "sparkle") return <IconSparkle className={common} />;
@@ -142,6 +146,7 @@ function FeatureIcon({ kind }) {
   return <span className="h-5 w-5" />;
 }
 
+/* Reusable subscription plan card component with upgrade functionality */
 function PlanCard({ plan, onUpgrade, disableUpgrade }) {
   const isHighlighted = Boolean(plan.highlight);
   const isDisabled = plan.isCurrent || disableUpgrade;
@@ -220,24 +225,31 @@ function PlanCard({ plan, onUpgrade, disableUpgrade }) {
   );
 }
 
+/* Main subscription page component displaying personal and business plans */
 export default function Subscription() {
   const navigate = useNavigate();
+  /* State for toggling between personal and business subscription modes */
   const [mode, setMode] = useState("personal");
+  /* Current subscription information */
   const [currentSubscription, setCurrentSubscription] = useState(null);
+  /* Loading state for subscription fetch */
   const [loadingSubscription, setLoadingSubscription] = useState(false);
+  /* Modal and cancellation state management */
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState(null);
+  /* Current user role and upgrade error handling */
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [upgradeBlockError, setUpgradeBlockError] = useState(null);
 
+  /* Memoize plan array based on current mode */
   const plans = useMemo(() => {
     return mode === "personal" ? PERSONAL_PLANS : BUSINESS_PLANS;
   }, [mode]);
 
+  /* Memoize responsive grid layout for plan cards */
   const cardsLayoutClass = useMemo(() => {
     if (mode === "personal") {
-      // With only Free + Pro, keep cards centered on large screens.
       return plans.length <= 2
         ? "mx-auto max-w-4xl grid-cols-1 sm:grid-cols-2"
         : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
@@ -246,6 +258,7 @@ export default function Subscription() {
     return "mx-auto max-w-4xl grid-cols-1 md:grid-cols-2";
   }, [mode, plans.length]);
 
+  /* Handle payment success/cancellation callback from PayHere redirect */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentState = params.get("payment");
@@ -279,7 +292,7 @@ export default function Subscription() {
 
     const confirmPayment = async () => {
       try {
-        await fetch(`${API_BASE}/api/billing/payhere/confirm-return`, {
+        await fetch(`${API_URL}/api/billing/payhere/confirm-return`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -297,6 +310,7 @@ export default function Subscription() {
     confirmPayment();
   }, [navigate]);
 
+  /* Fetch current user role and subscription on mount */
   // Fetch current subscription
   useEffect(() => {
     try {

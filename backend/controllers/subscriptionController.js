@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const User = require('../models/userModel');
 const Enterprise = require('../models/enterpriseModel');
 
+/* Normalize plan names to standard format */
 const normalizePlan = (plan) => {
   if (typeof plan !== 'string') return null;
 
@@ -13,7 +14,7 @@ const normalizePlan = (plan) => {
   return null;
 };
 
-// GET all subscriptions
+/* Fetch all subscriptions with populated user information - admin endpoint */
 exports.getAllSubscriptions = async (req, res) => {
   try {
     const subscriptions = await Subscription.find()
@@ -26,7 +27,7 @@ exports.getAllSubscriptions = async (req, res) => {
   }
 };
 
-// GET single subscription
+/* Fetch single subscription by ID with validation */
 exports.getSubscriptionById = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -46,7 +47,7 @@ exports.getSubscriptionById = async (req, res) => {
   }
 };
 
-// CREATE subscription
+/* Create new subscription with comprehensive validation */
 exports.createSubscription = async (req, res) => {
   try {
     const { userId, plan, amount, startDate, endDate, billingCycle } = req.body;
@@ -114,7 +115,7 @@ exports.createSubscription = async (req, res) => {
   }
 };
 
-// UPDATE subscription status
+/* Update subscription status */
 exports.updateSubscriptionStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -143,7 +144,7 @@ exports.updateSubscriptionStatus = async (req, res) => {
   }
 };
 
-// DELETE subscription (admin)
+/* Delete subscription and downgrade user to free plan */
 exports.deleteSubscription = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {

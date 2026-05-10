@@ -4,16 +4,20 @@ const Subscription = require("../models/subscriptionModel");
 const User = require("../models/userModel");
 const Enterprise = require("../models/enterpriseModel");
 
+/* Plan configuration with pricing and role mapping */
 const PLAN_DETAILS = {
   pro: { plan: "Personal", amount: 4000, role: "(Pro)PlanUser" },
   business: { plan: "Business", amount: 3000, role: "enterpriseAdmin" },
 };
 
+/* Minimum seats required for Business plan */
 const MIN_BUSINESS_SEATS = 5;
 
+/* Generate MD5 hash in uppercase format for PayHere security validation */
 const md5Upper = (value) =>
   crypto.createHash("md5").update(String(value)).digest("hex").toUpperCase();
 
+/* Normalize merchant secret based on configured format (plain or base64) */
 const normalizeSecret = (rawValue, format) => {
   const raw = String(rawValue || "").trim();
   const secretFormat = String(format || "plain").trim().toLowerCase();
@@ -28,25 +32,26 @@ const normalizeSecret = (rawValue, format) => {
     }
   }
 
-  // plain
+  /* plain text format */
   return raw;
 };
 
+/* Get normalized PayHere merchant secret from environment */
 const getNormalizedMerchantSecret = () =>
   normalizeSecret(
     process.env.PAYHERE_MERCHANT_SECRET,
     process.env.PAYHERE_SECRET_FORMAT || "plain"
   );
 
+/* Determine PayHere checkout URL based on environment (sandbox vs production) */
 const getCheckoutUrl = () => {
   const env = String(process.env.PAYHERE_ENV || "sandbox").trim().toLowerCase();
 
-  // Required by you:
-  // If using sandbox, post to https://sandbox.payhere.lk/pay/checkout
   if (env === "sandbox") return "https://sandbox.payhere.lk/pay/checkout";
   return "https://www.payhere.lk/pay/checkout";
 };
 
+/* Extract plan code from label string for backward compatibility */
 const getPlanCodeFromLabel = (label) => {
   const value = String(label || "").trim().toLowerCase();
 
@@ -56,13 +61,14 @@ const getPlanCodeFromLabel = (label) => {
   return null;
 };
 
+/* Parse custom2 payload to extract plan and seat information */
 const parseCustom2Payload = (custom2) => {
   const raw = String(custom2 || "").trim();
   if (!raw) {
     return null;
   }
 
-  // New deterministic format: planId:<id>|plan:<planName>|seats:<count>
+  /* New deterministic format: planId:<id>|plan:<planName>|seats:<count> */
   const segments = raw.split("|");
   const kv = {};
   for (const segment of segments) {
