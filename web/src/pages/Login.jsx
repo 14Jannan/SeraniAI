@@ -5,10 +5,12 @@ import { FcGoogle } from "react-icons/fc";
 import { FaGithub, FaFacebook } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi"; // Import Eye icons
 import { useTheme } from "../context/ThemeContext";
+import { getAuthDestination, saveAuthSession } from "../utils/authStorage";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false); // State for visibility
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,26 +23,25 @@ const Login = () => {
     setLoading(true);
     setError("");
     try {
-      const data = await login({ email, password });
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const data = await login({ email, password, rememberMe });
+      saveAuthSession({
+        token: data.token,
+        user: data.user,
+        rememberMe,
+      });
       // Always start a fresh AI chat after login
       localStorage.removeItem("lastActiveChatSessionId");
 
-      const pendingInviteToken = localStorage.getItem("pendingEnterpriseInviteToken");
+      const pendingInviteToken = localStorage.getItem(
+        "pendingEnterpriseInviteToken",
+      );
       if (pendingInviteToken) {
         localStorage.removeItem("pendingEnterpriseInviteToken");
         navigate(`/enterprise/invite/accept?token=${pendingInviteToken}`);
         return;
       }
 
-      if (data.user.role === "admin") {
-        navigate("/admin/users");
-      } else if (data.user.role === "enterpriseAdmin") {
-        navigate("/dashboard/enterprise-manager");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate(getAuthDestination(data.user));
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     } finally {
@@ -86,7 +87,7 @@ const Login = () => {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-300"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required                
+                required
               />
             </div>
 
@@ -120,6 +121,17 @@ const Login = () => {
                   Forgot Password?
                 </Link>
               </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Remember me
+              </label>
             </div>
 
             <button

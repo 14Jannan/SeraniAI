@@ -22,6 +22,7 @@ import {
 import { jsPDF } from "jspdf";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
+import { getStoredToken } from "../../utils/authStorage";
 
 const API_URL = "http://localhost:7001/api/journals";
 const SUMMARY_URL = `${API_URL}/stats/summary`;
@@ -181,7 +182,7 @@ const Journal = () => {
   const [showMoodDropdown, setShowMoodDropdown] = useState(false);
   const [showMoodModal, setShowMoodModal] = useState(false);
 
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
 
   const commonHeaders = {
     "Content-Type": "application/json",

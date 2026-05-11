@@ -1,15 +1,10 @@
 import React from "react";
 import Journal from "../pages/user/Journal";
 import FreePlanJournal from "../pages/user/FreePlanJournal";
+import { getStoredUser } from "../utils/authStorage";
 
 function getCurrentRole() {
-  try {
-    const raw = localStorage.getItem("user");
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed?.role || "user";
-  } catch (error) {
-    return "user";
-  }
+  return getStoredUser()?.role || "user";
 }
 
 const JournalRouteGuard = () => {

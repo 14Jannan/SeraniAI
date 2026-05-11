@@ -1,10 +1,11 @@
 import axios from 'axios';
+import { getStoredToken } from '../utils/authStorage';
 
 const ENTERPRISE_ADMIN_API_URL = 'http://localhost:7001/api/enterprise-admin';
 
 // Helper function to get the token and create auth headers
 const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     return {
         headers: {
             Authorization: `Bearer ${token}`

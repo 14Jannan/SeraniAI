@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   BookOpen,
   Book,
@@ -16,12 +16,11 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle,
-  Download
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { jsPDF } from 'jspdf';
-
-const API_URL = "http://localhost:7001";
+  Download,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { jsPDF } from "jspdf";
+import httpClient from "../../api/httpClient";
 
 const DashboardHome = () => {
   const [data, setData] = useState(null);
@@ -35,22 +34,15 @@ const DashboardHome = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_URL}/api/users/dashboard-stats`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data');
-        }
-
-        const result = await response.json();
+        const { data: result } = await httpClient.get(
+          "http://localhost:7001/api/users/dashboard-stats",
+        );
         setData(result);
       } catch (err) {
         console.error("Dashboard fetch error:", err);
-        setError(err.message);
+        const message =
+          err?.response?.data?.message || "Failed to fetch dashboard data";
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -61,34 +53,34 @@ const DashboardHome = () => {
 
   const handleDownloadReport = () => {
     if (!weeklyReport) return;
-    
+
     const doc = new jsPDF();
     const margin = 20;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const title = "Weekly Progress Report - SeraniAI";
-    
+
     // Header
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.setTextColor(37, 99, 235); // Blue-600
     doc.text(title, margin, 25);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(107, 114, 128); // Gray-500
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, 35);
-    
+
     // Divider
     doc.setDrawColor(229, 231, 235); // Gray-200
     doc.line(margin, 40, pageWidth - margin, 40);
-    
+
     // Content
     doc.setFontSize(11);
     doc.setTextColor(55, 65, 81); // Gray-700
     doc.setLineHeightFactor(1.5);
-    
-    const splitText = doc.splitTextToSize(weeklyReport, pageWidth - (margin * 2));
+
+    const splitText = doc.splitTextToSize(weeklyReport, pageWidth - margin * 2);
     let cursorY = 50;
     const lineHeight = 7; // Approximate line height for font size 11
 
@@ -99,12 +91,12 @@ const DashboardHome = () => {
       }
 
       // Handle bold formatting in PDF
-      if (line.includes('**')) {
+      if (line.includes("**")) {
         const parts = line.split(/(\*\*.*?\*\*)/g);
         let currentX = margin;
-        
+
         parts.forEach((part) => {
-          if (part.startsWith('**') && part.endsWith('**')) {
+          if (part.startsWith("**") && part.endsWith("**")) {
             doc.setFont("helvetica", "bold");
             doc.setTextColor(37, 99, 235); // Blue-600 for emphasis
             const cleanPart = part.slice(2, -2);
@@ -122,43 +114,44 @@ const DashboardHome = () => {
         doc.setTextColor(55, 65, 81);
         doc.text(line, margin, cursorY);
       }
-      
+
       cursorY += lineHeight;
     });
-    
+
     // Footer - Add to all pages
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(156, 163, 175); // Gray-400
-      doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-      doc.text("SeraniAI - Your Personal Growth Companion", margin, pageHeight - 10);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, {
+        align: "center",
+      });
+      doc.text(
+        "SeraniAI - Your Personal Growth Companion",
+        margin,
+        pageHeight - 10,
+      );
     }
-    
-    doc.save(`SeraniAI_Weekly_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+
+    doc.save(
+      `SeraniAI_Weekly_Report_${new Date().toISOString().split("T")[0]}.pdf`,
+    );
   };
 
   const handleGenerateReport = async () => {
     try {
       setIsGeneratingReport(true);
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_URL}/api/users/weekly-report`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate weekly report');
-      }
-
-      const result = await response.json();
+      const { data: result } = await httpClient.get(
+        "http://localhost:7001/api/users/weekly-report",
+      );
       setWeeklyReport(result.report);
       setShowReportModal(true);
     } catch (err) {
       console.error("Report generation error:", err);
-      alert("Failed to generate report. Please try again later.");
+      const message =
+        err?.response?.data?.message || "Failed to generate report";
+      alert(`${message}. Please try again later.`);
     } finally {
       setIsGeneratingReport(false);
     }
@@ -169,7 +162,9 @@ const DashboardHome = () => {
       <div className="h-full w-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
-          <p className="text-gray-500 font-medium animate-pulse">Loading your dashboard...</p>
+          <p className="text-gray-500 font-medium animate-pulse">
+            Loading your dashboard...
+          </p>
         </div>
       </div>
     );
@@ -198,22 +193,73 @@ const DashboardHome = () => {
   const { userName, stats, recentActivity, journalTrends } = data;
 
   const statCards = [
-    { label: 'Total Journals', value: stats.totalJournals, icon: PenTool, color: 'text-purple-600', bg: 'bg-purple-100', trend: 'Updated' },
-    { label: 'Daily Tasks', value: stats.dailyTasks, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100', trend: 'Today' },
-    { label: 'Completed Lessons', value: stats.completedLessons, icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: 'Total Progress' },
-    { label: 'AI Interactions', value: stats.aiInteractions, icon: MessageSquare, color: 'text-amber-600', bg: 'bg-amber-100', trend: 'Active Chat' },
+    {
+      label: "Total Journals",
+      value: stats.totalJournals,
+      icon: PenTool,
+      color: "text-purple-600",
+      bg: "bg-purple-100",
+      trend: "Updated",
+    },
+    {
+      label: "Daily Tasks",
+      value: stats.dailyTasks,
+      icon: CheckCircle,
+      color: "text-green-600",
+      bg: "bg-green-100",
+      trend: "Today",
+    },
+    {
+      label: "Completed Lessons",
+      value: stats.completedLessons,
+      icon: BookOpen,
+      color: "text-emerald-600",
+      bg: "bg-emerald-100",
+      trend: "Total Progress",
+    },
+    {
+      label: "AI Interactions",
+      value: stats.aiInteractions,
+      icon: MessageSquare,
+      color: "text-amber-600",
+      bg: "bg-amber-100",
+      trend: "Active Chat",
+    },
   ];
 
   const quickActions = [
-    { title: 'New Journal Entry', desc: 'Reflect on your day', icon: Plus, link: '/dashboard/journal', color: 'bg-purple-600' },
-    { title: 'View Courses', desc: 'Continue learning', icon: Play, link: '/dashboard/courses', color: 'bg-emerald-600' },
-    { title: 'Daily Tasks', desc: 'Manage your goals', icon: CheckCircle, link: '/dashboard/tasks', color: 'bg-amber-600' },
-    { title: 'Ask SeraniAI', desc: 'Get instant answers', icon: MessageSquare, link: '/dashboard/chat', color: 'bg-blue-600' },
+    {
+      title: "New Journal Entry",
+      desc: "Reflect on your day",
+      icon: Plus,
+      link: "/dashboard/journal",
+      color: "bg-purple-600",
+    },
+    {
+      title: "View Courses",
+      desc: "Continue learning",
+      icon: Play,
+      link: "/dashboard/courses",
+      color: "bg-emerald-600",
+    },
+    {
+      title: "Daily Tasks",
+      desc: "Manage your goals",
+      icon: CheckCircle,
+      link: "/dashboard/tasks",
+      color: "bg-amber-600",
+    },
+    {
+      title: "Ask SeraniAI",
+      desc: "Get instant answers",
+      icon: MessageSquare,
+      link: "/dashboard/chat",
+      color: "bg-blue-600",
+    },
   ];
 
   return (
     <div className="p-6 lg:p-10 space-y-10 max-w-[1600px] mx-auto overflow-y-auto h-full scrollbar-hide relative">
-
       {/* Welcome Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -222,7 +268,8 @@ const DashboardHome = () => {
       >
         <div>
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight">
-            Welcome back, <span className="text-blue-600">{userName || 'User'}!</span>
+            Welcome back,{" "}
+            <span className="text-blue-600">{userName || "User"}!</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
             Your personal productivity hub is ready.
@@ -233,7 +280,11 @@ const DashboardHome = () => {
             <Calendar size={20} />
           </div>
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 pr-4">
-            {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            {new Date().toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
           </span>
         </div>
       </motion.div>
@@ -249,25 +300,34 @@ const DashboardHome = () => {
             className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:-translate-y-1 transition-all group"
           >
             <div className="flex justify-between items-start mb-4">
-              <div className={`${stat.bg} ${stat.color} p-3 rounded-2xl group-hover:scale-110 transition-transform`}>
+              <div
+                className={`${stat.bg} ${stat.color} p-3 rounded-2xl group-hover:scale-110 transition-transform`}
+              >
                 <stat.icon size={24} />
               </div>
-              <TrendingUp className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" size={18} />
+              <TrendingUp
+                className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                size={18}
+              />
             </div>
-            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{stat.value}</h3>
-            <p className="text-gray-500 dark:text-gray-400 font-medium text-sm mt-1">{stat.label}</p>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stat.value}
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 font-medium text-sm mt-1">
+              {stat.label}
+            </p>
             <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-700">
-              <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">{stat.trend}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                {stat.trend}
+              </span>
             </div>
           </motion.div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-
         {/* Left Column: Progress & Actions */}
         <div className="lg:col-span-2 space-y-10">
-
           {/* Productivity Graph */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -276,12 +336,18 @@ const DashboardHome = () => {
           >
             <div className="flex justify-between items-center mb-10">
               <div>
-                <h3 className="text-xl font-bold dark:text-white">Journal Activity</h3>
-                <p className="text-sm text-gray-500 mt-1">Consistency over the last 7 days</p>
+                <h3 className="text-xl font-bold dark:text-white">
+                  Journal Activity
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Consistency over the last 7 days
+                </p>
               </div>
               <div className="hidden sm:flex gap-2">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                  <span key={i} className="text-[10px] font-bold text-gray-400">{d}</span>
+                {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+                  <span key={i} className="text-[10px] font-bold text-gray-400">
+                    {d}
+                  </span>
                 ))}
               </div>
             </div>
@@ -289,24 +355,40 @@ const DashboardHome = () => {
             {/* Simple SVG Chart */}
             <div className="h-48 w-full flex items-end justify-between gap-3 px-2">
               {(() => {
-                const trends = Array.isArray(journalTrends) ? journalTrends : [0, 0, 0, 0, 0, 0, 0];
+                const trends = Array.isArray(journalTrends)
+                  ? journalTrends
+                  : [0, 0, 0, 0, 0, 0, 0];
                 const maxVal = Math.max(...trends, 5);
-                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const dayNames = [
+                  "Sun",
+                  "Mon",
+                  "Tue",
+                  "Wed",
+                  "Thu",
+                  "Fri",
+                  "Sat",
+                ];
                 const todayRef = new Date();
-                
+
                 return trends.map((val, i) => {
                   const d = new Date();
                   d.setDate(todayRef.getDate() - (6 - i));
                   const dayName = dayNames[d.getDay()];
                   const isToday = i === 6;
-                  const barHeight = val > 0 ? Math.max((val / maxVal) * 100, 15) : 0;
-                  
+                  const barHeight =
+                    val > 0 ? Math.max((val / maxVal) * 100, 15) : 0;
+
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-3 h-full justify-end">
+                    <div
+                      key={i}
+                      className="flex-1 flex flex-col items-center gap-3 h-full justify-end"
+                    >
                       {/* Outer Bar Container */}
-                      <div 
+                      <div
                         className={`w-full max-w-[40px] rounded-t-xl relative transition-all duration-500 ${
-                          isToday ? 'bg-blue-600' : 'bg-blue-300 dark:bg-blue-800'
+                          isToday
+                            ? "bg-blue-600"
+                            : "bg-blue-300 dark:bg-blue-800"
                         }`}
                         style={{ height: `${barHeight}%` }}
                       >
@@ -317,11 +399,15 @@ const DashboardHome = () => {
                           </span>
                         )}
                       </div>
-                      
+
                       {/* Day Label */}
-                      <span className={`text-[10px] font-bold transition-colors ${
-                        isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'
-                      }`}>
+                      <span
+                        className={`text-[10px] font-bold transition-colors ${
+                          isToday
+                            ? "text-blue-600 dark:text-blue-400"
+                            : "text-gray-400"
+                        }`}
+                      >
                         {dayName}
                       </span>
                     </div>
@@ -349,12 +435,18 @@ const DashboardHome = () => {
                     whileTap={{ scale: 0.98 }}
                     className="p-5 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-blue-200 dark:hover:border-blue-900 transition-all"
                   >
-                    <div className={`${action.color} p-3 rounded-2xl text-white shadow-lg shadow-blue-500/20`}>
+                    <div
+                      className={`${action.color} p-3 rounded-2xl text-white shadow-lg shadow-blue-500/20`}
+                    >
                       <action.icon size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold dark:text-white">{action.title}</h4>
-                      <p className="text-[11px] text-gray-500 font-medium truncate">{action.desc}</p>
+                      <h4 className="text-sm font-bold dark:text-white">
+                        {action.title}
+                      </h4>
+                      <p className="text-[11px] text-gray-500 font-medium truncate">
+                        {action.desc}
+                      </p>
                     </div>
                     <ChevronRight className="ml-auto text-gray-300" size={16} />
                   </motion.div>
@@ -371,8 +463,13 @@ const DashboardHome = () => {
           className="bg-white dark:bg-gray-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-gray-700"
         >
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-bold dark:text-white">Recent Activity</h3>
-            <Link to="/dashboard/journal" className="text-blue-600 hover:text-blue-700 text-xs font-bold uppercase tracking-widest">
+            <h3 className="text-xl font-bold dark:text-white">
+              Recent Activity
+            </h3>
+            <Link
+              to="/dashboard/journal"
+              className="text-blue-600 hover:text-blue-700 text-xs font-bold uppercase tracking-widest"
+            >
               View All
             </Link>
           </div>
@@ -380,17 +477,27 @@ const DashboardHome = () => {
           <div className="space-y-6">
             {recentActivity.length === 0 ? (
               <div className="text-center py-10">
-                <p className="text-sm text-gray-400 font-medium tracking-tight">No recent activity found.</p>
+                <p className="text-sm text-gray-400 font-medium tracking-tight">
+                  No recent activity found.
+                </p>
               </div>
             ) : (
               recentActivity.map((item, i) => (
                 <div key={i} className="flex gap-4 group">
                   <div className="pt-1">
-                    <div className={`p-2 rounded-xl bg-gray-50 dark:bg-gray-900 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors`}>
-                      {item.type === 'journal' ? (
-                        <PenTool className="text-purple-500 group-hover:scale-110 transition-transform" size={18} />
+                    <div
+                      className={`p-2 rounded-xl bg-gray-50 dark:bg-gray-900 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors`}
+                    >
+                      {item.type === "journal" ? (
+                        <PenTool
+                          className="text-purple-500 group-hover:scale-110 transition-transform"
+                          size={18}
+                        />
                       ) : (
-                        <MessageSquare className="text-blue-500 group-hover:scale-110 transition-transform" size={18} />
+                        <MessageSquare
+                          className="text-blue-500 group-hover:scale-110 transition-transform"
+                          size={18}
+                        />
                       )}
                     </div>
                   </div>
@@ -454,8 +561,12 @@ const DashboardHome = () => {
                   <TrendingUp size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold dark:text-white">Weekly Progress Report</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">AI Analysis & Insights</p>
+                  <h3 className="text-xl font-bold dark:text-white">
+                    Weekly Progress Report
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    AI Analysis & Insights
+                  </p>
                 </div>
               </div>
               <button
@@ -474,8 +585,15 @@ const DashboardHome = () => {
                     if (!weeklyReport) return null;
                     const parts = weeklyReport.split(/(\*\*.*?\*\*)/g);
                     return parts.map((part, i) => {
-                      if (part.startsWith('**') && part.endsWith('**')) {
-                        return <strong key={i} className="text-blue-600 dark:text-blue-400 font-extrabold">{part.slice(2, -2)}</strong>;
+                      if (part.startsWith("**") && part.endsWith("**")) {
+                        return (
+                          <strong
+                            key={i}
+                            className="text-blue-600 dark:text-blue-400 font-extrabold"
+                          >
+                            {part.slice(2, -2)}
+                          </strong>
+                        );
                       }
                       return part;
                     });
@@ -503,7 +621,6 @@ const DashboardHome = () => {
           </motion.div>
         </div>
       )}
-
     </div>
   );
 };

@@ -1,33 +1,40 @@
 import { createContext, useState, useContext, useEffect } from "react";
 import { login as loginApi } from "../api/authApi";
+import {
+  clearAuthSession,
+  getStoredToken,
+  getStoredUser,
+  saveAuthSession,
+} from "../utils/authStorage";
+import axios from "axios";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // 1. Initialize logic: Check if token exists AND is not "null" or "undefined"
-  const [token, setToken] = useState(() => {
-    const savedToken = localStorage.getItem("token");
-    return savedToken && savedToken !== "undefined" && savedToken !== "null"
-      ? savedToken
-      : null;
-  });
+  const [token, setToken] = useState(() => getStoredToken());
+  const [user, setUser] = useState(() => getStoredUser());
 
-  // 2. Persist token state
   useEffect(() => {
     if (token) {
-      localStorage.setItem("token", token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     } else {
-      localStorage.removeItem("token");
+      delete axios.defaults.headers.common["Authorization"];
     }
   }, [token]);
 
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = false) => {
     try {
       const data = await loginApi({ email, password });
 
       const newToken = data.token;
-      setToken(newToken); // This triggers the useEffect above
-      return { success: true };
+      saveAuthSession({
+        token: newToken,
+        user: data.user,
+        rememberMe,
+      });
+      setToken(newToken);
+      setUser(data.user || null);
+      return { success: true, data };
     } catch (error) {
       return {
         success: false,
@@ -37,11 +44,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    setToken(null); // This triggers the useEffect to remove item
+    clearAuthSession();
+    setToken(null);
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ token, login, logout }}>
+    <AuthContext.Provider value={{ token, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

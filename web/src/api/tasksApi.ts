@@ -1,9 +1,10 @@
 import type { TaskData, TaskProgress } from "../components/tasks/taskTypes";
+import { getStoredToken } from "../utils/authStorage";
 
 const API_BASE = "http://localhost:7001/api/tasks";
 
 function authHeaders() {
-  const token = localStorage.getItem("token") || localStorage.getItem("authToken") || "";
+  const token = getStoredToken() || localStorage.getItem("authToken") || "";
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -107,7 +108,7 @@ export async function saveTaskProgress(payload: {
 }
 
 export async function fetchTaskStreak() {
-  const token = localStorage.getItem("token") || "";
+  const token = getStoredToken() || "";
   const res = await fetch("http://localhost:7001/api/streak/me", {
     headers: {
       "Content-Type": "application/json",

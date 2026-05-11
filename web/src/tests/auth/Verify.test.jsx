@@ -5,7 +5,7 @@ import Verify from "../../pages/Verify";
 
 vi.mock("../../api/authApi", () => ({
   verifyOtp: vi.fn(),
-  resendVerification: vi.fn(),
+  resendOtp: vi.fn(),
 }));
 
 const mockNavigate = vi.fn();
@@ -63,7 +63,7 @@ describe("Verify (Email/OTP) Page", () => {
     expect(getOtpInput()).toHaveValue("123456");
   });
 
-  it("calls verifyOtp and navigates to dashboard on success", async () => {
+  it("calls verifyOtp and navigates to login on success", async () => {
     const { verifyOtp } = await import("../../api/authApi");
     vi.mocked(verifyOtp).mockResolvedValueOnce({
       token: "access-token",
@@ -84,7 +84,7 @@ describe("Verify (Email/OTP) Page", () => {
         otp: "123456",
       });
       expect(alertSpy).toHaveBeenCalledWith("Verification Successful!");
-      expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
+      expect(mockNavigate).toHaveBeenCalledWith("/login");
     });
 
     alertSpy.mockRestore();

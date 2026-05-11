@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getStoredToken } from "../../utils/authStorage";
 
 const API_BASE = "http://localhost:7001"; // change if you use env later
 
 function getToken() {
-  // adjust key if your project uses a different storage key
-  return (
-    localStorage.getItem("token") || localStorage.getItem("authToken") || ""
-  );
+  return getStoredToken() || localStorage.getItem("authToken") || "";
 }
 
 async function apiGet(path) {
@@ -223,7 +221,7 @@ export default function AdminCourses() {
     try {
       setIsSavingCourse(true);
       setFeedback({ type: "", message: "" });
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
 
       const formData = new FormData();
       formData.append("title", newCourse.title);
@@ -275,7 +273,7 @@ export default function AdminCourses() {
     try {
       setDeletingCourseId(id);
       setFeedback({ type: "", message: "" });
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       const res = await fetch(`http://localhost:7001/api/admin/courses/${id}`, {
         method: "DELETE",
         headers: {
@@ -305,7 +303,7 @@ export default function AdminCourses() {
     try {
       setIsSavingCourse(true);
       setFeedback({ type: "", message: "" });
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
 
       const formData = new FormData();
       formData.append("title", newCourse.title);
