@@ -1,17 +1,9 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Save } from "lucide-react";
-import type { JournalTaskData } from "./taskTypes";
 
-type JournalTaskProps = {
-  task: JournalTaskData;
-  completed: boolean;
-  initialValue: string;
-  onSave: (value: string) => void;
-};
-
-export function JournalTask({ task, completed, initialValue, onSave }: JournalTaskProps) {
+export function JournalTask({ task, completed, initialValue, onSave }) {
   const [value, setValue] = useState(initialValue);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState(null);
 
   useEffect(() => {
     setValue(initialValue);

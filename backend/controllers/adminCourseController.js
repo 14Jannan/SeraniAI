@@ -175,9 +175,9 @@ exports.createCourse = async (req, res) => {
       category,
       level,
       isPublished: normalizedPublished,
-      thumbnailUrl: req.file
-        ? `http://localhost:7001/uploads/${req.file.filename}`
-        : "",
+      thumbnailUrl:
+        req.body.thumbnailUrl ||
+        (req.file ? `${process.env.BASE_URL}/uploads/${req.file.filename}` : ""),
     });
 
     await newCourse.save();
@@ -187,43 +187,18 @@ exports.createCourse = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-exports.createLesson = async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    const { title, videoUrl, durationMinutes, thumbnailUrl, orderIndex } = req.body;
-
-    if (!title || !videoUrl) {
-      return res.status(400).json({ message: "Title and videoUrl are required" });
-    }
-
-    const lesson = await Lesson.create({
-      courseId,
-      title,
-      videoUrl,
-      durationMinutes: durationMinutes || 0,
-      thumbnailUrl: thumbnailUrl || "",
-      orderIndex: orderIndex || 1,
-      isPublished: true,
-    });
-
-    res.status(201).json(lesson);
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
+// Note: admin-level lesson creation moved to lessonController.js
 exports.deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
+    const course = await Course.findById(id);
 
-    const course = await Course.findByIdAndUpdate(
-      id,
-      { isDeleted: true },
-      { returnDocument: "after" }
-    );
-
-    if (!course) {
+    if (!course || course.isDeleted) {
       return res.status(404).json({ message: "Course not found" });
     }
+
+    course.isDeleted = true;
+    await course.save();
 
     res.json({ message: "Course deleted", courseId: id });
   } catch (err) {
@@ -248,13 +223,17 @@ exports.updateCourse = async (req, res) => {
       ...(normalizedPublished !== undefined ? { isPublished: normalizedPublished } : {}),
     };
 
-    if (req.file) {
-      updateData.thumbnailUrl = `http://localhost:7001/uploads/${req.file.filename}`;
+    if (req.body.thumbnailUrl) {
+      updateData.thumbnailUrl = req.body.thumbnailUrl;
+    } else if (req.file) {
+      updateData.thumbnailUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
     }
 
     const updated = await Course.findByIdAndUpdate(id, updateData, {
       returnDocument: "after",
     });
+
+    if (!updated) return res.status(404).json({ message: "Course not found" });
 
     res.json(updated);
   } catch (error) {

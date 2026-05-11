@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -85,10 +86,12 @@ export const DashboardScreen = ({ navigation }) => {
             onPress: () => navigation.navigate("Courses"),
           },
           {
-            label: "Journal",
-            description: "Track your progress",
-            icon: <Feather name="edit-3" size={20} color={colors.accentAlt} />,
-            onPress: () => navigation.navigate("Journal"),
+            label: "Daily Tasks",
+            description: "Manage your task progress",
+            icon: (
+              <Feather name="check-square" size={20} color={colors.accentAlt} />
+            ),
+            onPress: () => navigation.navigate("Tasks"),
           },
           {
             label: "AI Chatbot",
@@ -100,7 +103,11 @@ export const DashboardScreen = ({ navigation }) => {
                 color={colors.accent}
               />
             ),
-            onPress: () => navigation.navigate("AIChatbot"),
+            onPress: () =>
+              Alert.alert(
+                "Coming Soon",
+                "AI Chatbot screen will be added in the next phase.",
+              ),
           },
         ].map((item) => (
           <TouchableOpacity
@@ -128,33 +135,6 @@ export const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
         ))}
 
-        {user?.role === "admin" && (
-          <TouchableOpacity
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.warningBg,
-                borderColor: colors.warningBorder,
-              },
-            ]}
-            onPress={() => navigation.navigate("Admin")}
-          >
-            <View
-              style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}
-            >
-              <Feather name="shield" size={20} color="#D97706" />
-            </View>
-            <View style={styles.cardTextWrap}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>
-                Admin Panel
-              </Text>
-              <Text style={[styles.cardDescription, { color: colors.muted }]}>
-                Manage app content
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.muted} />
-          </TouchableOpacity>
-        )}
       </View>
 
       <TouchableOpacity

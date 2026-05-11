@@ -4,7 +4,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
 import { CoursesScreen } from "../screens/app/CoursesScreen";
-import { AdminUsersScreen } from "../screens/app/AdminUsersScreen";
+import { CourseDetailsScreen } from "../screens/app/CourseDetailsScreen";
+import { TasksScreen } from "../screens/app/TasksScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -28,23 +29,38 @@ const CoursesStack = () => (
     }}
   >
     <Stack.Screen name="CoursesList" component={CoursesScreen} />
+    <Stack.Screen name="CourseDetails" component={CourseDetailsScreen} />
   </Stack.Navigator>
 );
 
-const AdminStack = () => (
+const TasksStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerShown: false,
     }}
   >
-    <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
+    <Stack.Screen name="TasksHome" component={TasksScreen} />
   </Stack.Navigator>
 );
 
 export const AppStack = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { user, logout } = useAuth();
   const { colors } = useTheme();
+
+  React.useEffect(() => {
+    const allowedRoles = [
+      "user",
+      "enterpriseUser",
+      "enterpriseAdmin",
+      "enterprise",
+      "(Pro)PlanUser",
+      "admin",
+    ];
+
+    if (user?.role && !allowedRoles.includes(user.role)) {
+      logout();
+    }
+  }, [logout, user?.role]);
 
   return (
     <Tab.Navigator
@@ -87,19 +103,17 @@ export const AppStack = () => {
           ),
         }}
       />
-      {isAdmin && (
-        <Tab.Screen
-          name="Admin"
-          component={AdminStack}
-          options={{
-            title: "Admin",
-            tabBarLabel: "Admin",
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="shield" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tab.Screen
+        name="Tasks"
+        component={TasksStack}
+        options={{
+          title: "Tasks",
+          tabBarLabel: "Tasks",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="check-square" size={size} color={color} />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 };

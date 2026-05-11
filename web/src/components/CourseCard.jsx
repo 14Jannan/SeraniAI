@@ -2,13 +2,15 @@ import { useNavigate } from "react-router-dom";
 import { Play } from "lucide-react";
 import { motion } from "framer-motion";
 
-const API_URL = "http://localhost:7001";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
 const CourseCard = ({ course, horizontal }) => {
 
   const navigate = useNavigate();
 
-  const progress = Math.floor(Math.random() * 90) + 10;
+  const progress = Number.isFinite(Number(course.progress))
+    ? Math.max(0, Math.min(100, Number(course.progress)))
+    : 0;
 
 const handleClick = () => {
   navigate(`/dashboard/course/${course._id}`, {

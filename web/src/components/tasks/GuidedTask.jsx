@@ -1,15 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import type { GuidedTaskData } from "./taskTypes";
 
-type GuidedTaskProps = {
-  task: GuidedTaskData;
-  completed: boolean;
-  onComplete: () => void;
-};
-
-export function GuidedTask({ task, completed, onComplete }: GuidedTaskProps) {
+export function GuidedTask({ task, completed, onComplete }) {
   const steps = Array.isArray(task.config?.steps) && task.config.steps.length > 0
     ? task.config.steps
     : ["Take one gentle breath and return your attention to the present moment."];

@@ -10,7 +10,6 @@ const {
   createAdminCategory,
   deleteAdminCategory,
   createCourse,
-  createLesson,
   deleteCourse,
   updateCourse
 } = require("../controllers/adminCourseController");
@@ -28,9 +27,6 @@ router.delete("/categories/:id", deleteAdminCategory);
 
 // Create course (WITH thumbnail upload)
 router.post("/courses", upload.single("thumbnail"), createCourse);
-
-// Lessons
-router.post("/courses/:courseId/lessons", createLesson);
 
 // Delete
 router.delete("/courses/:id", deleteCourse);

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { tokenStorage } from "../utils/tokenStorage";
+import { tokenStorage, userStorage } from "../utils/tokenStorage";
 import { getApiBaseUrl } from "./baseUrl";
 
 // Configure base URL from Constants (defined in app.json extra section)
@@ -53,10 +53,21 @@ httpClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Check if error is 401 and message contains "token expired"
+    const responseStatus = error.response?.status;
+    const responseMessage = String(error.response?.data?.message || "").toLowerCase();
+    const requestUrl = String(originalRequest?.url || "");
+    const isAuthRequest = requestUrl.includes("/auth/login") || requestUrl.includes("/auth/refresh");
+    const isTokenFailure =
+      responseMessage.includes("token") ||
+      responseMessage.includes("jwt") ||
+      responseMessage.includes("not authenticated") ||
+      responseMessage.includes("unauthorized");
+
+    // Attempt refresh for non-auth requests when access token is expired/invalid.
     if (
-      error.response?.status === 401 &&
-      error.response?.data?.message?.includes("token expired") &&
+      responseStatus === 401 &&
+      !isAuthRequest &&
+      isTokenFailure &&
       !originalRequest._retry
     ) {
       if (isRefreshing) {
@@ -104,6 +115,7 @@ httpClient.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed - clear tokens and redirect to login
         await tokenStorage.clearTokens();
+        await userStorage.clearUser();
         processQueue(refreshError, null);
 
         // Emit event to trigger logout in AuthContext

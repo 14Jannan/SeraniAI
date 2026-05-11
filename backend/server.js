@@ -9,6 +9,9 @@ require("dotenv").config();
 const dbConnect = require("./config/dbConnect");
 require("./config/passport"); // Load passport configuration
 
+const Category = require("./models/categoryModel");
+const { TASK_CATEGORIES } = require("./models/taskModel");
+
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -23,6 +26,24 @@ const enterpriseAdminRoutes = require("./routes/enterpriseAdminRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 
 dbConnect();
+
+// Seed default task categories on startup
+const initializeDefaultCategories = async () => {
+  try {
+    for (const categoryName of TASK_CATEGORIES) {
+      const exists = await Category.findOne({ name: categoryName, isDeleted: false });
+      if (!exists) {
+        await Category.create({ name: categoryName });
+        console.log(`✓ Created category: ${categoryName}`);
+      }
+    }
+    console.log("✓ Default categories initialized");
+  } catch (error) {
+    console.error("Error initializing categories:", error.message);
+  }
+};
+
+initializeDefaultCategories();
 
 const app = express();
 

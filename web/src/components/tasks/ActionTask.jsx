@@ -1,14 +1,7 @@
 import { CheckCircle2, Play, Pause, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { ActionTaskData } from "./taskTypes";
 
-type ActionTaskProps = {
-  task: ActionTaskData;
-  completed: boolean;
-  onComplete: () => void;
-};
-
-function formatTime(seconds: number) {
+function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60)
     .toString()
     .padStart(2, "0");
@@ -16,7 +9,7 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
-export function ActionTask({ task, completed, onComplete }: ActionTaskProps) {
+export function ActionTask({ task, completed, onComplete }) {
   const initialSeconds = Number(task.config?.minutes || 2) * 60;
   const instruction = String(task.config?.instruction || "Do one gentle supportive action for your body.");
 

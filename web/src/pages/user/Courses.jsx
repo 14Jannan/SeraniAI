@@ -8,7 +8,7 @@ import { BsEmojiFrown } from "react-icons/bs";
 import { MdAllInclusive } from "react-icons/md";
 import { FaLeaf } from "react-icons/fa";
 
-const API_URL = "http://localhost:7001";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
 export default function Courses() {
 
@@ -90,8 +90,8 @@ export default function Courses() {
   className="
   bg-gradient-to-b
   from-purple-200
-  via-green-600
-  to-blue-300
+  via-green-400
+  to-blue-400
   rounded-3xl
   p-16
   text-center

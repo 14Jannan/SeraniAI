@@ -1,7 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = "http://localhost:7001"; // change if you use env later
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
+const CLOUDINARY_UPLOAD_PRESET =
+  import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
+const CLOUDINARY_FOLDER = "seraniai/courses/thumbnails";
+
+function resolveMediaUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+}
 
 function getToken() {
   // adjust key if your project uses a different storage key
@@ -42,6 +52,33 @@ async function apiRequest(path, method, body, isFormData = false) {
   return res;
 }
 
+async function uploadToCloudinary(file) {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error("Cloudinary is not configured in the web app");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  formData.append("folder", CLOUDINARY_FOLDER);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Cloudinary upload failed");
+  }
+
+  return res.json();
+}
+
+// Small reusable stat box used at the top of the admin page.
 const StatCard = ({ label, value }) => (
   <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-white/5 p-5">
     <div className="text-sm text-gray-500 dark:text-gray-400">{label}</div>
@@ -52,6 +89,7 @@ const StatCard = ({ label, value }) => (
 );
 
 export default function AdminCourses() {
+  // Default values used when the admin opens the course modal.
   const emptyCourseForm = {
     title: "",
     instructorName: "",
@@ -73,6 +111,7 @@ export default function AdminCourses() {
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [thumbnail, setThumbnail] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [newCourse, setNewCourse] = useState(emptyCourseForm);
   const [editingCourseId, setEditingCourseId] = useState(null);
   const [formErrors, setFormErrors] = useState({});
@@ -85,8 +124,10 @@ export default function AdminCourses() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
 
+  // Keep the search value trimmed before sending it to the backend.
   const query = useMemo(() => search.trim(), [search]);
 
+  // Apply local filters and sorting after the backend returns the course list.
   const displayedCourses = useMemo(() => {
     const filtered = courses.filter((course) => {
       const levelMatch =
@@ -113,6 +154,7 @@ export default function AdminCourses() {
     return sorted;
   }, [courses, levelFilter, statusFilter, sortBy]);
 
+  // Read a useful message from failed API responses.
   const extractErrorMessage = async (res, fallback) => {
     try {
       const data = await res.json();
@@ -127,10 +169,12 @@ export default function AdminCourses() {
     }
   };
 
+  // Used to detect whether the modal has unsaved changes.
   const isCourseFormDirty =
     JSON.stringify(newCourse) !== JSON.stringify(initialCourseData) ||
     !!thumbnail;
 
+  // Prevent accidental modal close when there are unsaved edits.
   const closeCourseModal = () => {
     if (isSavingCourse) return;
 
@@ -143,8 +187,10 @@ export default function AdminCourses() {
     setEditingCourseId(null);
     setFormErrors({});
     setThumbnail(null);
+    setThumbnailPreview("");
   };
 
+  // Load categories for the select box and keep old course categories visible.
   const fetchCategories = async () => {
     try {
       setLoadingCategories(true);
@@ -160,6 +206,7 @@ export default function AdminCourses() {
     }
   };
 
+  // Add a new category and immediately make it available in the form.
   const handleCreateCategory = async () => {
     const name = newCategoryName.trim();
     if (!name || isAddingCategory) return;
@@ -202,6 +249,7 @@ export default function AdminCourses() {
     }
   };
 
+  // Basic client-side validation before sending the course form.
   const validateCourseForm = () => {
     const errors = {};
 
@@ -216,6 +264,7 @@ export default function AdminCourses() {
     return Object.keys(errors).length === 0;
   };
 
+  // Create a new course, including optional thumbnail upload.
   const handleCreateCourse = async () => {
     if (isSavingCourse) return;
     if (!validateCourseForm()) return;
@@ -224,25 +273,30 @@ export default function AdminCourses() {
       setIsSavingCourse(true);
       setFeedback({ type: "", message: "" });
       const token = localStorage.getItem("token");
-
-      const formData = new FormData();
-      formData.append("title", newCourse.title);
-      formData.append("instructorName", newCourse.instructorName);
-      formData.append("description", newCourse.description);
-      formData.append("category", newCourse.category);
-      formData.append("level", newCourse.level);
-      formData.append("isPublished", String(newCourse.isPublished));
+      let thumbnailUrl = newCourse.thumbnailUrl || "";
 
       if (thumbnail) {
-        formData.append("thumbnail", thumbnail);
+        const uploaded = await uploadToCloudinary(thumbnail);
+        thumbnailUrl = uploaded.secure_url;
       }
 
-      const res = await fetch("http://localhost:7001/api/admin/courses", {
+      const payload = {
+        title: newCourse.title,
+        instructorName: newCourse.instructorName,
+        description: newCourse.description,
+        category: newCourse.category,
+        level: newCourse.level,
+        isPublished: String(newCourse.isPublished),
+        thumbnailUrl,
+      };
+
+      const res = await fetch(`${API_BASE}/api/admin/courses`, {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: formData,
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -255,6 +309,8 @@ export default function AdminCourses() {
       setCourses((prev) => [created, ...prev]);
       setShowModal(false);
       setFormErrors({});
+      setThumbnail(null);
+      setThumbnailPreview("");
       setFeedback({ type: "success", message: "Course created successfully" });
     } catch (error) {
       console.error(error);
@@ -266,6 +322,8 @@ export default function AdminCourses() {
       setIsSavingCourse(false);
     }
   };
+
+  // Delete a course with a confirmation prompt, then remove it from the table.
   const handleDeleteCourse = async (id, title) => {
     if (deletingCourseId) return;
 
@@ -276,7 +334,7 @@ export default function AdminCourses() {
       setDeletingCourseId(id);
       setFeedback({ type: "", message: "" });
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:7001/api/admin/courses/${id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/courses/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -298,6 +356,8 @@ export default function AdminCourses() {
       setDeletingCourseId(null);
     }
   };
+
+  // Update an existing course while preserving the same form UI.
   const handleUpdateCourse = async () => {
     if (isSavingCourse) return;
     if (!validateCourseForm()) return;
@@ -306,27 +366,32 @@ export default function AdminCourses() {
       setIsSavingCourse(true);
       setFeedback({ type: "", message: "" });
       const token = localStorage.getItem("token");
-
-      const formData = new FormData();
-      formData.append("title", newCourse.title);
-      formData.append("instructorName", newCourse.instructorName);
-      formData.append("description", newCourse.description);
-      formData.append("category", newCourse.category);
-      formData.append("level", newCourse.level);
-      formData.append("isPublished", String(newCourse.isPublished));
+      let thumbnailUrl = newCourse.thumbnailUrl || "";
 
       if (thumbnail) {
-        formData.append("thumbnail", thumbnail);
+        const uploaded = await uploadToCloudinary(thumbnail);
+        thumbnailUrl = uploaded.secure_url;
       }
 
+      const payload = {
+        title: newCourse.title,
+        instructorName: newCourse.instructorName,
+        description: newCourse.description,
+        category: newCourse.category,
+        level: newCourse.level,
+        isPublished: String(newCourse.isPublished),
+        thumbnailUrl,
+      };
+
       const res = await fetch(
-        `http://localhost:7001/api/admin/courses/${editingCourseId}`,
+        `${API_BASE}/api/admin/courses/${editingCourseId}`,
         {
           method: "PUT",
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: formData,
+          body: JSON.stringify(payload),
         },
       );
 
@@ -344,6 +409,8 @@ export default function AdminCourses() {
       setShowModal(false);
       setEditingCourseId(null);
       setFormErrors({});
+      setThumbnail(null);
+      setThumbnailPreview("");
       setFeedback({ type: "success", message: "Course updated successfully" });
     } catch (e) {
       console.error(e);
@@ -354,6 +421,8 @@ export default function AdminCourses() {
   };
 
   const navigate = useNavigate();
+
+  // Open the dedicated lesson-management page for the selected course.
   const handleOpenLessons = (course) => {
     if (!course?._id) {
       console.error("courseId is undefined");
@@ -363,6 +432,7 @@ export default function AdminCourses() {
     navigate(`/admin/courses/${course._id}/lessons`, {
       state: {
         courseTitle: course.title || "Selected Course",
+    // Dashboard cards are loaded once when the page opens.
       },
     });
   };
@@ -388,10 +458,12 @@ export default function AdminCourses() {
   }, []);
 
   useEffect(() => {
+    // Categories are loaded once for the dropdown and create-category section.
     fetchCategories();
   }, []);
 
   useEffect(() => {
+    // The course list is refreshed whenever the search query changes.
     let mounted = true;
 
     (async () => {
@@ -416,7 +488,7 @@ export default function AdminCourses() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
+      {/* Page header and primary action. */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
@@ -445,6 +517,7 @@ export default function AdminCourses() {
         </button>
       </div>
 
+      {/* Success and error feedback for create, update, delete, and category actions. */}
       {feedback.message ? (
         <div
           className={`rounded-xl px-4 py-3 text-sm ${
@@ -457,7 +530,7 @@ export default function AdminCourses() {
         </div>
       ) : null}
 
-      {/* Stats */}
+      {/* Summary cards from the admin dashboard endpoint. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Courses"
@@ -477,7 +550,7 @@ export default function AdminCourses() {
         />
       </div>
 
-      {/* Search + table */}
+      {/* Search, filters, sorting, and the course table. */}
       <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-white/5 p-5">
         <div className="flex flex-col gap-3 mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -546,6 +619,7 @@ export default function AdminCourses() {
           </div>
         </div>
 
+        {/* Server-side search results are refined here with local filters. */}
         {error ? (
           <div className="text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
             {error}
@@ -595,7 +669,7 @@ export default function AdminCourses() {
                         <div className="h-12 w-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0">
                           {c.thumbnailUrl ? (
                             <img
-                              src={c.thumbnailUrl}
+                              src={resolveMediaUrl(c.thumbnailUrl)}
                               alt={c.title}
                               className="h-full w-full object-cover"
                               loading="lazy"
@@ -644,6 +718,7 @@ export default function AdminCourses() {
                             setFormErrors({});
                             setFeedback({ type: "", message: "" });
                             setThumbnail(null);
+                            setThumbnailPreview(resolveMediaUrl(c.thumbnailUrl));
                             const currentCourse = {
                               title: c.title || "",
                               instructorName: c.instructorName || "",
@@ -686,6 +761,8 @@ export default function AdminCourses() {
           </table>
         </div>
       </div>
+
+      {/* Modal for creating or editing a course. */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg p-6 animate-scaleIn">
@@ -821,9 +898,24 @@ export default function AdminCourses() {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setThumbnail(e.target.files[0])}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setThumbnail(file);
+                  setThumbnailPreview(
+                    file
+                      ? URL.createObjectURL(file)
+                      : resolveMediaUrl(newCourse.thumbnailUrl),
+                  );
+                }}
                 className="w-full px-4 py-2 rounded-xl border"
               />
+              {thumbnailPreview ? (
+                <img
+                  src={thumbnailPreview}
+                  alt="Thumbnail preview"
+                  className="h-36 w-full rounded-xl object-cover border border-gray-200"
+                />
+              ) : null}
             </div>
 
             <div className="flex justify-end gap-3 mt-6">

@@ -1,45 +1,54 @@
 const Lesson = require("../models/lessonModel");
+const Course = require("../models/courseModel");
 const User = require("../models/userModel");
 
 exports.createLesson = async (req, res) => {
+	try {
+		const courseId = req.params.courseId || req.body.courseId;
+		const title = req.body.title;
+		const description = req.body.description || "";
+		const duration = req.body.duration || req.body.durationMinutes || 0;
+		const order = req.body.order || req.body.orderIndex || 1;
 
-try {
+		// Accept video via URL or uploaded file
+		const videoUrl = req.body.videoUrl || "";
+		const videoFile = req.files?.video ? "/uploads/" + req.files.video[0].filename : (req.body.videoFile || "");
 
-const { courseId, title, description, duration, order } = req.body;
+		// Accept thumbnail via URL or uploaded file
+		const thumbnail = req.files?.thumbnail ? "/uploads/" + req.files.thumbnail[0].filename : (req.body.thumbnail || req.body.thumbnailUrl || "");
 
-const lesson = new Lesson({
+		if (!courseId) {
+			return res.status(400).json({ message: "courseId is required" });
+		}
 
-courseId,
-title,
-description,
-duration,
-order,
+		// Lessons can only be created under an active (non-deleted) course.
+		const course = await Course.findOne({ _id: courseId, isDeleted: false }).select("_id");
+		if (!course) {
+			return res.status(404).json({ message: "Course not found" });
+		}
 
-videoUrl: req.body.videoUrl || "",
+		if (!title || (!videoUrl && !videoFile)) {
+			return res.status(400).json({ message: "Title and video (url or file) are required" });
+		}
 
-videoFile: req.files?.video
-? "/uploads/" + req.files.video[0].filename
-: "",
+		const lesson = new Lesson({
+			courseId,
+			title,
+			description,
+			duration,
+			order,
+			videoUrl,
+			videoFile,
+			thumbnail,
+			isPublished: true,
+		});
 
-thumbnail: req.files?.thumbnail
-? "/uploads/" + req.files.thumbnail[0].filename
-: ""
+		await lesson.save();
 
-});
-
-await lesson.save();
-
-res.status(201).json({
-message: "Lesson created",
-lesson
-});
-
-}
-
-catch (error) {
-res.status(500).json({ message: error.message });
-}
-
+		res.status(201).json({ message: "Lesson created", lesson });
+	} catch (error) {
+		res.status(500).json({ message: error.message });
+	}
 };
 
 
@@ -48,8 +57,10 @@ exports.getLessonsByCourse = async (req, res) => {
 
 try {
 
+// Hide soft-deleted lessons from users and admins by default.
 const lessons = await Lesson.find({
-courseId: req.params.courseId
+courseId: req.params.courseId,
+isDeleted: { $ne: true }
 }).sort({ order: 1 });
 
 res.json(lessons);
@@ -68,7 +79,7 @@ exports.updateLesson = async (req, res) => {
 
 try {
 
-const lesson = await Lesson.findById(req.params.id);
+const lesson = await Lesson.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
 
 if (!lesson) return res.status(404).json({ message: "Lesson not found" });
 
@@ -110,7 +121,15 @@ exports.deleteLesson = async (req, res) => {
 
 try {
 
-await Lesson.findByIdAndDelete(req.params.id);
+const lesson = await Lesson.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+
+if (!lesson) {
+return res.status(404).json({ message: "Lesson not found" });
+}
+
+// Soft delete preserves historical progress/notes references.
+lesson.isDeleted = true;
+await lesson.save();
 
 res.json({ message: "Lesson deleted" });
 

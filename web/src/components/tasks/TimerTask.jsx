@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pause, Play, RotateCcw, CheckCircle2 } from "lucide-react";
-import type { TimerTaskData } from "./taskTypes";
 
-type TimerTaskProps = {
-  task: TimerTaskData;
-  completed: boolean;
-  onComplete: () => void;
-};
-
-function formatTime(seconds: number) {
+function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60)
     .toString()
     .padStart(2, "0");
@@ -16,7 +9,7 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainingSeconds}`;
 }
 
-export function TimerTask({ task, completed, onComplete }: TimerTaskProps) {
+export function TimerTask({ task, completed, onComplete }) {
   const initialSeconds = Number(task.config?.minutes || 4) * 60;
   const instruction = String(task.config?.instruction || "Stay present until the timer ends.");
   const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds);

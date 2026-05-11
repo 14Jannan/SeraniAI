@@ -1,6 +1,7 @@
 import type { TaskData, TaskProgress } from "../components/tasks/taskTypes";
 
-const API_BASE = "http://localhost:7001/api/tasks";
+const API_ROOT = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const API_BASE = `${API_ROOT}/api/tasks`;
 
 function authHeaders() {
   const token = localStorage.getItem("token") || localStorage.getItem("authToken") || "";
@@ -108,7 +109,7 @@ export async function saveTaskProgress(payload: {
 
 export async function fetchTaskStreak() {
   const token = localStorage.getItem("token") || "";
-  const res = await fetch("http://localhost:7001/api/streak/me", {
+  const res = await fetch(`${API_ROOT}/api/streak/me`, {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,

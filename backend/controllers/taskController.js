@@ -7,6 +7,20 @@ function dateKeyFromDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
+function normalizeDateKey(value) {
+  // Accept only YYYY-MM-DD keys so one user/day maps to a single progress document.
+  const key = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : "";
+}
+
+function uniqueIds(ids) {
+  if (!Array.isArray(ids)) {
+    return [];
+  }
+
+  return Array.from(new Set(ids.map((id) => String(id || "").trim()).filter(Boolean)));
+}
+
 function normalizeTaskPayload(body = {}) {
   return {
     taskId: body.id || body.taskId,
@@ -147,6 +161,7 @@ exports.getDailyTasks = async (req, res) => {
     const userId = req.user.id;
 
     const existingProgress = await UserTaskProgress.findOne({ user: userId, dateKey });
+    // Reuse the same daily assignment to keep tasks stable during the day.
     if (existingProgress && existingProgress.taskIds.length > 0) {
       const existingTasks = await Task.find({ taskId: { $in: existingProgress.taskIds }, isActive: true });
       if (existingTasks.length > 0) {
@@ -215,27 +230,35 @@ exports.getMyTaskProgress = async (req, res) => {
 exports.saveMyTaskProgress = async (req, res) => {
   try {
     const userId = req.user.id;
-    const dateKey = req.body.dateKey || dateKeyFromDate(new Date());
-    const taskIds = Array.isArray(req.body.taskIds) ? req.body.taskIds : [];
-    const completedTaskIds = Array.isArray(req.body.completedTaskIds) ? req.body.completedTaskIds : [];
-    const taskResults = req.body.taskResults && typeof req.body.taskResults === "object" ? req.body.taskResults : {};
+    const dateKey = normalizeDateKey(req.body.dateKey) || dateKeyFromDate(new Date());
+
+    const existingProgress = await UserTaskProgress.findOne({ user: userId, dateKey });
+    // Daily tasks must be created first by /daily; this prevents arbitrary progress rows.
+    if (!existingProgress || !Array.isArray(existingProgress.taskIds) || existingProgress.taskIds.length === 0) {
+      return res.status(400).json({ message: "Daily tasks are not assigned yet. Fetch daily tasks first." });
+    }
+
+    // Trust only the server-assigned daily task set, never client-submitted task IDs.
+    const assignedTaskIds = uniqueIds(existingProgress.taskIds);
+    const requestedCompletedTaskIds = uniqueIds(req.body.completedTaskIds);
+    const completedTaskIds = requestedCompletedTaskIds.filter((taskId) => assignedTaskIds.includes(taskId));
+
+    const incomingTaskResults = req.body.taskResults && typeof req.body.taskResults === "object" ? req.body.taskResults : {};
+    const taskResults = Object.fromEntries(
+      Object.entries(incomingTaskResults).filter(([taskId]) => assignedTaskIds.includes(taskId))
+    );
 
     const xp = completedTaskIds.length * 10;
 
-    const progress = await UserTaskProgress.findOneAndUpdate(
-      { user: userId, dateKey },
-      {
-        $set: {
-          taskIds,
-          completedTaskIds,
-          taskResults,
-          xp,
-        },
-      },
-      { upsert: true, returnDocument: "after" }
-    );
+    existingProgress.taskIds = assignedTaskIds;
+    existingProgress.completedTaskIds = completedTaskIds;
+    existingProgress.taskResults = taskResults;
+    existingProgress.xp = xp;
+
+    const progress = await existingProgress.save();
 
     if (completedTaskIds.length > 0) {
+      // Update streak once the user has at least one validated completion for that date.
       const user = await User.findById(userId);
       const now = new Date();
 
