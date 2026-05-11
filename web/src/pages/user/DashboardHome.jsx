@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
   Book,
@@ -16,9 +16,15 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle,
-  Download
+  Download,
+  Heart,
+  X,
+  Sparkles,
+  Info,
+  BarChart2,
+  PieChart
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 
 const API_URL = "http://localhost:7001";
@@ -27,9 +33,33 @@ const DashboardHome = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [weeklyReport, setWeeklyReport] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [weeklyReport, setWeeklyReport] = useState(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState('journal');
+  const [chartType, setChartType] = useState('bar');
+
+  const [dismissedItems, setDismissedItems] = useState([]);
+  const [showJournalModal, setShowJournalModal] = useState(false);
+  const [showWellnessModal, setShowWellnessModal] = useState(false);
+  const [journalContent, setJournalContent] = useState("");
+  const [isSavingJournal, setIsSavingJournal] = useState(false);
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [isSavingMood, setIsSavingMood] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem('serani_dismissed_recommendations') || '[]');
+    const valid = stored.filter(item => {
+      const diff = new Date() - new Date(item.timestamp);
+      return diff < 24 * 60 * 60 * 1000;
+    });
+    setDismissedItems(valid.map(v => v.id));
+    if (stored.length !== valid.length) {
+      localStorage.setItem('serani_dismissed_recommendations', JSON.stringify(valid));
+    }
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -61,33 +91,33 @@ const DashboardHome = () => {
 
   const handleDownloadReport = () => {
     if (!weeklyReport) return;
-    
+
     const doc = new jsPDF();
     const margin = 20;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const title = "Weekly Progress Report - SeraniAI";
-    
+
     // Header
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.setTextColor(37, 99, 235); // Blue-600
     doc.text(title, margin, 25);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(107, 114, 128); // Gray-500
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, 35);
-    
+
     // Divider
     doc.setDrawColor(229, 231, 235); // Gray-200
     doc.line(margin, 40, pageWidth - margin, 40);
-    
+
     // Content
     doc.setFontSize(11);
     doc.setTextColor(55, 65, 81); // Gray-700
     doc.setLineHeightFactor(1.5);
-    
+
     const splitText = doc.splitTextToSize(weeklyReport, pageWidth - (margin * 2));
     let cursorY = 50;
     const lineHeight = 7; // Approximate line height for font size 11
@@ -102,7 +132,7 @@ const DashboardHome = () => {
       if (line.includes('**')) {
         const parts = line.split(/(\*\*.*?\*\*)/g);
         let currentX = margin;
-        
+
         parts.forEach((part) => {
           if (part.startsWith('**') && part.endsWith('**')) {
             doc.setFont("helvetica", "bold");
@@ -122,10 +152,10 @@ const DashboardHome = () => {
         doc.setTextColor(55, 65, 81);
         doc.text(line, margin, cursorY);
       }
-      
+
       cursorY += lineHeight;
     });
-    
+
     // Footer - Add to all pages
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
@@ -135,7 +165,7 @@ const DashboardHome = () => {
       doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
       doc.text("SeraniAI - Your Personal Growth Companion", margin, pageHeight - 10);
     }
-    
+
     doc.save(`SeraniAI_Weekly_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
@@ -195,7 +225,18 @@ const DashboardHome = () => {
     );
   }
 
-  const { userName, stats, recentActivity, journalTrends } = data;
+  const { userName, stats, recentActivity, journalTrends, chatTrends, courseTrends, recommendations = [], completionStatus } = data;
+
+  const handleDismiss = (id) => {
+    const newDismissed = [...dismissedItems, id];
+    setDismissedItems(newDismissed);
+    
+    const stored = JSON.parse(localStorage.getItem('serani_dismissed_recommendations') || '[]');
+    stored.push({ id, timestamp: new Date().toISOString() });
+    localStorage.setItem('serani_dismissed_recommendations', JSON.stringify(stored));
+  };
+
+  const activeRecommendations = recommendations.filter(r => !dismissedItems.includes(r.id));
 
   const statCards = [
     { label: 'Total Journals', value: stats.totalJournals, icon: PenTool, color: 'text-purple-600', bg: 'bg-purple-100', trend: 'Updated' },
@@ -204,12 +245,7 @@ const DashboardHome = () => {
     { label: 'AI Interactions', value: stats.aiInteractions, icon: MessageSquare, color: 'text-amber-600', bg: 'bg-amber-100', trend: 'Active Chat' },
   ];
 
-  const quickActions = [
-    { title: 'New Journal Entry', desc: 'Reflect on your day', icon: Plus, link: '/dashboard/journal', color: 'bg-purple-600' },
-    { title: 'View Courses', desc: 'Continue learning', icon: Play, link: '/dashboard/courses', color: 'bg-emerald-600' },
-    { title: 'Daily Tasks', desc: 'Manage your goals', icon: CheckCircle, link: '/dashboard/tasks', color: 'bg-amber-600' },
-    { title: 'Ask SeraniAI', desc: 'Get instant answers', icon: MessageSquare, link: '/dashboard/chat', color: 'bg-blue-600' },
-  ];
+  // Quick Actions removed in favor of Recommendations
 
   return (
     <div className="p-6 lg:p-10 space-y-10 max-w-[1600px] mx-auto overflow-y-auto h-full scrollbar-hide relative">
@@ -274,92 +310,254 @@ const DashboardHome = () => {
             animate={{ opacity: 1, x: 0 }}
             className="bg-white dark:bg-gray-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group"
           >
-            <div className="flex justify-between items-center mb-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
               <div>
-                <h3 className="text-xl font-bold dark:text-white">Journal Activity</h3>
-                <p className="text-sm text-gray-500 mt-1">Consistency over the last 7 days</p>
+                <h3 className="text-xl font-bold dark:text-white">Activity Trends</h3>
+                <p className="text-sm text-gray-500 mt-1">Your consistency over the last 7 days</p>
               </div>
-              <div className="hidden sm:flex gap-2">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                  <span key={i} className="text-[10px] font-bold text-gray-400">{d}</span>
-                ))}
+              
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-700 z-10">
+                <button 
+                  onClick={() => setChartType('bar')}
+                  className={`p-2 rounded-xl transition-all ${chartType === 'bar' ? 'bg-white dark:bg-gray-800 shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                >
+                  <BarChart2 size={16} />
+                </button>
+                <button 
+                  onClick={() => setChartType('pie')}
+                  className={`p-2 rounded-xl transition-all ${chartType === 'pie' ? 'bg-white dark:bg-gray-800 shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                >
+                  <PieChart size={16} />
+                </button>
               </div>
             </div>
 
-            {/* Simple SVG Chart */}
-            <div className="h-48 w-full flex items-end justify-between gap-3 px-2">
-              {(() => {
-                const trends = Array.isArray(journalTrends) ? journalTrends : [0, 0, 0, 0, 0, 0, 0];
-                const maxVal = Math.max(...trends, 5);
-                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                const todayRef = new Date();
+            {chartType === 'bar' ? (
+              <div className="relative z-10">
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {['journal', 'chat', 'courses'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all ${activeTab === tab ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-gray-50 dark:bg-gray-900 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                    >
+                      {tab === 'chat' ? 'AI Chat' : tab}
+                    </button>
+                  ))}
+                </div>
                 
-                return trends.map((val, i) => {
-                  const d = new Date();
-                  d.setDate(todayRef.getDate() - (6 - i));
-                  const dayName = dayNames[d.getDay()];
-                  const isToday = i === 6;
-                  const barHeight = val > 0 ? Math.max((val / maxVal) * 100, 15) : 0;
-                  
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-3 h-full justify-end">
-                      {/* Outer Bar Container */}
-                      <div 
-                        className={`w-full max-w-[40px] rounded-t-xl relative transition-all duration-500 ${
-                          isToday ? 'bg-blue-600' : 'bg-blue-300 dark:bg-blue-800'
-                        }`}
-                        style={{ height: `${barHeight}%` }}
-                      >
-                        {/* Value Label */}
-                        {val > 0 && (
-                          <span className="absolute -top-6 left-0 w-full text-center text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                            {val}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Day Label */}
-                      <span className={`text-[10px] font-bold transition-colors ${
-                        isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'
-                      }`}>
-                        {dayName}
-                      </span>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
+                {/* SVG Bar Chart */}
+                <div className="h-48 w-full flex items-end justify-between gap-3 px-2">
+                  {(() => {
+                    const getTrends = () => {
+                      if (activeTab === 'chat') return Array.isArray(chatTrends) ? chatTrends : [0,0,0,0,0,0,0];
+                      if (activeTab === 'courses') return Array.isArray(courseTrends) ? courseTrends : [0,0,0,0,0,0,0];
+                      return Array.isArray(journalTrends) ? journalTrends : [0,0,0,0,0,0,0];
+                    };
+                    const trends = getTrends();
+                    const maxVal = Math.max(...trends, 5);
+                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const todayRef = new Date();
 
-            <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-10 transition-opacity">
-              <ArrowUpRight size={100} className="text-blue-600" />
+                    return trends.map((val, i) => {
+                      const d = new Date();
+                      d.setDate(todayRef.getDate() - (6 - i));
+                      const dayName = dayNames[d.getDay()];
+                      const isToday = i === 6;
+                      const barHeight = val > 0 ? Math.max((val / maxVal) * 100, 15) : 0;
+                      
+                      let colorClass = isToday ? 'bg-blue-600' : 'bg-blue-300 dark:bg-blue-800';
+                      if (activeTab === 'chat') colorClass = isToday ? 'bg-amber-500' : 'bg-amber-200 dark:bg-amber-900/50';
+                      if (activeTab === 'courses') colorClass = isToday ? 'bg-emerald-500' : 'bg-emerald-200 dark:bg-emerald-900/50';
+                      
+                      let textClass = isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400';
+                      if (activeTab === 'chat') textClass = isToday ? 'text-amber-500 dark:text-amber-400' : 'text-gray-400';
+                      if (activeTab === 'courses') textClass = isToday ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400';
+
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-3 h-full justify-end">
+                          <div
+                            className={`w-full max-w-[40px] rounded-t-xl relative transition-all duration-500 ${colorClass}`}
+                            style={{ height: `${barHeight}%` }}
+                          >
+                            {val > 0 && (
+                              <span className={`absolute -top-6 left-0 w-full text-center text-[10px] font-bold ${textClass}`}>
+                                {val}
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-[10px] font-bold transition-colors ${textClass}`}>
+                            {dayName}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            ) : (
+              // Pie Chart View
+              <div className="h-64 w-full flex items-center justify-center gap-8 px-4 py-4 relative z-10">
+                {(() => {
+                   const jTotal = Array.isArray(journalTrends) ? journalTrends.reduce((a,b)=>a+b,0) : 0;
+                   const cTotal = Array.isArray(chatTrends) ? chatTrends.reduce((a,b)=>a+b,0) : 0;
+                   const lTotal = Array.isArray(courseTrends) ? courseTrends.reduce((a,b)=>a+b,0) : 0;
+                   const total = jTotal + cTotal + lTotal || 1; 
+                   
+                   const jPct = (jTotal / total) * 100;
+                   const cPct = (cTotal / total) * 100;
+                   const lPct = (lTotal / total) * 100;
+                   
+                   const radius = 15.91549430918954;
+                   const strokeWidth = 8;
+                   return (
+                     <div className="flex flex-col sm:flex-row items-center gap-10 w-full justify-center">
+                       <div className="relative w-48 h-48 drop-shadow-xl shrink-0">
+                         <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
+                            {/* Background track */}
+                            <circle cx="20" cy="20" r={radius} fill="transparent" stroke="currentColor" className="text-gray-100 dark:text-gray-800" strokeWidth={strokeWidth} />
+                            
+                            {/* Journal Segment */}
+                            {jPct > 0 && (
+                              <circle cx="20" cy="20" r={radius} fill="transparent" stroke="#3b82f6" strokeWidth={strokeWidth} strokeDasharray={`${jPct} ${100 - jPct}`} strokeDashoffset={0} className="transition-all duration-1000 ease-out" />
+                            )}
+                            
+                            {/* Chat Segment */}
+                            {cPct > 0 && (
+                              <circle cx="20" cy="20" r={radius} fill="transparent" stroke="#f59e0b" strokeWidth={strokeWidth} strokeDasharray={`${cPct} ${100 - cPct}`} strokeDashoffset={-jPct} className="transition-all duration-1000 ease-out" />
+                            )}
+                            
+                            {/* Course Segment */}
+                            {lPct > 0 && (
+                              <circle cx="20" cy="20" r={radius} fill="transparent" stroke="#10b981" strokeWidth={strokeWidth} strokeDasharray={`${lPct} ${100 - lPct}`} strokeDashoffset={-(jPct + cPct)} className="transition-all duration-1000 ease-out" />
+                            )}
+                         </svg>
+                         <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-black text-gray-800 dark:text-white">{jTotal + cTotal + lTotal}</span>
+                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Actions</span>
+                         </div>
+                       </div>
+                       
+                       <div className="flex flex-col gap-4">
+                         <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-2xl w-40">
+                           <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50 shrink-0"></div>
+                           <div>
+                             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Journals</p>
+                             <p className="text-sm font-bold text-gray-900 dark:text-white">{jTotal}</p>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 rounded-2xl w-40">
+                           <div className="w-3 h-3 rounded-full bg-amber-500 shadow-lg shadow-amber-500/50 shrink-0"></div>
+                           <div>
+                             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">AI Chat</p>
+                             <p className="text-sm font-bold text-gray-900 dark:text-white">{cTotal}</p>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 rounded-2xl w-40">
+                           <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50 shrink-0"></div>
+                           <div>
+                             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Courses</p>
+                             <p className="text-sm font-bold text-gray-900 dark:text-white">{lTotal}</p>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   );
+                })()}
+              </div>
+            )}
+
+            <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none">
+              {chartType === 'pie' ? <PieChart size={150} className="text-blue-600" /> : <BarChart2 size={150} className="text-blue-600" />}
             </div>
           </motion.div>
 
-          {/* Quick Actions */}
+          {/* Recommendations */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-              <TrendingUp className="text-blue-600" size={18} />
-              Quick Actions
+              <Sparkles className="text-blue-600" size={18} />
+              Recommended for You
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {quickActions.map((action, i) => (
-                <Link to={action.link} key={action.title}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <AnimatePresence>
+                {activeRecommendations.length > 0 ? (
+                  activeRecommendations.map((rec) => (
+                    <motion.div
+                      key={rec.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="p-5 flex flex-col bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm relative group h-full"
+                    >
+                      {/* Top part: Icon + Text */}
+                      <div className="flex items-start gap-4 mb-4">
+                        {/* Icon */}
+                        <div className={`p-3 rounded-2xl text-white shadow-lg shrink-0 ${rec.priority === 'high' ? 'bg-purple-600 shadow-purple-500/20' : rec.type === 'courses' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'}`}>
+                          {rec.type === 'journal' ? <PenTool size={20} /> :
+                           rec.type === 'wellness' ? <Heart size={20} /> :
+                           rec.type === 'courses' ? <BookOpen size={20} /> :
+                           <CheckCircle size={20} />}
+                        </div>
+                        
+                        {/* Text content */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                             <h4 className="text-sm font-bold dark:text-white">{rec.title}</h4>
+                             {rec.priority === 'high' && (
+                               <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase tracking-wider">High Priority</span>
+                             )}
+                          </div>
+                          <p className="text-[11px] text-gray-500 font-medium mt-1 flex items-start gap-1">
+                            <Info size={12} className="shrink-0 mt-0.5" />
+                            <span>{rec.reason}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-end gap-2 mt-auto pt-4 border-t border-gray-50 dark:border-gray-700/50">
+                        {rec.dismissible && (
+                          <button
+                            onClick={(e) => { e.preventDefault(); handleDismiss(rec.id); }}
+                            className="px-3 py-2 text-[11px] font-bold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-xl transition-all whitespace-nowrap"
+                          >
+                            Maybe Later
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (rec.actionType === 'modal') {
+                              if (rec.type === 'journal') setShowJournalModal(true);
+                              if (rec.type === 'wellness') setShowWellnessModal(true);
+                            } else if (rec.link) {
+                              navigate(rec.link);
+                            }
+                          }}
+                          className="px-4 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 text-xs font-bold rounded-xl transition-colors whitespace-nowrap"
+                        >
+                          {rec.actionType === 'modal' ? 'Start Now' : 'View'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
                   <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="p-5 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-blue-200 dark:hover:border-blue-900 transition-all"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="md:col-span-2 p-10 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-[32px] border border-emerald-100 dark:border-emerald-800/30 flex flex-col items-center justify-center text-center space-y-4 shadow-sm"
                   >
-                    <div className={`${action.color} p-3 rounded-2xl text-white shadow-lg shadow-blue-500/20`}>
-                      <action.icon size={20} />
+                    <div className="p-5 bg-emerald-100 dark:bg-emerald-800/50 rounded-full text-emerald-600 dark:text-emerald-400 mb-2">
+                      <Sparkles size={40} />
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold dark:text-white">{action.title}</h4>
-                      <p className="text-[11px] text-gray-500 font-medium truncate">{action.desc}</p>
-                    </div>
-                    <ChevronRight className="ml-auto text-gray-300" size={16} />
+                    <h4 className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">
+                      {completionStatus?.message || "Great job today!"}
+                    </h4>
+                    <p className="text-base text-emerald-600/80 dark:text-emerald-400/80 font-medium max-w-md">
+                      You've completed all recommended activities. Take some time to relax!
+                    </p>
                   </motion.div>
-                </Link>
-              ))}
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -503,6 +701,86 @@ const DashboardHome = () => {
           </motion.div>
         </div>
       )}
+
+      {/* Quick Journal Modal */}
+      {showJournalModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setShowJournalModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-[32px] shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-xl font-bold dark:text-white flex items-center gap-2">
+                <PenTool className="text-purple-600" size={20} /> Quick Reflection
+              </h3>
+              <button onClick={() => setShowJournalModal(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"><X size={20} /></button>
+            </div>
+            <div className="p-6">
+              <textarea 
+                value={journalContent}
+                onChange={(e) => setJournalContent(e.target.value)}
+                placeholder="What's on your mind today?" 
+                className="w-full h-32 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-purple-600 focus:border-transparent resize-none dark:text-white outline-none"
+              ></textarea>
+              <button 
+                onClick={handleSaveJournal} 
+                disabled={isSavingJournal || !journalContent.trim()}
+                className="w-full mt-4 py-3 bg-purple-600 text-white rounded-2xl font-bold shadow-lg shadow-purple-500/20 hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSavingJournal ? <Loader2 className="animate-spin" size={20} /> : "Save Entry"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Wellness Check Modal */}
+      {showWellnessModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setShowWellnessModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-[32px] shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-xl font-bold dark:text-white flex items-center gap-2">
+                <Heart className="text-pink-600" size={20} /> How are you?
+              </h3>
+              <button onClick={() => setShowWellnessModal(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"><X size={20} /></button>
+            </div>
+            <div className="p-6 flex flex-col items-center gap-6">
+              <div className="flex justify-center gap-4 text-4xl">
+                {['😢', '😐', '🙂', '😁'].map(emoji => (
+                  <button 
+                    key={emoji} 
+                    onClick={() => setSelectedMood(emoji)}
+                    className={`hover:scale-125 transition-transform origin-bottom ${selectedMood === emoji ? 'scale-125 drop-shadow-md' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              <button 
+                onClick={handleSaveMood} 
+                disabled={isSavingMood || !selectedMood}
+                className="w-full py-3 bg-pink-600 text-white rounded-2xl font-bold shadow-lg shadow-pink-500/20 hover:bg-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSavingMood ? <Loader2 className="animate-spin" size={20} /> : "Log Mood"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Floating Quick Ask */}
+      <motion.div 
+        initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+        className="fixed bottom-6 right-6 z-50"
+      >
+        <Link to="/dashboard/chat">
+          <button className="group flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl shadow-blue-500/40 hover:w-40 hover:bg-blue-700 transition-all duration-300 overflow-hidden">
+            <MessageSquare size={24} className="shrink-0" />
+            <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-[100px] group-hover:ml-2 font-bold text-sm transition-all duration-300">
+              Ask Serani
+            </span>
+          </button>
+        </Link>
+      </motion.div>
 
     </div>
   );

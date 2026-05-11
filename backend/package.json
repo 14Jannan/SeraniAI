@@ -17,6 +17,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@langchain/community": "^1.1.28",
+    "@langchain/openai": "^1.4.5",
     "axios": "^1.15.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
@@ -28,6 +30,7 @@
     "groq-sdk": "^0.37.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "langchain": "^1.4.0",
     "mongoose": "^9.1.2",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.5",
@@ -38,7 +41,6 @@
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "pdf-parse": "^2.4.5",
-    "vectra": "^0.12.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {

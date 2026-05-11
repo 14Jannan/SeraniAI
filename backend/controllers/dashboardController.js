@@ -3,6 +3,7 @@ const Journal = require("../models/journalModel");
 const Chat = require("../models/chatModels");
 const Lesson = require("../models/lessonModel");
 const UserTaskProgress = require("../models/userTaskProgressModel");
+const mongoose = require("mongoose");
 const OpenAI = require("openai");
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
@@ -94,7 +95,7 @@ exports.getDashboardStats = async (req, res) => {
       { $sort: { _id: 1 } },
     ]).allowDiskUse(true);
 
-    // Fill in zeros for days without activity
+    // Fill in zeros for days without activity for Journal
     const dailyActivity = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date();
@@ -103,6 +104,152 @@ exports.getDashboardStats = async (req, res) => {
       const dayMatch = journalTrends.find(jt => jt._id === dateStr);
       dailyActivity.push(dayMatch ? dayMatch.count : 0);
     }
+
+    // 7b. Chat Activity Trends
+    const chatAgg = await Chat.aggregate([
+      { $match: { user: userId } },
+      { $unwind: "$messages" },
+      { $match: { "messages.role": "user", "messages.createdAt": { $gte: sevenDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$messages.createdAt" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]).allowDiskUse(true);
+
+    const dailyChatActivity = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const dayMatch = chatAgg.find(jt => jt._id === dateStr);
+      dailyChatActivity.push(dayMatch ? dayMatch.count : 0);
+    }
+
+    // 7c. Course Activity Trends
+    const lessonAgg = {};
+    if (user && user.lessonProgress) {
+      user.lessonProgress.forEach(lp => {
+        if (lp.updatedAt >= sevenDaysAgo) {
+          const dateStr = lp.updatedAt.toISOString().split('T')[0];
+          lessonAgg[dateStr] = (lessonAgg[dateStr] || 0) + 1;
+        }
+      });
+    }
+
+    const dailyCourseActivity = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      dailyCourseActivity.push(lessonAgg[dateStr] || 0);
+    }
+
+    // 8. Generate Smart Recommendations
+    const recommendations = [];
+    const currentHour = new Date().getHours();
+    
+    // Journal Check
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayJournalsCount = await Journal.countDocuments({ user: userId, createdAt: { $gte: startOfToday } });
+    
+    if (todayJournalsCount === 0) {
+      let reason = "Suggested because you haven't journaled today.";
+      if (currentHour >= 18 || currentHour < 5) {
+        reason = "Perfect time to reflect on your day before bed.";
+      } else if (currentHour >= 5 && currentHour < 12) {
+        reason = "Start your morning with a clear mind.";
+      }
+      
+      recommendations.push({
+        id: "journal-today",
+        type: "journal",
+        priority: "high",
+        title: "Start your daily reflection",
+        reason: reason,
+        actionType: "modal",
+        dismissible: true
+      });
+    }
+
+    // Task Check
+    if (dailyTasksCount > 0) {
+      let taskReason = `You have ${dailyTasksCount} tasks set for today.`;
+      if (currentHour >= 5 && currentHour < 12) {
+          taskReason = "Plan and tackle your tasks early today.";
+      }
+      recommendations.push({
+        id: "tasks-today",
+        type: "tasks",
+        priority: "medium",
+        title: "Complete your daily tasks",
+        reason: taskReason,
+        actionType: "navigate",
+        link: "/dashboard/tasks",
+        dismissible: true
+      });
+    }
+
+    // Course Check
+    const lessonProgress = user.lessonProgress || [];
+    const completedLessonIds = lessonProgress
+      .map(lp => lp.lessonId)
+      .filter(id => id && mongoose.Types.ObjectId.isValid(id));
+
+    const nextLesson = await Lesson.findOne({ _id: { $nin: completedLessonIds } }).sort({ createdAt: 1 }).lean();
+    if (nextLesson) {
+      let courseReason = "Pick up where you left off in your courses.";
+      if (currentHour >= 12 && currentHour < 18) {
+          courseReason = "A great afternoon to continue your learning journey.";
+      }
+      recommendations.push({
+        id: "lesson-next",
+        type: "courses",
+        priority: "medium",
+        title: `Continue learning: ${nextLesson.title}`,
+        reason: courseReason,
+        actionType: "navigate",
+        link: "/dashboard/courses",
+        dismissible: true
+      });
+    } else {
+      recommendations.push({
+        id: "explore-courses",
+        type: "courses",
+        priority: "medium",
+        title: "Explore new courses",
+        reason: "Discover our library of wellness and personal growth courses.",
+        actionType: "navigate",
+        link: "/dashboard/courses",
+        dismissible: true
+      });
+    }
+
+    // Wellness Check
+    const todayMoodLog = await Journal.findOne({ user: userId, createdAt: { $gte: startOfToday }, mood: { $ne: "" } }).lean();
+    if (!todayMoodLog) {
+      recommendations.push({
+          id: "wellness-check",
+          type: "wellness",
+          priority: "low",
+          title: "Take a short wellness check-in",
+          reason: "A quick check-in can help center your mind.",
+          actionType: "modal",
+          dismissible: true
+      });
+    }
+
+    // Sort by priority (High -> Medium -> Low)
+    const priorityOrder = { high: 1, medium: 2, low: 3 };
+    recommendations.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+    const completionStatus = {
+        allDone: recommendations.length === 0,
+        message: "Great job today! You’ve completed all your recommended activities."
+    };
 
     res.json({
       userName: user.name,
@@ -114,6 +261,10 @@ exports.getDashboardStats = async (req, res) => {
       },
       recentActivity: activities,
       journalTrends: dailyActivity,
+      chatTrends: dailyChatActivity,
+      courseTrends: dailyCourseActivity,
+      recommendations,
+      completionStatus
     });
   } catch (error) {
     console.error("Dashboard stats error:", error);

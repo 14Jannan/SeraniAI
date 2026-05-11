@@ -46,7 +46,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
 
     const processText = (text, keyPrefix) => {
       if (!text) return null;
-      const parts = text.split(/(==.*?==|\*\*.*?\*\*|##.*?##|\*.*?\*|`.*?`|\[button:.*?:.*?\])/g);
+      const parts = text.split(/(==.*?==|\*\*.*?\*\*|###.*?###|##.*?##|\*.*?\*|`.*?`|\[button:.*?:.*?\]|!\[.*?\]\(.*?\))/g);
       return parts.map((part, i) => {
         const key = `${keyPrefix}-${i}`;
         if (part.startsWith('==') && part.endsWith('==')) {
@@ -57,6 +57,9 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
         }
         if (part.startsWith('*') && part.endsWith('*')) {
           return <em key={key} className="italic text-gray-700 dark:text-gray-300">{part.slice(1, -1)}</em>;
+        }
+        if (part.startsWith('###') && part.endsWith('###')) {
+          return <span key={key} className="text-xl font-black text-blue-600 dark:text-blue-400 mx-1">{part.slice(3, -3)}</span>;
         }
         if (part.startsWith('##') && part.endsWith('##')) {
           return <span key={key} className="text-lg font-bold text-blue-600 dark:text-blue-400 mx-1">{part.slice(2, -2)}</span>;
@@ -80,6 +83,49 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
               </button>
             );
           }
+        }
+        if (part.startsWith('![') && part.includes('](')) {
+          const altMatch = part.match(/!\[(.*?)\]/);
+          const urlMatch = part.match(/\((.*?)\)/);
+          const alt = altMatch ? altMatch[1] : "AI Image";
+          const url = urlMatch ? urlMatch[1] : "";
+          
+          return (
+            <motion.div 
+              key={key}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="my-6 relative group/img max-w-lg"
+            >
+              <div className="relative rounded-[32px] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-2xl bg-gray-50 dark:bg-gray-900/50">
+                <img 
+                  src={url} 
+                  alt={alt} 
+                  className="w-full h-auto object-cover transition-transform duration-700 group-hover/img:scale-105"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 ring-1 ring-inset ring-black/5 pointer-events-none rounded-[32px]" />
+              </div>
+
+              {/* Download Button Below Image */}
+              <div className="mt-4 flex items-center justify-between px-2">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1">Generated Illustration</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-400 font-bold truncate max-w-[200px]">{alt}</span>
+                </div>
+                <a 
+                  href={url} 
+                  download={`serani-ai-${Date.now()}.png`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-900 text-gray-900 dark:text-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 font-black text-[10px] uppercase tracking-[0.2em]"
+                >
+                  <Download size={14} className="text-blue-600" />
+                  Download
+                </a>
+              </div>
+            </motion.div>
+          );
         }
         return <span key={key}>{part}</span>;
       });
@@ -158,6 +204,22 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
           i++;
         }
         flushBlock(i);
+        i++;
+        continue;
+      }
+
+      const headerMatch = trimmedLine.match(/^(#{1,6})\s+(.*)/);
+      if (headerMatch) {
+        flushBlock(i);
+        const level = headerMatch[1].length;
+        const text = headerMatch[2];
+        const Tag = `h${level}`;
+        const sizes = ["text-3xl", "text-2xl", "text-xl", "text-lg", "text-base", "text-sm"];
+        renderedElements.push(
+          <Tag key={`h-${i}`} className={`${sizes[level - 1] || "text-base"} font-black text-gray-900 dark:text-white mt-6 mb-4 tracking-tight`}>
+            {processText(text, `h-text-${i}`)}
+          </Tag>
+        );
         i++;
         continue;
       }
@@ -285,7 +347,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
                   <div className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}>
                     {/* Bubble */}
                     <div
-                      className={`px-6 py-4 rounded-[32px] shadow-sm text-[15px] leading-relaxed break-words relative transition-all duration-300 ${isUser
+                      className={`px-6 py-4 rounded-[32px] shadow-sm text-[17px] leading-relaxed break-words relative transition-all duration-300 ${isUser
                         ? "bg-blue-600 text-white rounded-br-none shadow-blue-500/10"
                         : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md text-gray-800 dark:text-gray-100 border border-white dark:border-gray-800 rounded-bl-none"
                         }`}

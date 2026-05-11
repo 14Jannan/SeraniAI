@@ -12,6 +12,7 @@ const {
   resetPasswordSchema,
   verifyEmailSchema,
   resendVerificationOtpSchema,
+  onboardingSchema,
 } = require("../validations/authValidation");
 // Import your existing controllers
 const {
@@ -27,6 +28,7 @@ const {
   getCurrentUser,
   acceptEnterpriseInvite,
   cancelEnterprisePremiumAccess,
+  updateOnboarding,
 } = require("../controllers/authController");
 
 // =============================
@@ -89,6 +91,12 @@ router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
 router.get("/me", protect, getCurrentUser);
 router.post("/invites/accept", protect, acceptEnterpriseInvite);
 router.post("/enterprise/cancel-premium", protect, cancelEnterprisePremiumAccess);
+router.post(
+  "/onboarding",
+  protect,
+  validateRequest(onboardingSchema),
+  updateOnboarding,
+);
 
 // =============================
 // 🔵 GOOGLE OAUTH

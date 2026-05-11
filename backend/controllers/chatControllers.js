@@ -1,18 +1,21 @@
 const Chat = require("../models/chatModels");
 const Journal = require("../models/journalModel");
 const User = require("../models/userModel");
+const mongoose = require("mongoose");
 const Enrollment = require("../models/enrollmentModel");
 const Course = require("../models/courseModel");
 const Lesson = require("../models/lessonModel");
-const { saveJournalEntry } = require("../utils/journalUtils");
-const OpenAI = require("openai");
 const fs = require("fs");
 const path = require("path");
-const pdf = require("pdf-parse");
+const axios = require("axios");
+const { saveJournalEntry } = require("../utils/journalUtils");
+const OpenAI = require("openai");
+const { PDFParse } = require("pdf-parse");
 const { generateSystemPrompt } = require("../utils/promptBuilder");
 const ChromaDBService = require("../services/chromaDBService");
 const UserTaskProgress = require("../models/userTaskProgressModel");
 const { Task } = require("../models/taskModel");
+const langchainService = require("../services/langchainService");
 
 const chromadb = new ChromaDBService();
 
@@ -28,7 +31,9 @@ async function extractTextFromFile(filePath, fileType) {
   try {
     if (fileType.includes("pdf")) {
       const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdf(dataBuffer);
+      const parser = new PDFParse({ data: dataBuffer });
+      const data = await parser.getText();
+      await parser.destroy();
       return data.text;
     } else if (fileType.includes("text/plain")) {
       return fs.readFileSync(filePath, "utf8");
@@ -75,10 +80,15 @@ async function getDailyReminders(userId) {
     // 1. Check for active courses based on lessonProgress
     const user = await User.findById(userId);
     if (user && user.lessonProgress.length > 0) {
-      const lessonIds = user.lessonProgress.map(lp => lp.lessonId);
-      const activeCoursesCount = (await Lesson.find({ _id: { $in: lessonIds } }).distinct("courseId")).length;
-      if (activeCoursesCount > 0) {
-        reminders.push(`You have ${activeCoursesCount} active course(s) to work on.`);
+      const lessonIds = user.lessonProgress
+        .map((lp) => lp.lessonId)
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+      
+      if (lessonIds.length > 0) {
+        const activeCoursesCount = (await Lesson.find({ _id: { $in: lessonIds } }).distinct("courseId")).length;
+        if (activeCoursesCount > 0) {
+          reminders.push(`You have ${activeCoursesCount} active course(s) to work on.`);
+        }
       }
     }
 
@@ -290,6 +300,23 @@ const TOOLS = [
         required: ["query"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_image",
+      description: "Generate an image based on a descriptive prompt using DALL-E 3.",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt: {
+            type: "string",
+            description: "A detailed description of the image to generate."
+          }
+        },
+        required: ["prompt"]
+      }
+    }
   }
 ];
 
@@ -481,78 +508,171 @@ exports.sendMessage = async (req, res) => {
     // 3) Generate AI reply (with Tool support and selected role)
     const fullContext = (todayContext + "\n" + searchContext).trim();
 
-    const messagesForAI = chat.messages.map(m => ({
-      role: m.role,
-      content: m.content,
-      tool_calls: m.tool_calls,
-      tool_call_id: m.tool_call_id
-    }));
-    // Override the last user message with augmented content for AI context
-    messagesForAI[messagesForAI.length - 1].content = augmentedMessage;
-
-    let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
-
+    let reply = "";
     let suggestedCourses = [];
+    let assistantMessage;
 
-    // Handle tool calls
-    while (aiResponse.tool_calls) {
-      chat.messages.push({
-        role: "assistant",
-        content: aiResponse.content || "",
-        tool_calls: aiResponse.tool_calls
-      });
+    // Use LangChain for advanced RAG if it's a journal/memory related query and NOT a tool-heavy request
+    const needsAdvancedRAG = (selectedRole === "journal" || lowerMsg.includes("history") || lowerMsg.includes("past")) && !req.file;
 
-      for (const toolCall of aiResponse.tool_calls) {
-        if (toolCall.function.name === "create_journal_entry") {
-          const args = JSON.parse(toolCall.function.arguments);
-          try {
-            const journal = await saveJournalEntry(userId, args);
-            chat.messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              content: JSON.stringify({ success: true, journalId: journal._id, message: "Journal entry created successfully" })
-            });
-          } catch (err) {
-            chat.messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              content: JSON.stringify({ success: false, error: err.message })
-            });
-          }
-        } else if (toolCall.function.name === "suggest_courses") {
-          const args = JSON.parse(toolCall.function.arguments);
-          try {
-            const courseResults = await suggestCourses(args.query);
-            suggestedCourses = courseResults; // Store for final response
-            chat.messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              content: JSON.stringify({ success: true, courses: courseResults })
-            });
-          } catch (err) {
-            chat.messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              content: JSON.stringify({ success: false, error: err.message })
-            });
-          }
-        }
+    if (needsAdvancedRAG) {
+      console.log("Using LangChain for advanced RAG retrieval...");
+      try {
+        const langchainReply = await langchainService.executeRagQuery(
+          userId, 
+          clean, 
+          chat.messages, 
+          req.user, 
+          selectedRole, 
+          isNewChat, 
+          localDate
+        );
+        reply = langchainReply;
+      } catch (err) {
+        console.error("LangChain RAG error, falling back to standard flow:", err);
+        const messagesForAI = chat.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+          tool_calls: m.tool_calls,
+          tool_call_id: m.tool_call_id
+        }));
+        messagesForAI[messagesForAI.length - 1].content = augmentedMessage;
+        const aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
+        reply = aiResponse.content || "No reply";
       }
-
-      const updatedHistory = chat.messages.map(m => ({
+    } else {
+      const messagesForAI = chat.messages.map(m => ({
         role: m.role,
         content: m.content,
         tool_calls: m.tool_calls,
         tool_call_id: m.tool_call_id
       }));
-      aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
+      // Override the last user message with augmented content for AI context
+      messagesForAI[messagesForAI.length - 1].content = augmentedMessage;
+
+      let aiResponse = await getAiReply(messagesForAI, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
+
+      // Handle tool calls
+      while (aiResponse.tool_calls) {
+        chat.messages.push({
+          role: "assistant",
+          content: aiResponse.content || "",
+          tool_calls: aiResponse.tool_calls
+        });
+
+        for (const toolCall of aiResponse.tool_calls) {
+          if (toolCall.function.name === "create_journal_entry") {
+            const args = JSON.parse(toolCall.function.arguments);
+            try {
+              const journal = await saveJournalEntry(userId, args);
+              chat.messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: JSON.stringify({ success: true, journalId: journal._id, message: "Journal entry created successfully" })
+              });
+            } catch (err) {
+              chat.messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: JSON.stringify({ success: false, error: err.message })
+              });
+            }
+          } else if (toolCall.function.name === "suggest_courses") {
+            const args = JSON.parse(toolCall.function.arguments);
+            try {
+              const courseResults = await suggestCourses(args.query);
+              suggestedCourses = courseResults; // Store for final response
+              chat.messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: JSON.stringify({ success: true, courses: courseResults })
+              });
+            } catch (err) {
+              chat.messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: JSON.stringify({ success: false, error: err.message })
+              });
+            }
+          } else if (toolCall.function.name === "generate_image") {
+            const args = JSON.parse(toolCall.function.arguments);
+            try {
+              console.log(`Generating image for prompt: ${args.prompt}`);
+              const imageResponse = await openai.images.generate({
+                model: "dall-e-3",
+                prompt: args.prompt,
+                n: 1,
+                size: "1024x1024",
+              });
+              const tempImageUrl = imageResponse.data[0].url;
+              
+              // Download and save locally
+              const fileName = `generated-${Date.now()}.png`;
+              const filePath = path.join(__dirname, "..", "uploads", fileName);
+              const response = await axios({
+                url: tempImageUrl,
+                method: 'GET',
+                responseType: 'stream'
+              });
+              
+              const writer = fs.createWriteStream(filePath);
+              response.data.pipe(writer);
+              
+              await new Promise((resolve, reject) => {
+                writer.on('finish', resolve);
+                writer.on('error', reject);
+              });
+
+              const localImageUrl = `/uploads/${fileName}`;
+              const protocol = req.protocol;
+              const host = req.get('host');
+              const fullImageUrl = `${protocol}://${host}${localImageUrl}`;
+              
+              chat.messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: JSON.stringify({ success: true, imageUrl: localImageUrl, message: "Image generated and saved successfully" })
+              });
+              // Append the local image to the final reply
+              reply += `\n\n![Generated Image](${fullImageUrl})`;
+            } catch (err) {
+              console.error("Image generation error:", err);
+              chat.messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: JSON.stringify({ success: false, error: err.message })
+              });
+            }
+          } else {
+            // Handle unknown tools to satisfy OpenAI requirements
+            chat.messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({ success: false, error: `Tool '${toolCall.function.name}' is not implemented.` })
+            });
+          }
+        }
+
+        const updatedHistory = chat.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+          tool_calls: m.tool_calls,
+          tool_call_id: m.tool_call_id
+        }));
+        aiResponse = await getAiReply(updatedHistory, fullContext, TOOLS, selectedRole, req.user, isNewChat, localDate);
+      }
+      // Strip any markdown images from AI content (they are often expired/broken)
+      // Use a more robust regex that handles potential whitespace/newlines
+      const aiContent = aiResponse.content || "";
+      const cleanedAiContent = aiContent.replace(/!\[[\s\S]*?\]\([\s\S]*?\)/g, "").trim();
+      
+      const imageMarkdown = reply.includes("![Generated Image]") ? reply : "";
+      reply = imageMarkdown ? (cleanedAiContent + "\n\n" + imageMarkdown).trim() : cleanedAiContent;
     }
 
-    let reply = aiResponse.content || "No reply";
-
-    // 4) Check for first chat of the day and add reminders/mood suggestions
+    // 4) Check for first chat of the day and add reminders/mood suggestions (Skip if file uploaded)
     const firstChat = await isFirstChatOfDay(userId);
-    if (firstChat) {
+    if (firstChat && !req.file) {
       // 4a) Daily Reminders
       const reminders = await getDailyReminders(userId);
       if (reminders) {
@@ -574,7 +694,7 @@ exports.sendMessage = async (req, res) => {
     }
 
     // 5) Save final assistant message
-    const assistantMessage = { role: "assistant", content: reply, courses: suggestedCourses };
+    assistantMessage = { role: "assistant", content: reply, courses: suggestedCourses };
     chat.messages.push(assistantMessage);
 
     await chat.save();
@@ -663,8 +783,8 @@ exports.deleteSession = async (req, res) => {
       // For now, we'll try to clear specific session embeddings if we had their IDs.
       // Since we don't have IDs easily here, we might just log or implement a better delete in the service.
       console.log(`Need to delete vector embeddings for session: ${req.params.id}`);
-    } catch (vectraErr) {
-      console.error("ChromaDB session deletion error:", vectraErr);
+    } catch (err) {
+      console.error("ChromaDB session deletion error:", err);
     }
 
     return res.status(200).json({ message: "Chat deleted" });

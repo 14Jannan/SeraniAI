@@ -131,22 +131,22 @@ function OnboardingForm({ onComplete }) {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">What are your core goals for this month?</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">What's your main focus right now?</label>
                   <textarea 
                     name="goals"
                     rows="3"
-                    placeholder="e.g. Finish my project, improve my health..."
+                    placeholder="e.g. Learning to code, getting fit, work project..."
                     value={formData.goals}
                     onChange={handleChange}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 dark:text-white transition-all resize-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">What type of help do you expect from SeraniAI?</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">How can I best support you?</label>
                   <textarea 
                     name="expectations"
                     rows="3"
-                    placeholder="e.g. Technical advice, emotional support, scheduling..."
+                    placeholder="e.g. Help me stay organized, provide emotional support..."
                     value={formData.expectations}
                     onChange={handleChange}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 dark:text-white transition-all resize-none"
@@ -201,8 +201,11 @@ function OnboardingForm({ onComplete }) {
             {step < 3 ? (
               <button 
                 onClick={() => setStep(step + 1)}
-                disabled={step === 1 && !formData.profession}
-                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/20 transition-all disabled:opacity-50 disabled:hover:bg-blue-600"
+                disabled={
+                  (step === 1 && !formData.profession) || 
+                  (step === 2 && (!formData.goals || !formData.expectations))
+                }
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue
               </button>
