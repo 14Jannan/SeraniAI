@@ -7,7 +7,7 @@ const Subscription = require("../models/subscriptionModel");
 const EnterpriseInvite = require("../models/enterpriseInviteModel");
 const sendVerificationEmail = require("../utils/emailService");
 const otpGenerator = require("otp-generator");
-const { getValidProviderAccessToken } = require("../utils/oauthTokenService");
+const oauthTokenService = require("../utils/oauthTokenService");
 
 const normalizeEmail = (email) => String(email || "").trim();
 const hashInviteToken = (token) =>
@@ -62,12 +62,13 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 5. Generate OTP
+    // 5. Generate OTP (Only digits)
     const otp = otpGenerator.generate(6, {
       upperCaseAlphabets: false,
       specialChars: false,
       lowerCaseAlphabets: false,
     });
+    // expires in 10 mins
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     // 6. Create User (Notice we do NOT save confirmPassword to the database)
@@ -142,6 +143,41 @@ exports.verifyEmail = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// 2b. RESEND VERIFICATION OTP
+// @desc    Resend OTP for email verification
+// @route   POST /api/auth/resend-otp
+exports.resendVerificationOtp = async (req, res) => {
+  const { email } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+
+  try {
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.isVerified) {
+      return res.status(400).json({ message: "User is already verified" });
+    }
+
+    const otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      specialChars: false,
+      lowerCaseAlphabets: false,
+    });
+
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    await sendVerificationEmail(normalizedEmail, otp);
+
+    return res
+      .status(200)
+      .json({ message: "Verification OTP resent to email" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -313,7 +349,7 @@ exports.getOAuthProviderToken = async (req, res) => {
     String(req.query.forceRefresh || "").toLowerCase() === "true";
 
   try {
-    const result = await getValidProviderAccessToken({
+    const result = await oauthTokenService.getValidProviderAccessToken({
       userId: req.user._id,
       provider,
       forceRefresh,
@@ -504,44 +540,39 @@ exports.acceptEnterpriseInvite = async (req, res) => {
   }
 };
 
-// @desc    Update user onboarding preferences
+// @desc    Update user onboarding data
 // @route   POST /api/auth/onboarding
-// @access  Private (Pro/Enterprise)
 exports.updateOnboarding = async (req, res) => {
   try {
     const userId = req.user?._id;
-    if (!userId) return res.status(401).json({ message: "Not authorized" });
-
-    // Only allow premium users to onboard
-    const premiumRoles = ["enterpriseUser", "enterpriseAdmin", "(Pro)PlanUser"];
-    if (!premiumRoles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Onboarding is only available for Pro/Enterprise users" });
+    if (!userId) {
+      return res.status(401).json({ message: "Not authorized" });
     }
 
     const { profession, interests, goals, expectations, communicationStyle } = req.body;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    // Update preferences
-    user.preferences = {
-      profession: profession || user.preferences.profession,
-      interests: interests || user.preferences.interests,
-      goals: goals || user.preferences.goals,
-      expectations: expectations || user.preferences.expectations,
-      communicationStyle: communicationStyle || user.preferences.communicationStyle,
-    };
     user.onboardingStatus = "completed";
+    user.preferences = {
+      profession,
+      interests,
+      goals,
+      expectations,
+      communicationStyle,
+    };
 
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Onboarding completed successfully",
-      preferences: user.preferences,
       onboardingStatus: user.onboardingStatus,
+      preferences: user.preferences,
     });
   } catch (error) {
-    console.error("Onboarding Update Error:", error);
-    res.status(500).json({ message: "Failed to update onboarding data" });
+    return res.status(500).json({ message: "Failed to update onboarding data" });
   }
 };

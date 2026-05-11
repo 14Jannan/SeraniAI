@@ -36,9 +36,13 @@ function generateSystemPrompt(roleKey, user, context = "", isNewChat = false, lo
 
   // Adapt tone based on context clues (basic implementation)
   let adaptiveTone = role.tone;
-  if (context.toLowerCase().includes("stress") || context.toLowerCase().includes("anxious") || context.toLowerCase().includes("sad") || context.toLowerCase().includes("bad")) {
-    adaptiveTone += " (Priority: Be extra gentle and validate emotions. ONLY if the user explicitly expresses negative emotions (stress, anxiety, sadness), suggest trying some calming wellness exercises on the Daily Tasks page by providing exactly this button: [button:Go to Wellness Tasks:/dashboard/tasks]. NEVER suggest these if the user is feeling positive or as a way to 'stay organized'.)";
-  } else if (context.toLowerCase().includes("code") || context.toLowerCase().includes("error") || context.toLowerCase().includes("debug")) {
+  const lowerContext = context.toLowerCase();
+  const physicalDiscomfort = lowerContext.includes("hangover") || lowerContext.includes("headache") || lowerContext.includes("tired") || lowerContext.includes("exhausted");
+  const emotionalDiscomfort = lowerContext.includes("stress") || lowerContext.includes("anxious") || lowerContext.includes("sad") || lowerContext.includes("bad");
+
+  if (physicalDiscomfort || emotionalDiscomfort) {
+    adaptiveTone += " (Priority: Be extra gentle and validate their state first. If it is a physical issue like a hangover or headache, suggest gentle recovery steps like hydration, a dark room, or rest. If it is emotional stress, provide 2-3 immediate calming steps. ONLY if they explicitly express negative emotions, provide the wellness tasks button.)";
+  } else if (lowerContext.includes("code") || lowerContext.includes("error") || lowerContext.includes("debug")) {
     adaptiveTone += " (Priority: Be precise, technical, and use clear logic.)";
   }
 
@@ -51,16 +55,9 @@ ${role.identity}
 - The user you are speaking with is: ${userName}
 ${personalization}
 ${greetingInstruction}
-You are SeraniAI, an assistant that manages and explains the user's schedule using Google Calendar as the ONLY source of truth.
-
-# CRITICAL RULES (STRICT ADHERENCE REQUIRED)
-1. **GOOGLE CALENDAR IS THE ONLY SOURCE OF TRUTH**: All schedule events come from Google Calendar. Do NOT assume or guess events. If an event is not in the provided Google Calendar data, it does NOT exist.
-2. **STRICT DATE CONTROL**: Treat CURRENT_DATE as absolute truth. Today is ${currentLocal}. Never guess today's date.
-3. **NO HALLUCINATION**: Never use past/future events as today's events. Never shift dates or reinterpret timings.
-4. **ONLY USE PROVIDED EVENTS**: Only use the events provided in the FILTERED_GOOGLE_CALENDAR_EVENTS section of the context.
-5. **EMPTY DATA HANDLING**: If no events are provided for the requested date, respond: "You have no scheduled events for today."
-6. **HARD SAFETY RULE**: If calendar data is missing from the context, you MUST say: "I don't have enough calendar data to answer this."
-7. **RESPONSE STYLE**: Be clear, short, and factual. Do not invent explanations.
+# CRITICAL RULES
+1. **STRICT DATE CONTROL**: Treat CURRENT_DATE as absolute truth. Today is ${currentLocal}. Never guess today's date.
+2. **RESPONSE STYLE**: Be clear, short, and factual. Do not invent explanations. If a user uploads a file, prioritize answering based on that file.
 
 # TONE & STYLE
 - Tone: ${adaptiveTone}
@@ -76,10 +73,11 @@ ${behaviors}
 
 # TOOL USAGE RULES
 ${role.toolRules}
+- **IMAGE GENERATION**: When the user asks you to draw, create, or visualize something, you MUST use the 'generate_image' tool. Do not just describe it in text.
 
 # RESTRICTIONS
 ${role.restrictions}
-- CRITICAL: Never use markdown image syntax or display image URLs.
+- Use markdown image syntax ONLY for images generated via tools.
 
 # GENERAL BEHAVIOR PRINCIPLES
 - Be Human-like: Avoid sounding like a machine. Use natural transitions and show personality.

@@ -52,6 +52,14 @@ const resendVerificationOtpSchema = z.object({
   email: emailSchema,
 });
 
+const onboardingSchema = z.object({
+  profession: z.string().trim().min(1, "Profession is required"),
+  interests: z.array(z.string()).min(1, "Select at least one interest"),
+  goals: z.string().trim().min(1, "Goals are required"),
+  expectations: z.string().trim().min(1, "Expectations are required"),
+  communicationStyle: z.string().trim().default("Supportive"),
+});
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -59,4 +67,5 @@ module.exports = {
   resetPasswordSchema,
   verifyEmailSchema,
   resendVerificationOtpSchema,
+  onboardingSchema,
 };
