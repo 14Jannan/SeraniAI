@@ -46,7 +46,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
 
     const processText = (text, keyPrefix) => {
       if (!text) return null;
-      const parts = text.split(/(==.*?==|\*\*.*?\*\*|##.*?##|\*.*?\*|`.*?`)/g);
+      const parts = text.split(/(==.*?==|\*\*.*?\*\*|##.*?##|\*.*?\*|`.*?`|\[button:.*?:.*?\])/g);
       return parts.map((part, i) => {
         const key = `${keyPrefix}-${i}`;
         if (part.startsWith('==') && part.endsWith('==')) {
@@ -63,6 +63,23 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
         }
         if (part.startsWith('`') && part.endsWith('`')) {
           return <code key={key} className="bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono text-sm">{part.slice(1, -1)}</code>;
+        }
+        if (part.startsWith('[button:') && part.endsWith(']')) {
+          const segments = part.slice(8, -1).split(':');
+          if (segments.length >= 2) {
+            const label = segments[0];
+            const path = segments.slice(1).join(':'); // Handle paths that might contain colons
+            return (
+              <button 
+                key={key}
+                onClick={() => navigate(path)}
+                className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-95 my-2 mr-2"
+              >
+                <Sparkles size={12} className="text-blue-200" />
+                {label}
+              </button>
+            );
+          }
         }
         return <span key={key}>{part}</span>;
       });

@@ -27,7 +27,16 @@ const dns = require("dns");
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    match: [
+      /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
+      "Please enter a valid email address",
+    ],
+  },
   password: {
     type: String,
     required: function requiredPassword() {
@@ -96,6 +105,20 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   otp: { type: String },
   otpExpires: { type: Date },
+
+  // Onboarding & Personalization
+  onboardingStatus: {
+    type: String,
+    enum: ["pending", "completed"],
+    default: "pending",
+  },
+  preferences: {
+    profession: { type: String, default: "" },
+    interests: { type: [String], default: [] },
+    goals: { type: String, default: "" },
+    expectations: { type: String, default: "" },
+    communicationStyle: { type: String, default: "Professional" },
+  },
 
   createdAt: { type: Date, default: Date.now },
   taskStreakCount: {

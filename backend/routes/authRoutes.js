@@ -5,24 +5,28 @@ const jwt = require("jsonwebtoken");
 const { protect } = require("../middleware/authMiddleware");
 const validateRequest = require("../middleware/validateRequest");
 
-const{
+const {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailSchema,
-}=require("../validations/authValidation");
+  resendVerificationOtpSchema,
+} = require("../validations/authValidation");
 // Import your existing controllers
 const {
   registerUser,
   loginUser,
   verifyEmail,
+  resendVerificationOtp,
   forgotPassword,
   resetPassword,
-  refreshAccessToken, // You will add this to authController
-  logoutUser, // You will add this to authController
+  refreshAccessToken,
+  logoutUser,
   getOAuthProviderToken,
   getCurrentUser,
+  acceptEnterpriseInvite,
+  cancelEnterprisePremiumAccess,
 } = require("../controllers/authController");
 
 // =============================
@@ -61,15 +65,30 @@ const setRefreshCookie = (res, refreshToken) => {
 
 router.post("/register", validateRequest(registerSchema), registerUser);
 router.post("/login", validateRequest(loginSchema), loginUser);
-router.post("/forgot-password", validateRequest(forgotPasswordSchema), forgotPassword);
-router.post("/reset-password", validateRequest(resetPasswordSchema), resetPassword);
+router.post(
+  "/forgot-password",
+  validateRequest(forgotPasswordSchema),
+  forgotPassword,
+);
+router.post(
+  "/reset-password",
+  validateRequest(resetPasswordSchema),
+  resetPassword,
+);
 router.post("/verify", validateRequest(verifyEmailSchema), verifyEmail);
+router.post(
+  "/resend-otp",
+  validateRequest(resendVerificationOtpSchema),
+  resendVerificationOtp,
+);
 
 // NEW: Refresh & Logout
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", logoutUser);
 router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
 router.get("/me", protect, getCurrentUser);
+router.post("/invites/accept", protect, acceptEnterpriseInvite);
+router.post("/enterprise/cancel-premium", protect, cancelEnterprisePremiumAccess);
 
 // =============================
 // 🔵 GOOGLE OAUTH

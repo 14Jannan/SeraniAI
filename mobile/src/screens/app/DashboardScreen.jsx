@@ -86,6 +86,12 @@ export const DashboardScreen = ({ navigation }) => {
             onPress: () => navigation.navigate("Courses"),
           },
           {
+            label: "Subscription",
+            description: "Review plan and billing",
+            icon: <Feather name="credit-card" size={20} color={colors.accent} />,
+            onPress: () => navigation.navigate("Subscription"),
+          },
+          {
             label: "Daily Tasks",
             description: "Manage your task progress",
             icon: (
@@ -103,11 +109,7 @@ export const DashboardScreen = ({ navigation }) => {
                 color={colors.accent}
               />
             ),
-            onPress: () =>
-              Alert.alert(
-                "Coming Soon",
-                "AI Chatbot screen will be added in the next phase.",
-              ),
+            onPress: () => navigation.navigate('AIChatbot'),
           },
         ].map((item) => (
           <TouchableOpacity

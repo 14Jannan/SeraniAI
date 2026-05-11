@@ -1,12 +1,10 @@
 const Journal = require("../models/journalModel");
-const { getOrCreateCollection } = require("../config/vectraClient");
+const ChromaDBService = require("../services/chromaDBService");
 
-/**
- * Shared utility to create a journal entry and index it in Vectra.
- * @param {string} userId - The ID of the user.
- * @param {object} journalData - The journal details { title, content, mood, tags, moodConfidence, moodSource, aiInsight }.
- * @returns {Promise<object>} The created journal entry.
- */
+// Initialize ChromaDB client for semantic vector indexing and retrieval.
+const chromadb = new ChromaDBService();
+
+// Persist a journal entry and normalize optional analysis metadata.
 exports.saveJournalEntry = async (
   userId,
   { title, content, mood, tags, moodConfidence, moodSource, aiInsight }
@@ -42,21 +40,18 @@ exports.saveJournalEntry = async (
         : undefined,
   });
 
-  // Vectorize in Vectra for semantic search
+  // Index journal content in ChromaDB to support semantic retrieval and similarity search.
   try {
-    const collection = await getOrCreateCollection();
-    await collection.add({
-      ids: [`journal-${journal._id}`],
-      documents: [journal.content],
-      metadatas: [{
-        userId: userId.toString(),
-        source: "journal",
-        journalId: journal._id.toString(),
-        timestamp: journal.createdAt.toISOString()
-      }]
+    await chromadb.addEmbedding(journal.content, "journals", {
+      journalId: journal._id.toString(),
+      userId: userId.toString(),
+      title: journal.title,
+      mood: journal.mood,
+      timestamp: journal.createdAt.toISOString()
     });
-  } catch (vErr) {
-    console.error("Journal vectorization error:", vErr);
+  } catch (error) {
+    // Graceful degradation: continue without failing if vector indexing is unavailable.
+    console.error("Failed to index journal in ChromaDB:", error.message);
   }
 
   return journal;

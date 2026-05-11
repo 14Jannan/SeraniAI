@@ -9,6 +9,7 @@ const protect = async (req, res, next) => {
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
+    console.log("Auth header found:", req.headers.authorization.substring(0, 25) + "...");
     try {
       // Get token from header
       token = req.headers.authorization.split(" ")[1];
@@ -20,6 +21,7 @@ const protect = async (req, res, next) => {
       req.user = await User.findById(decoded.id).select("-password");
 
       if (!req.user) {
+        console.log("Auth error: User not found for token ID", decoded.id);
         return res
           .status(401)
           .json({ message: "Not authorized, user not found" });
@@ -27,6 +29,7 @@ const protect = async (req, res, next) => {
 
       return next();
     } catch (error) {
+      console.error("Auth error catch block:", error.name, error.message);
       if (error.name === "TokenExpiredError") {
         return res
           .status(401)

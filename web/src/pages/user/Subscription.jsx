@@ -1,78 +1,84 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Modal from "../../components/Modal";
+import { cancelSubscription, getUserSubscription } from "../../api/subscriptionApi";
+import { cancelEnterprisePremiumAccess } from "../../api/authApi";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+/* API configuration */
+const API_URL = "http://localhost:7001";
 
+/* Personal subscription plans array */
 const PERSONAL_PLANS = [
   {
     id: "free",
     name: "Free",
     price: "0",
-    subtitle: "See what Serani AI can do",
+    subtitle: "Daily journal entries only",
     isCurrent: true,
     cta: "Start Free",
     features: [
-      { icon: "sparkle", text: "Get simple emotional insights" },
-      { icon: "chat", text: "Short AI chats for common questions" },
-      { icon: "sparkle", text: "Basic journaling and mood tracking" },
+      { icon: "sparkle", text: "Unlimited daily journal entries" },
       { icon: "shield", text: "Standard privacy & security" },
+      { icon: "sparkle", text: "Journal history and tracking" },
+      { icon: "sparkle", text: "Weekly progress reports" },
     ],
   },
   {
     id: "pro",
     name: "Pro",
     price: "4000",
-    subtitle: "Maximize productivity & growth",
+    subtitle: "Everything included",
     badge: "POPULAR",
     highlight: true,
     cta: "Upgrade to Pro",
     features: [
-      { icon: "sparkle", text: "Maximum AI usage + best insights" },
-      { icon: "chat", text: "Faster responses & priority handling" },
-      { icon: "sparkle", text: "Deep analytics (mood + tasks)" },
-      { icon: "sparkle", text: "Full access to all content & courses" },
-      { icon: "shield", text: "Premium support channel" },
-      { icon: "sparkle", text: "Best for heavy usage users" },
+      { icon: "sparkle", text: "Unlimited AI conversations" },
+      { icon: "chat", text: "AI-powered emotional insights" },
+      { icon: "sparkle", text: "Full access to all courses & content" },
+      { icon: "sparkle", text: "Advanced analytics & mood tracking" },
+      { icon: "sparkle", text: "Unlimited daily journal entries" },
+      { icon: "shield", text: "Priority support" },
     ],
   },
 ];
 
+/* Business subscription plans array */
 const BUSINESS_PLANS = [
   {
     id: "free_business",
     name: "Free",
     price: "0",
-    subtitle: "Try Serani AI for teams (limited)",
+    subtitle: "Daily journal entries only",
     isCurrent: true,
     cta: "Start Free",
     features: [
-      { icon: "sparkle", text: "Limited seats for testing" },
-      { icon: "chat", text: "Limited AI usage per seat" },
-      { icon: "shield", text: "Basic admin controls" },
-      { icon: "sparkle", text: "Simple usage view" },
+      { icon: "sparkle", text: "Unlimited daily journal entries" },
+      { icon: "shield", text: "Standard privacy & security" },
+      { icon: "sparkle", text: "Journal history and tracking" },
+      { icon: "sparkle", text: "Weekly progress reports" },
     ],
   },
   {
     id: "business",
     name: "Business",
     price: "3000",
-    subtitle: "Get more work done with Serani AI for teams",
+    subtitle: "Complete team management & AI access",
     badge: "RECOMMENDED",
     highlight: true,
     cta: "Upgrade to Business",
     features: [
-      { icon: "shield", text: "Organization dashboard + roles" },
-      { icon: "sparkle", text: "Team usage analytics & insights" },
-      { icon: "chat", text: "Higher AI usage per seat" },
-      { icon: "shield", text: "SSO-ready (future)" },
-      { icon: "sparkle", text: "Central billing + invoices" },
-      { icon: "sparkle", text: "Bulk invites and onboarding" },
-      { icon: "shield", text: "Admin controls for licenses" },
+      { icon: "shield", text: "Manage enterprise users" },
+      { icon: "sparkle", text: "Full AI access for all team members" },
+      { icon: "chat", text: "Unlimited conversations per seat" },
+      { icon: "sparkle", text: "Advanced team analytics" },
+      { icon: "sparkle", text: "Centralized billing & invoices" },
+      { icon: "shield", text: "Team role management" },
+      { icon: "sparkle", text: "Bulk user invitations" },
     ],
   },
 ];
 
+/* SVG icon component for sparkle feature indicator */
 function IconSparkle({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -92,6 +98,7 @@ function IconSparkle({ className }) {
   );
 }
 
+/* SVG icon component for chat feature indicator */
 function IconChat({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -111,6 +118,7 @@ function IconChat({ className }) {
   );
 }
 
+/* SVG icon component for shield/security feature indicator */
 function IconShield({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -131,6 +139,7 @@ function IconShield({ className }) {
   );
 }
 
+/* Render appropriate feature icon based on kind parameter */
 function FeatureIcon({ kind }) {
   const common = "h-5 w-5 text-neutral-700";
   if (kind === "sparkle") return <IconSparkle className={common} />;
@@ -139,11 +148,13 @@ function FeatureIcon({ kind }) {
   return <span className="h-5 w-5" />;
 }
 
-function PlanCard({ plan, onUpgrade }) {
+/* Reusable subscription plan card component with upgrade functionality */
+function PlanCard({ plan, onUpgrade, disableUpgrade }) {
   const isHighlighted = Boolean(plan.highlight);
+  const isDisabled = plan.isCurrent || disableUpgrade;
 
   const handleCheckout = () => {
-    if (plan.isCurrent) return;
+    if (isDisabled) return;
     onUpgrade(plan);
   };
 
@@ -188,16 +199,20 @@ function PlanCard({ plan, onUpgrade }) {
         type="button"
         className={[
           "mt-6 w-full rounded-full px-5 py-3 text-sm font-semibold transition",
-          plan.isCurrent
+          isDisabled
             ? "border border-neutral-200 bg-white text-neutral-500"
             : isHighlighted
             ? "bg-indigo-600 text-white hover:bg-indigo-700"
             : "bg-neutral-900 text-white hover:bg-neutral-800",
         ].join(" ")}
         onClick={handleCheckout}
-        disabled={plan.isCurrent}
+        disabled={isDisabled}
       >
-        {plan.isCurrent ? "Your current plan" : plan.cta}
+        {plan.isCurrent
+          ? "Your current plan"
+          : disableUpgrade
+          ? "Cancel current plan first"
+          : plan.cta}
       </button>
 
       <ul className="mt-7 space-y-4">
@@ -212,17 +227,31 @@ function PlanCard({ plan, onUpgrade }) {
   );
 }
 
+/* Main subscription page component displaying personal and business plans */
 export default function Subscription() {
   const navigate = useNavigate();
+  /* State for toggling between personal and business subscription modes */
   const [mode, setMode] = useState("personal");
+  /* Current subscription information */
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  /* Loading state for subscription fetch */
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  /* Modal and cancellation state management */
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
+  /* Current user role and upgrade error handling */
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [upgradeBlockError, setUpgradeBlockError] = useState(null);
 
+  /* Memoize plan array based on current mode */
   const plans = useMemo(() => {
     return mode === "personal" ? PERSONAL_PLANS : BUSINESS_PLANS;
   }, [mode]);
 
+  /* Memoize responsive grid layout for plan cards */
   const cardsLayoutClass = useMemo(() => {
     if (mode === "personal") {
-      // With only Free + Pro, keep cards centered on large screens.
       return plans.length <= 2
         ? "mx-auto max-w-4xl grid-cols-1 sm:grid-cols-2"
         : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
@@ -231,6 +260,7 @@ export default function Subscription() {
     return "mx-auto max-w-4xl grid-cols-1 md:grid-cols-2";
   }, [mode, plans.length]);
 
+  /* Handle payment success/cancellation callback from PayHere redirect */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentState = params.get("payment");
@@ -264,7 +294,7 @@ export default function Subscription() {
 
     const confirmPayment = async () => {
       try {
-        await fetch(`${API_BASE}/api/billing/payhere/confirm-return`, {
+        await fetch(`${API_URL}/api/billing/payhere/confirm-return`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -282,7 +312,37 @@ export default function Subscription() {
     confirmPayment();
   }, [navigate]);
 
+  /* Fetch current user role and subscription on mount */
+  // Fetch current subscription
+  useEffect(() => {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+      setCurrentUserRole(storedUser?.role || null);
+    } catch {
+      setCurrentUserRole(null);
+    }
+
+    const fetchCurrentSubscription = async () => {
+      try {
+        setLoadingSubscription(true);
+        const response = await getUserSubscription();
+        setCurrentSubscription(response.data);
+      } catch (error) {
+        console.error("Failed to fetch current subscription:", error);
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+
+    fetchCurrentSubscription();
+  }, []);
+
   const handleUpgrade = (plan) => {
+    if (mustCancelBeforeUpgrade) {
+      setUpgradeBlockError(upgradeBlockMessage);
+      return;
+    }
+
     if (mode === "business" || plan.id === "business") {
       navigate(`/subscription/checkout/enterprise/${plan.id}`);
       return;
@@ -291,11 +351,158 @@ export default function Subscription() {
     navigate(`/subscription/checkout/personal/${plan.id}`);
   };
 
+  const handleCancelSubscription = async () => {
+    try {
+      setCancelLoading(true);
+      setCancelError(null);
+      
+      if (!currentSubscription?._id) {
+        setCancelError("Subscription ID not found");
+        return;
+      }
+
+      await cancelSubscription(currentSubscription._id);
+      
+      // Show success message
+      alert("Subscription cancelled successfully. Your access will continue until the end of your billing period.");
+      
+      // Close modal and refresh the page so plan/status UI is fully re-fetched.
+      setShowCancelModal(false);
+      setCurrentSubscription(null);
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to cancel subscription:", error);
+      const errorMsg = error.response?.data?.message || "Failed to cancel subscription. Please try again.";
+      setCancelError(errorMsg);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleCancelEnterprisePremium = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel enterprise premium access? You will be moved to the Free plan immediately."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await cancelEnterprisePremiumAccess();
+      if (response.data?.user) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+      }
+      alert(response.data?.message || "Enterprise premium access cancelled.");
+      window.location.reload();
+    } catch (error) {
+      alert(
+        error.response?.data?.message ||
+          "Failed to cancel enterprise premium access."
+      );
+    }
+  };
+
+  const hasActiveSubscription = currentSubscription?.status === "Active";
+  const mustCancelBeforeUpgrade =
+    currentUserRole === "enterpriseUser" || hasActiveSubscription;
+  const upgradeBlockMessage =
+    currentUserRole === "enterpriseUser"
+      ? "Your premium access is managed by your enterprise. Cancel your current enterprise premium access first before upgrading to another plan."
+      : "You already have an active subscription. Cancel your current plan first before upgrading to another plan.";
+
   return (
     <main className="min-h-screen bg-white text-neutral-900">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Title */}
-        <div className="text-center">
+        {/* Current Subscription Section */}
+        {currentUserRole === "enterpriseUser" && (
+          <section className="mt-10 mb-12">
+            <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50/60 p-8">
+              <h2 className="text-2xl font-semibold text-neutral-900">
+                Enterprise Premium Access
+              </h2>
+              <p className="mt-3 text-sm text-neutral-700">
+                Your premium features are provided by your enterprise admin.
+                If you cancel, your account will be downgraded to Free features.
+              </p>
+              <button
+                onClick={handleCancelEnterprisePremium}
+                className="mt-6 rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700 transition"
+              >
+                Cancel Premium Features
+              </button>
+            </div>
+          </section>
+        )}
+
+        {currentSubscription && (
+          <section className="mt-10 mb-12">
+            <div className="mx-auto max-w-2xl rounded-2xl border border-green-200 bg-green-50/50 p-8">
+              <h2 className="text-2xl font-semibold text-neutral-900">
+                Your Current Plan
+              </h2>
+              
+              <div className="mt-6 space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-neutral-600">Plan Name:</span>
+                  <span className="font-semibold text-neutral-900">
+                    {currentSubscription.plan === "Personal" 
+                      ? "Pro" 
+                      : currentSubscription.plan === "Business" 
+                      ? "Business" 
+                      : "Free"}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-neutral-600">Status:</span>
+                  <span className={`font-semibold ${
+                    currentSubscription.status === "Active" 
+                      ? "text-green-600" 
+                      : currentSubscription.status === "Cancelled"
+                      ? "text-red-600"
+                      : "text-neutral-600"
+                  }`}>
+                    {currentSubscription.status}
+                  </span>
+                </div>
+
+                {currentSubscription.amount && (
+                  <div className="flex justify-between">
+                    <span className="text-neutral-600">Monthly Price:</span>
+                    <span className="font-semibold text-neutral-900">
+                      LKR {currentSubscription.amount}
+                    </span>
+                  </div>
+                )}
+
+                {currentSubscription.nextChargeDate && (
+                  <div className="flex justify-between">
+                    <span className="text-neutral-600">Next Charge Date:</span>
+                    <span className="font-semibold text-neutral-900">
+                      {new Date(currentSubscription.nextChargeDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Cancel Button */}
+              {currentSubscription.status === "Active" && 
+               currentSubscription.plan !== undefined &&
+               currentSubscription.plan !== null && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="mt-6 rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700 transition"
+                >
+                  Cancel Subscription
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Title + plan toggle */}
+        <div className="text-center mb-8">
           <h1 className="text-3xl font-medium tracking-tight md:text-4xl">
             Upgrade your plan
           </h1>
@@ -303,7 +510,6 @@ export default function Subscription() {
             Personal and Business plans are billed monthly.
           </p>
 
-          {/* Segmented control */}
           <div className="mt-6 flex justify-center">
             <div className="inline-flex items-center rounded-full bg-neutral-100 p-1 shadow-sm">
               <button
@@ -335,11 +541,39 @@ export default function Subscription() {
           </div>
         </div>
 
+        {mustCancelBeforeUpgrade && (
+          <section className="mb-8">
+            <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-sm text-amber-900">
+              {upgradeBlockMessage}
+            </div>
+          </section>
+        )}
+
+        {upgradeBlockError && (
+          <section className="mb-8">
+            <div className="mx-auto max-w-2xl rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              {upgradeBlockError}
+            </div>
+          </section>
+        )}
+
+        {/* Title for Upgrade Section */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-medium tracking-tight">
+            {currentSubscription?.status === "Active" ? "Upgrade your plan" : "Select a plan"}
+          </h2>
+        </div>
+
         {/* Cards */}
         <section className="mt-10">
           <div className={["grid gap-6", cardsLayoutClass].join(" ")}>
             {plans.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} onUpgrade={handleUpgrade} />
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                onUpgrade={handleUpgrade}
+                disableUpgrade={mustCancelBeforeUpgrade && !plan.isCurrent}
+              />
             ))}
           </div>
         </section>
@@ -349,6 +583,57 @@ export default function Subscription() {
           Payments via PayHere Hosted Checkout (wire-up).
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        isOpen={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setCancelError(null);
+        }}
+        title="Cancel Subscription"
+      >
+        <div className="space-y-4">
+          <p className="text-neutral-700 text-sm">
+            Are you sure you want to cancel your subscription?
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-sm text-amber-800">
+              <strong>Note:</strong> Your subscription will be cancelled immediately, but you'll retain access until the end of your current billing period (
+              {currentSubscription?.nextChargeDate 
+                ? new Date(currentSubscription.nextChargeDate).toLocaleDateString()
+                : "end of period"}
+              ).
+            </p>
+          </div>
+
+          {cancelError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-800">{cancelError}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-end pt-4">
+            <button
+              onClick={() => {
+                setShowCancelModal(false);
+                setCancelError(null);
+              }}
+              className="px-4 py-2 rounded-lg border border-neutral-200 text-neutral-700 font-medium hover:bg-neutral-50 transition"
+              disabled={cancelLoading}
+            >
+              Keep Subscription
+            </button>
+            <button
+              onClick={handleCancelSubscription}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition disabled:opacity-50"
+              disabled={cancelLoading}
+            >
+              {cancelLoading ? "Cancelling..." : "Cancel Plan"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }

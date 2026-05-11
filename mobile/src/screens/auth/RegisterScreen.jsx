@@ -19,6 +19,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { getApiBaseUrl } from "../../api/baseUrl";
 
 export const RegisterScreen = ({ navigation }) => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -67,8 +68,13 @@ export const RegisterScreen = ({ navigation }) => {
   };
 
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword)
+    if (!name || !email || !password || !confirmPassword)
       return Alert.alert("Validation Error", "Please fill in all fields");
+    if (name.trim().length < 2)
+      return Alert.alert(
+        "Validation Error",
+        "Name must be at least 2 characters",
+      );
     if (password !== confirmPassword)
       return Alert.alert("Validation Error", "Passwords do not match");
     if (password.length < 6)
@@ -79,7 +85,12 @@ export const RegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      await register(email, password);
+      await register({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        confirmPassword,
+      });
       navigation.navigate("OTP", { email });
     } catch (err) {
       Alert.alert("Registration Failed", error || "An error occurred");
@@ -157,6 +168,25 @@ export const RegisterScreen = ({ navigation }) => {
             {error}
           </Text>
         )}
+
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: colors.text }]}>Full Name</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="John Doe"
+            value={name}
+            onChangeText={setName}
+            editable={!loading}
+            placeholderTextColor={colors.muted}
+          />
+        </View>
 
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: colors.text }]}>

@@ -2,11 +2,16 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/userModel");
+const Enterprise = require("../models/enterpriseModel");
+const Subscription = require("../models/subscriptionModel");
+const EnterpriseInvite = require("../models/enterpriseInviteModel");
 const sendVerificationEmail = require("../utils/emailService");
 const otpGenerator = require("otp-generator");
-const { getValidProviderAccessToken } = require("../utils/oauthTokenService");
+const oauthTokenService = require("../utils/oauthTokenService");
 
 const normalizeEmail = (email) => String(email || "").trim();
+const hashInviteToken = (token) =>
+  crypto.createHash("sha256").update(String(token)).digest("hex");
 
 const generateAuthTokens = (user) => {
   const accessToken = jwt.sign(
@@ -57,12 +62,13 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 5. Generate OTP
+    // 5. Generate OTP (Only digits)
     const otp = otpGenerator.generate(6, {
       upperCaseAlphabets: false,
       specialChars: false,
       lowerCaseAlphabets: false,
     });
+    // expires in 10 mins
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     // 6. Create User (Notice we do NOT save confirmPassword to the database)
@@ -137,6 +143,41 @@ exports.verifyEmail = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// 2b. RESEND VERIFICATION OTP
+// @desc    Resend OTP for email verification
+// @route   POST /api/auth/resend-otp
+exports.resendVerificationOtp = async (req, res) => {
+  const { email } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+
+  try {
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.isVerified) {
+      return res.status(400).json({ message: "User is already verified" });
+    }
+
+    const otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      specialChars: false,
+      lowerCaseAlphabets: false,
+    });
+
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    await sendVerificationEmail(normalizedEmail, otp);
+
+    return res
+      .status(200)
+      .json({ message: "Verification OTP resent to email" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -308,7 +349,7 @@ exports.getOAuthProviderToken = async (req, res) => {
     String(req.query.forceRefresh || "").toLowerCase() === "true";
 
   try {
-    const result = await getValidProviderAccessToken({
+    const result = await oauthTokenService.getValidProviderAccessToken({
       userId: req.user._id,
       provider,
       forceRefresh,
@@ -341,8 +382,160 @@ exports.getCurrentUser = async (req, res) => {
       role: req.user.role,
       enterpriseId: req.user.enterpriseId || null,
       status: req.user.status,
+      onboardingStatus: req.user.onboardingStatus || "pending",
+      preferences: req.user.preferences || {}
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch user profile" });
+  }
+};
+
+// @desc    Enterprise user cancels premium enterprise access (leave enterprise)
+// @route   POST /api/auth/enterprise/cancel-premium
+exports.cancelEnterprisePremiumAccess = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    if (req.user.role !== "enterpriseUser") {
+      return res
+        .status(400)
+        .json({ message: "Only enterprise users can cancel enterprise premium access" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const enterpriseId = user.enterpriseId;
+    if (enterpriseId) {
+      await Enterprise.findByIdAndUpdate(enterpriseId, {
+        $pull: { members: user._id },
+      });
+    }
+
+    user.enterpriseId = null;
+    user.role = "user";
+    user.status = "active";
+    await user.save();
+
+    return res.status(200).json({
+      message: "Enterprise premium access cancelled successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        enterpriseId: null,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to cancel enterprise premium access" });
+  }
+};
+
+// @desc    Accept enterprise invitation token
+// @route   POST /api/auth/invites/accept
+exports.acceptEnterpriseInvite = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const token = String(req.body?.token || "").trim();
+
+    if (!userId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    if (!token) {
+      return res.status(400).json({ message: "Invite token is required" });
+    }
+
+    const tokenHash = hashInviteToken(token);
+    const invite = await EnterpriseInvite.findOne({ tokenHash, status: "pending" });
+
+    if (!invite) {
+      return res.status(404).json({ message: "Invite not found or already processed" });
+    }
+
+    if (invite.expiresAt <= new Date()) {
+      invite.status = "expired";
+      await invite.save();
+      return res.status(400).json({ message: "Invite has expired" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const userEmail = String(user.email || "").trim().toLowerCase();
+    const invitedEmail = String(invite.invitedEmail || "").trim().toLowerCase();
+
+    if (userEmail !== invitedEmail) {
+      return res.status(403).json({
+        message: "This invite was sent to a different email address",
+      });
+    }
+
+    const enterprise = await Enterprise.findById(invite.enterpriseId).select("ownerId members name");
+    if (!enterprise) {
+      return res.status(404).json({ message: "Enterprise not found" });
+    }
+
+    if (String(user.enterpriseId || "") && String(user.enterpriseId) !== String(enterprise._id)) {
+      return res.status(409).json({ message: "You already belong to another enterprise" });
+    }
+
+    const activeBusinessSubscription = await Subscription.findOne({
+      userId: enterprise.ownerId,
+      status: "Active",
+      plan: "Business",
+    }).sort({ createdAt: -1 });
+
+    const seatLimit = Math.max(1, Number(activeBusinessSubscription?.seats || 1));
+    const memberIds = new Set((enterprise.members || []).map((memberId) => String(memberId)));
+    if (enterprise.ownerId) {
+      memberIds.add(String(enterprise.ownerId));
+    }
+
+    const alreadyMember = memberIds.has(String(user._id));
+    const seatsUsed = memberIds.size;
+    if (!alreadyMember && seatsUsed >= seatLimit) {
+      return res.status(400).json({ message: "No seats available in this enterprise" });
+    }
+
+    user.enterpriseId = enterprise._id;
+    user.role = "enterpriseUser";
+    user.status = "active";
+    await user.save();
+
+    await Enterprise.findByIdAndUpdate(enterprise._id, {
+      $addToSet: { members: user._id },
+    });
+
+    invite.status = "accepted";
+    invite.acceptedAt = new Date();
+    invite.invitedUserId = user._id;
+    await invite.save();
+
+    return res.status(200).json({
+      message: "Enterprise invitation accepted",
+      enterprise: {
+        id: enterprise._id,
+        name: enterprise.name,
+      },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        enterpriseId: user.enterpriseId,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to accept enterprise invite" });
   }
 };

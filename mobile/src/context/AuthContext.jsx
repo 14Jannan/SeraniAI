@@ -59,14 +59,27 @@ export const AuthProvider = ({ children }) => {
     clearError: () => setError(null),
 
     // Register user
-    register: useCallback(async (email, password) => {
+    register: useCallback(async (registrationData) => {
       try {
         setError(null);
-        const response = await authApi.register(email, password);
+        const response = await authApi.register(registrationData);
         return response; // Return response so screen can navigate to OTP
       } catch (err) {
         const errorMessage =
           err.response?.data?.message || err.message || "Registration failed";
+        setError(errorMessage);
+        throw err;
+      }
+    }, []),
+
+    resendVerificationOTP: useCallback(async (email) => {
+      try {
+        setError(null);
+        const response = await authApi.resendVerificationOTP(email);
+        return response;
+      } catch (err) {
+        const errorMessage =
+          err.response?.data?.message || err.message || "Failed to resend OTP";
         setError(errorMessage);
         throw err;
       }
@@ -226,6 +239,35 @@ export const AuthProvider = ({ children }) => {
       } catch (err) {
         const errorMessage =
           err.response?.data?.message || err.message || "OAuth login failed";
+        setError(errorMessage);
+        throw err;
+      }
+    }, []),
+
+    // Refresh current user profile from the backend
+    refreshUser: useCallback(async () => {
+      try {
+        setError(null);
+        const response = await authApi.getCurrentUser();
+        const nextUser =
+          response.user || response.data?.user || response.data || response;
+
+        if (!nextUser) {
+          return null;
+        }
+
+        await userStorage.saveUser(nextUser);
+        dispatch((prev) => ({
+          ...prev,
+          isLoading: false,
+          isSignedIn: true,
+          user: nextUser,
+        }));
+
+        return nextUser;
+      } catch (err) {
+        const errorMessage =
+          err.response?.data?.message || err.message || "Failed to refresh user";
         setError(errorMessage);
         throw err;
       }

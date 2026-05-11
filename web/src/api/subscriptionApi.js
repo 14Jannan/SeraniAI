@@ -1,28 +1,24 @@
-import axios from "axios";
+import httpClient from "./httpClient";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+/* API configuration for subscription endpoints */
+const API_URL = "http://localhost:7001";
+const SUBSCRIPTIONS_API_URL = `${API_URL}/api/subscriptions`;
 
-const API = axios.create({
-  baseURL: `${API_BASE}/api`,
-});
+/* Fetch all subscriptions (admin only) */
+export const fetchSubscriptions = () => httpClient.get(SUBSCRIPTIONS_API_URL);
 
-// Attach token if you use auth
-API.interceptors.request.use((req) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    req.headers.Authorization = `Bearer ${token}`;
-  }
-  return req;
-});
+/* Fetch current user's subscription details */
+export const getUserSubscription = () =>
+  httpClient.get(`${SUBSCRIPTIONS_API_URL}/user/current`);
 
-// GET all subscriptions
-export const fetchSubscriptions = () => API.get("/subscriptions");
+/* Fetch subscription by ID */
+export const getSubscriptionById = (id) =>
+  httpClient.get(`${SUBSCRIPTIONS_API_URL}/${id}`);
 
-// GET user's current subscription
-export const getUserSubscription = () => API.get("/subscriptions/user/current");
+/* Delete subscription by ID (admin only) */
+export const deleteSubscriptionById = (id) =>
+  httpClient.delete(`${SUBSCRIPTIONS_API_URL}/${id}`);
 
-// GET subscription by ID
-export const getSubscriptionById = (id) => API.get(`/subscriptions/${id}`);
-
-// DELETE subscription by ID (admin)
-export const deleteSubscriptionById = (id) => API.delete(`/subscriptions/${id}`);
+/* Cancel subscription by ID (user action) */
+export const cancelSubscription = (id) =>
+  httpClient.post(`${SUBSCRIPTIONS_API_URL}/${id}/cancel`);

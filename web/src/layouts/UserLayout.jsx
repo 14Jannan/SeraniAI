@@ -11,6 +11,7 @@ import {
   FiGrid,
   FiCheckSquare,
   FiUsers,
+  FiCreditCard,
 } from 'react-icons/fi'
 
 const UserLayout = () => {
@@ -19,11 +20,7 @@ const UserLayout = () => {
 
   const [user, setUser] = useState({ name: 'User' });
   const [subscription, setSubscription] = useState(null);
-  const [loading, setLoading] = useState(true);
-
   const isDark = theme === 'dark';
-  const isEnterpriseScopedUser =
-    user?.role === 'enterpriseUser' || user?.role === 'enterpriseAdmin';
 
   const roleToPlanLabel = (role, fallbackPlan) => {
     const roleLabelMap = {
@@ -64,8 +61,6 @@ const UserLayout = () => {
         }
       } catch (err) {
         console.log('Unable to refresh user profile and subscription');
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -77,9 +72,27 @@ const UserLayout = () => {
     navigate('/login');
   };
 
-  const handleUpgrade = () => {
+  const handleSubscriptionAction = () => {
     navigate('/subscription');
   };
+
+  const getSubscriptionAction = () => {
+    if (user?.role === 'enterpriseUser') {
+      return { type: 'managed' };
+    }
+
+    if (user?.role === 'enterpriseAdmin') {
+      return { type: 'button', label: 'Manage' };
+    }
+
+    if (subscription?.status === 'Active') {
+      return { type: 'button', label: 'Manage' };
+    }
+
+    return { type: 'button', label: 'Upgrade' };
+  };
+
+  const subscriptionAction = getSubscriptionAction();
 
   const menuItems = [
     { name: 'Home', icon: <FiHome />, path: '/dashboard' },
@@ -87,6 +100,7 @@ const UserLayout = () => {
     { name: 'Journal', icon: <FiBook />, path: '/dashboard/journal' },
     { name: 'Courses', icon: <FiGrid />, path: '/dashboard/courses' },
     { name: 'Daily Tasks', icon: <FiCheckSquare />, path: '/dashboard/tasks' },
+    { name: 'Subscription', icon: <FiCreditCard />, path: '/subscription' },
     ...(user?.role === 'enterpriseAdmin'
       ? [
           {
@@ -195,15 +209,21 @@ const UserLayout = () => {
                 </p>
               </div>
 
-              {!subscription && !isEnterpriseScopedUser && (
+              {subscriptionAction.type === 'button' && (
                 <button
-                  onClick={handleUpgrade}
+                  onClick={handleSubscriptionAction}
                   className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition"
                 >
-                  Upgrade
+                  {subscriptionAction.label}
                 </button>
               )}
             </div>
+
+            {subscriptionAction.type === 'managed' && (
+              <p className="text-xs text-white/60 ml-[52px]">
+                Subscription managed by your enterprise admin.
+              </p>
+            )}
 
             {/* Logout */}
             <button

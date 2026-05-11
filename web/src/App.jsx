@@ -1,47 +1,49 @@
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// Public Pages
+// ==================== LAZY IMPORTS - PUBLIC PAGES ====================
 const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const Verify = lazy(() => import("./pages/Verify"));
-const Subscription = lazy(() => import("./pages/user/Subscription"));
-const PersonalCheckout = lazy(() =>
-  import("./pages/user/checkout/PersonalCheckout")
-);
-const EnterpriseCheckout = lazy(() =>
-  import("./pages/user/checkout/EnterpriseCheckout")
-);
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const LoginSuccess = lazy(() => import("./pages/LoginSuccess"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
-// Admin Pages
+// ==================== LAZY IMPORTS - SUBSCRIPTION PAGES ====================
+const Subscription = lazy(() => import("./pages/user/Subscription"));
+const PersonalCheckout = lazy(
+  () => import("./pages/user/checkout/PersonalCheckout"),
+);
+const EnterpriseCheckout = lazy(
+  () => import("./pages/user/checkout/EnterpriseCheckout"),
+);
+const AcceptEnterpriseInvite = lazy(() =>
+  import("./pages/user/AcceptEnterpriseInvite")
+);
 
-/* ---------------- ADMIN PAGES ---------------- */
-
+// ==================== DIRECT IMPORTS - LAYOUTS ====================
 import AdminLayout from "./layouts/AdminLayout";
+import UserLayout from "./layouts/UserLayout";
+
+// ==================== DIRECT IMPORTS - ADMIN PAGES ====================
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminLessons from "./pages/admin/AdminLessons";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminTasks from "./pages/admin/AdminTasks";
-import EnterpriseAdmin from "./pages/user/enterpriseAdmin/EnterpriseAdmin";
 
-/* ---------------- USER PAGES ---------------- */
-
-import UserLayout from "./layouts/UserLayout";
+// ==================== DIRECT IMPORTS - USER PAGES ====================
 import DashboardHome from "./pages/user/DashboardHome";
 import AIChat from "./pages/user/AIChatbot/AIChat";
+import Journal from "./pages/user/Journal";
 import Courses from "./pages/user/Courses";
 import CourseDetails from "./pages/user/CourseDetails";
 import TasksPage from "./pages/user/TasksPage";
+import EnterpriseAdmin from "./pages/user/enterpriseAdmin/EnterpriseAdmin";
 
-/* ---------------- COMPONENTS ---------------- */
-
+// ==================== DIRECT IMPORTS - COMPONENTS ====================
 import PrivateRoute from "./components/PrivateRoute";
-import JournalRouteGuard from "./components/JournalRouteGuard";
 import PlanFeatureGate from "./components/PlanFeatureGate";
 
 function App() {
@@ -55,8 +57,9 @@ function App() {
         }
       >
         <Routes>
-          {/* ---------- PUBLIC ROUTES ---------- */}
-
+          {/* ==================== PUBLIC ROUTES - AUTHENTICATION & LANDING ====================
+              Routes accessible to all users without authentication
+              Includes: Landing page, Login, Register, Password reset, Email verification */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/login-success" element={<LoginSuccess />} />
@@ -64,18 +67,13 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify" element={<Verify />} />
-          <Route path="/subscription" element={<Subscription />} />
-          <Route
-            path="/subscription/checkout/personal/:planId"
-            element={<PersonalCheckout />}
-          />
-          <Route
-            path="/subscription/checkout/enterprise/:planId"
-            element={<EnterpriseCheckout />}
-          />
 
-          {/* ---------- USER DASHBOARD ROUTES ---------- */}
+          {/* Subscription & Enterprise routes moved into protected user routes */}
 
+          {/* ==================== PROTECTED USER DASHBOARD ROUTES ====================
+              Routes for authenticated users with various role permissions
+              Protected by PrivateRoute component with role-based access control
+              Includes: Dashboard, AI Chat, Courses, Tasks, Journal, Enterprise Admin */}
           <Route
             element={
               <PrivateRoute
@@ -90,11 +88,26 @@ function App() {
               />
             }
           >
+            {/* Protected routes (require authentication) - moved here to protect subscription flows */}
+            <Route
+              path="/enterprise/invite/accept"
+              element={<AcceptEnterpriseInvite />}
+            />
+            <Route path="/subscription" element={<Subscription />} />
+            <Route
+              path="/subscription/checkout/personal/:planId"
+              element={<PersonalCheckout />}
+            />
+            <Route
+              path="/subscription/checkout/enterprise/:planId"
+              element={<EnterpriseCheckout />}
+            />
+
             <Route path="/dashboard" element={<UserLayout />}>
-              {/* Dashboard Home */}
+              {/* Dashboard Home - Main landing page for authenticated users */}
               <Route index element={<DashboardHome />} />
 
-              {/* Chat */}
+              {/* AI Chat - Premium feature for AI-powered chatbot assistance */}
               <Route
                 path="chat"
                 element={
@@ -107,10 +120,10 @@ function App() {
                 }
               />
 
-              {/* Journal */}
-              <Route path="journal" element={<JournalRouteGuard />} />
+              {/* Journal - User personal journal with vectorized entries */}
+              <Route path="journal" element={<Journal />} />
 
-              {/* Courses Page */}
+              {/* Courses - Premium feature displaying all available courses */}
               <Route
                 path="courses"
                 element={
@@ -123,7 +136,7 @@ function App() {
                 }
               />
 
-              {/* Daily Tasks */}
+              {/* Daily Tasks - Premium feature for task management and progress tracking */}
               <Route
                 path="tasks"
                 element={
@@ -136,7 +149,7 @@ function App() {
                 }
               />
 
-              {/* Enterprise Manager (EnterpriseAdmin only) */}
+              {/* Enterprise Manager - Admin-only feature for managing enterprise accounts */}
               <Route
                 path="enterprise-manager"
                 element={
@@ -146,7 +159,7 @@ function App() {
                 }
               />
 
-              {/* Course Details Page */}
+              {/* Course Details - Premium feature displaying detailed lesson content for a specific course */}
               <Route
                 path="course/:courseId"
                 element={
@@ -161,33 +174,34 @@ function App() {
             </Route>
           </Route>
 
-          {/* ---------- ADMIN ROUTES ---------- */}
-
+          {/* ==================== PROTECTED ADMIN ROUTES ====================
+              Routes exclusive to admin users for system management
+              Protected by PrivateRoute component with admin role restriction
+              Includes: User management, Course management, Tasks, Subscriptions */}
           <Route element={<PrivateRoute allowedRoles={["admin"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
-              {/* Admin Dashboard */}
+              {/* Admin Dashboard - Default admin page showing user management */}
               <Route index element={<AdminUsers />} />
 
-              {/* Users */}
+              {/* User Management - View, edit, and manage all platform users */}
               <Route path="users" element={<AdminUsers />} />
 
-              {/* Courses */}
+              {/* Course Management - Create, edit, and manage courses */}
               <Route path="courses" element={<AdminCourses />} />
 
-              {/* Lessons inside a course */}
+              {/* Lesson Management - Manage lessons within a specific course */}
               <Route
                 path="courses/:courseId/lessons"
                 element={<AdminLessons />}
               />
 
-              {/* Tasks */}
+              {/* Task Management - Create and manage tasks */}
               <Route path="tasks" element={<AdminTasks />} />
 
-              {/* Subscriptions */}
+              {/* Subscription Management - View and manage user subscriptions */}
               <Route path="subscriptions" element={<AdminSubscriptions />} />
             </Route>
           </Route>
-
         </Routes>
       </Suspense>
     </Router>

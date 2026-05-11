@@ -1,16 +1,18 @@
 const Journal = require("../models/journalModel");
-const { getOrCreateCollection } = require("../config/vectraClient");
 const { saveJournalEntry } = require("../utils/journalUtils");
 const OpenAI = require("openai");
 
+// Initialize OpenAI client with API key from environment; null if not configured.
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
 function getModelName() {
+  // Get the configured AI model name or default to gpt-4o-mini for mood and insight analysis.
   return process.env.MODEL || "gpt-4o-mini";
 }
 
+// Accepted mood values for journal analysis and validation.
 const MOOD_WHITELIST = [
   "happy",
   "sad",
@@ -28,6 +30,7 @@ const MOOD_WHITELIST = [
   "tired",
 ];
 
+// Fallback mood keywords for heuristic-based mood detection when AI API is unavailable.
 const FALLBACK_MOOD_MAP = [
   { mood: "stressed", keywords: ["stress", "deadline", "pressure", "overwhelmed"] },
   { mood: "anxious", keywords: ["anxious", "nervous", "worried", "panic"] },
@@ -39,6 +42,7 @@ const FALLBACK_MOOD_MAP = [
 ];
 
 function normalizeMood(value) {
+  // Normalize and validate mood input: check whitelist, apply fuzzy matching fallback.
   if (!value || typeof value !== "string") {
     return "";
   }
@@ -57,6 +61,7 @@ function normalizeMood(value) {
 }
 
 function normalizeTags(tags) {
+  // Normalize and limit tags: convert to array, trim, deduplicate, enforce max 12 tags.
   if (!tags) {
     return [];
   }
@@ -76,6 +81,7 @@ function normalizeTags(tags) {
 }
 
 function fallbackMoodAndInsight(content) {
+  // Generate mood and insight using keyword-based heuristic when AI service unavailable.
   const text = String(content || "").toLowerCase();
   let mood = "neutral";
 
@@ -107,6 +113,173 @@ function fallbackMoodAndInsight(content) {
       model: "heuristic",
     },
   };
+}
+
+// Analyze journal entry via OpenAI API; fall back to keyword heuristics if unavailable.
+async function generateMoodAndInsight({ title, content, explicitMood }) {
+  const manualMood = normalizeMood(explicitMood);
+  if (!openai) {
+    const fallback = fallbackMoodAndInsight(content);
+    if (manualMood) {
+      fallback.mood = manualMood;
+      fallback.moodSource = "manual";
+    }
+    return fallback;
+  }
+
+  const prompt = {
+    role: "user",
+    content: JSON.stringify({
+      title: title || "",
+      content: content || "",
+      explicitMood: manualMood || "",
+      moodOptions: MOOD_WHITELIST,
+    }),
+  };
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: getModelName(),
+      temperature: 0.2,
+      max_tokens: 280,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "Analyze a journal entry. Return strict JSON with keys: mood, moodConfidence, summary, emotionalTone, keyThemes, suggestedAction. mood must be one of the provided moodOptions. moodConfidence must be between 0 and 1.",
+        },
+        prompt,
+      ],
+    });
+
+    const raw = completion.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(raw);
+    const aiMood = normalizeMood(parsed.mood);
+    const mood = manualMood || aiMood || "neutral";
+
+    return {
+      mood,
+      moodConfidence:
+        typeof parsed.moodConfidence === "number"
+          ? Math.max(0, Math.min(1, parsed.moodConfidence))
+          : manualMood
+            ? 1
+            : 0.55,
+      moodSource: manualMood ? "manual" : "ai",
+      aiInsight: {
+        summary: String(parsed.summary || "").trim(),
+        emotionalTone: String(parsed.emotionalTone || "").trim(),
+        keyThemes: Array.isArray(parsed.keyThemes)
+          ? parsed.keyThemes.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8)
+          : [],
+        suggestedAction: String(parsed.suggestedAction || "").trim(),
+        generatedAt: new Date(),
+        provider: "openai",
+        model: getModelName(),
+      },
+    };
+  } catch (err) {
+    const fallback = fallbackMoodAndInsight(content);
+    if (manualMood) {
+      fallback.mood = manualMood;
+      fallback.moodSource = "manual";
+      fallback.moodConfidence = 1;
+    }
+    return fallback;
+  }
+}
+
+// Normalize a date to the start of its calendar day (midnight UTC-agnostic).
+function getStartOfDay(date) {
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  return day;
+}
+
+// Compute consecutive days of journaling backwards from today.
+function calculateStreak(days) {
+  if (!days.length) {
+    return 0;
+  }
+
+  const set = new Set(days.map((day) => getStartOfDay(day).toISOString()));
+  let streak = 0;
+  let cursor = getStartOfDay(new Date());
+
+  while (set.has(cursor.toISOString())) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
+// Calculate the start date for mood aggregation (7 days for week, 30 days for month).
+function getRangeStart(timeRange) {
+  const start = getStartOfDay(new Date());
+  if (timeRange === "month") {
+    start.setDate(start.getDate() - 29);
+    return start;
+  }
+
+  start.setDate(start.getDate() - 6);
+  return start;
+}
+
+// Generate AI insight summarizing mood patterns and trends for the specified period.
+async function generatePeriodInsight(userId, timeRange = "week") {
+  const rangeStart = getRangeStart(timeRange);
+
+  const journals = await Journal.find({
+    user: userId,
+    createdAt: { $gte: rangeStart },
+  })
+    .sort({ createdAt: -1 })
+    .select("title content mood")
+    .limit(timeRange === "month" ? 30 : 12);
+
+  if (!journals.length) {
+    return timeRange === "month"
+      ? "No entries yet this month. Add a few reflections and I will map your monthly emotional trend."
+      : "No entries yet this week. Start with one small reflection today.";
+  }
+
+  if (!openai) {
+    return timeRange === "month"
+      ? "Your monthly pattern is taking shape. Keep journaling regularly and notice what lifts your mood across the month."
+      : "You are building consistency. Keep journaling and look for one repeating positive pattern this week.";
+  }
+
+  const context = journals
+    .map((entry) => `Title: ${entry.title || "Untitled"}; Mood: ${entry.mood || "unknown"}; Content: ${entry.content}`)
+    .join("\n");
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: getModelName(),
+      temperature: 0.3,
+      max_tokens: 140,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Write a 2-3 sentence, warm journaling insight for a dashboard. Mention emotional trend in the provided period and one practical suggestion.",
+        },
+        {
+          role: "user",
+          content: `Time range: ${timeRange}. Analyze only this period.\n${context}`,
+        },
+      ],
+    });
+
+    return (
+      completion.choices?.[0]?.message?.content?.trim() ||
+      "Your reflections show progress. Keep focusing on one practical step each day."
+    );
+  } catch (err) {
+    return "Your reflections show progress. Keep focusing on one practical step each day.";
+  }
 }
 
 async function generateMoodAndInsight({ title, content, explicitMood }) {
@@ -271,7 +444,7 @@ async function generatePeriodInsight(userId, timeRange = "week") {
   }
 }
 
-// Create new journal entry
+// Create a new journal entry for the authenticated user with mood analysis and semantic indexing.
 const createJournal = async (req, res) => {
   try {
     const { title, content, mood, tags } = req.body;
@@ -306,7 +479,7 @@ const createJournal = async (req, res) => {
   }
 };
 
-// Get all journal entries of logged-in user
+// Retrieve all journal entries for the authenticated user in reverse chronological order.
 const getMyJournals = async (req, res) => {
   try {
     const journals = await Journal.find({ user: req.user._id }).sort({
@@ -326,7 +499,7 @@ const getMyJournals = async (req, res) => {
   }
 };
 
-// Get single journal entry
+// Retrieve a single journal entry by ID; verify ownership before returning to the user.
 const getJournalById = async (req, res) => {
   try {
     const journal = await Journal.findOne({
@@ -354,7 +527,7 @@ const getJournalById = async (req, res) => {
   }
 };
 
-// Update journal entry
+// Update a journal entry with optional title, content, mood, tags, or favorite status; regenerate mood/insight if content or mood changed.
 const updateJournal = async (req, res) => {
   try {
     const { title, content, mood, tags, isFavorite } = req.body;
@@ -395,27 +568,6 @@ const updateJournal = async (req, res) => {
 
     const updatedJournal = await journal.save();
 
-    // Update vector in Vectra
-    try {
-      const collection = await getOrCreateCollection();
-      // Delete old vector and add new one
-      await collection.delete({
-        where: { journalId: journal._id.toString() }
-      });
-      await collection.add({
-        ids: [`journal-${journal._id}`],
-        documents: [updatedJournal.content],
-        metadatas: [{
-          userId: req.user._id.toString(),
-          source: "journal",
-          journalId: journal._id.toString(),
-          timestamp: updatedJournal.updatedAt.toISOString()
-        }]
-      });
-    } catch (vErr) {
-      console.error("Journal vector update error:", vErr);
-    }
-
     res.status(200).json({
       success: true,
       message: "Journal entry updated successfully",
@@ -430,6 +582,7 @@ const updateJournal = async (req, res) => {
   }
 };
 
+// Refresh AI-generated mood and insight for a journal entry without creating a new one.
 const refreshJournalInsight = async (req, res) => {
   try {
     const journal = await Journal.findOne({
@@ -470,13 +623,17 @@ const refreshJournalInsight = async (req, res) => {
   }
 };
 
+// Aggregate dashboard statistics: mood counts, tags, streak, weekly activity, and period insights.
 const getJournalSummary = async (req, res) => {
   try {
     const now = new Date();
     const moodRange = req.query.moodRange === "month" ? "month" : "week";
     const insightRange = req.query.insightRange === "month" ? "month" : "week";
-    const moodRangeStart = getRangeStart(moodRange);
-    const weekStart = getRangeStart("week");
+    const weekStart = getStartOfDay(now);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const moodRangeStart = moodRange === "month"
+      ? getRangeStart("month")
+      : weekStart;
 
     const [allJournals, moodRangeJournals, weekJournals] = await Promise.all([
       Journal.find({ user: req.user._id }).select("mood tags createdAt").lean(),
@@ -551,7 +708,7 @@ const getJournalSummary = async (req, res) => {
   }
 };
 
-// Delete journal entry
+// Delete a journal entry owned by the authenticated user; permanent removal.
 const deleteJournal = async (req, res) => {
   try {
     const journal = await Journal.findOne({
@@ -568,15 +725,6 @@ const deleteJournal = async (req, res) => {
 
     await journal.deleteOne();
 
-    // Delete vector from Vectra
-    try {
-      const collection = await getOrCreateCollection();
-      await collection.delete({
-        where: { journalId: journal._id.toString() }
-      });
-    } catch (vErr) {
-      console.error("Journal vector deletion error:", vErr);
-    }
 
     res.status(200).json({
       success: true,
@@ -592,11 +740,14 @@ const deleteJournal = async (req, res) => {
 };
 
 module.exports = {
+  // Express route handlers for journal CRUD and analytics operations.
   createJournal,
   getMyJournals,
   getJournalById,
   updateJournal,
   deleteJournal,
+  refreshJournalInsight,
+  getJournalSummary,
   refreshJournalInsight,
   getJournalSummary,
 };

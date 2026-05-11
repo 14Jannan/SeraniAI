@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
+// Utility: Convert spoken punctuation keywords into actual punctuation marks and line breaks.
 const normalizeSpokenTranscript = (spokenValue) => {
+  // Convert spoken punctuation keywords into actual punctuation and line breaks.
   const text = spokenValue
     .replace(/\bfull stop\b/gi, ".")
     .replace(/\bperiod\b/gi, ".")
@@ -26,6 +28,7 @@ const normalizeSpokenTranscript = (spokenValue) => {
 };
 
 const capitalizeFirstLetter = (value) => {
+  // Uppercase the first character of a string for proper sentence formatting.
   if (!value) {
     return value;
   }
@@ -33,6 +36,7 @@ const capitalizeFirstLetter = (value) => {
 };
 
 const appendSpokenText = (currentValue, spokenValue) => {
+  // Append normalized spoken text to the current entry, with intelligent line and space handling.
   const trimmedSpoken = normalizeSpokenTranscript(spokenValue);
 
   if (!trimmedSpoken) {
@@ -65,6 +69,7 @@ const AddJournal = ({
   const { theme } = useTheme();
   const recognitionRef = useRef(null);
 
+  // Component state: Text content, UI feedback, voice input, and async operation tracking.
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -76,6 +81,7 @@ const AddJournal = ({
 
   const aiInsight = initialData?.aiInsight || null;
 
+  // Populate form fields when editing an existing entry.
   useEffect(() => {
     if (initialData) {
       setTitle(initialData.title || "");
@@ -87,6 +93,7 @@ const AddJournal = ({
   }, [initialData]);
 
   useEffect(() => {
+    // Initialize browser speech recognition once and clean it up on unmount.
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -162,6 +169,7 @@ const AddJournal = ({
   }, []);
 
   const toggleVoiceInput = () => {
+    // Toggle Web Speech API voice recognition on or off.
     setSpeechError("");
 
     if (!speechSupported) {
@@ -189,6 +197,7 @@ const AddJournal = ({
   };
 
   const handleRefreshInsight = async () => {
+    // Request the server to regenerate AI analysis for the current entry.
     if (typeof onRefreshInsight !== "function" || !initialData?._id) {
       return;
     }
@@ -205,6 +214,7 @@ const AddJournal = ({
   };
 
   const handleSave = async () => {
+    // Validate form, stop voice recognition if active, and submit entry to API.
     if (readOnly) {
       return;
     }

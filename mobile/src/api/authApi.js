@@ -1,18 +1,28 @@
-import httpClient from './httpClient';
+import httpClient from "./httpClient";
 
 const authApi = {
   // Register user
-  async register(email, password) {
-    const response = await httpClient.post('/auth/register', {
+  async register({ name, email, password, confirmPassword }) {
+    const response = await httpClient.post("/auth/register", {
+      name,
       email,
       password,
+      confirmPassword,
+    });
+    return response.data;
+  },
+
+  // Resend OTP during registration verification
+  async resendVerificationOTP(email) {
+    const response = await httpClient.post("/auth/resend-otp", {
+      email,
     });
     return response.data;
   },
 
   // Verify OTP during registration
   async verifyOTP(email, otp) {
-    const response = await httpClient.post('/auth/verify', {
+    const response = await httpClient.post("/auth/verify", {
       email,
       otp,
     });
@@ -21,7 +31,7 @@ const authApi = {
 
   // Login user
   async login(email, password) {
-    const response = await httpClient.post('/auth/login', {
+    const response = await httpClient.post("/auth/login", {
       email,
       password,
     });
@@ -30,7 +40,7 @@ const authApi = {
 
   // Refresh token
   async refreshToken(refreshToken) {
-    const response = await httpClient.post('/auth/refresh', {
+    const response = await httpClient.post("/auth/refresh", {
       refreshToken,
     });
     return response.data;
@@ -38,13 +48,13 @@ const authApi = {
 
   // Logout user
   async logout() {
-    const response = await httpClient.post('/auth/logout');
+    const response = await httpClient.post("/auth/logout");
     return response.data;
   },
 
   // Forgot password - send OTP
   async forgotPassword(email) {
-    const response = await httpClient.post('/auth/forgot-password', {
+    const response = await httpClient.post("/auth/forgot-password", {
       email,
     });
     return response.data;
@@ -52,7 +62,7 @@ const authApi = {
 
   // Reset password
   async resetPassword(email, otp, newPassword) {
-    const response = await httpClient.post('/auth/reset-password', {
+    const response = await httpClient.post("/auth/reset-password", {
       email,
       otp,
       newPassword,
@@ -62,7 +72,7 @@ const authApi = {
 
   // OAuth login (opens browser, returns code)
   async oauthLogin(provider, code) {
-    const response = await httpClient.post('/auth/oauth-callback', {
+    const response = await httpClient.post("/auth/oauth-callback", {
       provider,
       code,
     });
@@ -71,7 +81,7 @@ const authApi = {
 
   // Get current user (verify token validity)
   async getCurrentUser() {
-    const response = await httpClient.get('/auth/me');
+    const response = await httpClient.get("/auth/me");
     return response.data;
   },
 };

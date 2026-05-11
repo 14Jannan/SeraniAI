@@ -15,6 +15,8 @@ export const linking = {
       OAuthCallback: "auth/oauth-callback",
       Dashboard: "dashboard",
       Courses: "courses",
+      Subscription: "subscription",
+      SubscriptionCheckout: "subscription/checkout",
       CourseDetails: "courses/:id",
       Journal: "journal",
       AdminDashboard: "admin/dashboard",

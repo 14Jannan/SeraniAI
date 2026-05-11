@@ -1,93 +1,111 @@
 const mongoose = require('mongoose');
 
+/* MongoDB schema definition for subscription documents */
 const subscriptionSchema = new mongoose.Schema(
   {
+    /* Reference to the user who owns this subscription */
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
 
+    /* Plan type - either Personal or Business */
     plan: {
       type: String,
       enum: ['Personal', 'Business'],
       required: true,
     },
 
+    /* Normalized plan code for internal use */
     planCode: {
       type: String,
       enum: ['pro', 'business'],
       default: null,
     },
 
+    /* Number of seats for Business plan */
     seats: {
       type: Number,
       min: 1,
       default: 1,
     },
 
+    /* Billing cycle frequency */
     billingCycle: {
       type: String,
       enum: ['Monthly'],
       default: 'Monthly',
     },
 
+    /* Subscription amount in the specified currency */
     amount: {
       type: Number,
       required: true,
       min: 0,
     },
 
+    /* Currency code for the subscription */
     currency: {
       type: String,
       enum: ['LKR'],
       default: 'LKR',
     },
 
+    /* Current subscription status lifecycle */
     status: {
       type: String,
       enum: ['Pending', 'Active', 'Expired', 'Cancelled'],
       default: 'Pending',
     },
 
+    /* Start date of the subscription period */
     startDate: {
       type: Date,
       required: true,
     },
 
+    /* End date of the subscription period */
     endDate: {
       type: Date,
       required: true,
     },
 
+    /* Payment processor transaction ID */
     paymentId: {
       type: String,
     },
 
+    /* Unique subscription identifier from payment processor */
     subscriptionId: {
       type: String,
       unique: true,
       sparse: true,
     },
 
+    /* Payment method used */
     method: {
       type: String,
       default: 'PayHere',
     },
 
+    /* PayHere payment status synchronization */
     payHereStatus: {
       type: String,
-      enum: ['ACTIVE', 'COMPLETED', 'FAILED'],
+      enum: ['ACTIVE', 'COMPLETED', 'FAILED', 'CANCELLED'],
     },
 
+    /* Last successful charge date */
     lastCharged: {
       type: Date,
     },
 
+    /* Scheduled date for next automatic charge */
     nextChargeDate: {
       type: Date,
     },
 
+    /* Counter for failed payment attempts */
     failureCount: {
       type: Number,
       default: 0,
