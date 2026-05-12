@@ -27,6 +27,7 @@ const {
   getCurrentUser,
   acceptEnterpriseInvite,
   cancelEnterprisePremiumAccess,
+  updateOnboarding,
 } = require("../controllers/authController");
 
 // =============================
@@ -89,6 +90,7 @@ router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
 router.get("/me", protect, getCurrentUser);
 router.post("/invites/accept", protect, acceptEnterpriseInvite);
 router.post("/enterprise/cancel-premium", protect, cancelEnterprisePremiumAccess);
+router.post("/onboarding", protect, updateOnboarding);
 
 // =============================
 // 🔵 GOOGLE OAUTH

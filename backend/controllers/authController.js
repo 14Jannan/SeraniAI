@@ -539,3 +539,46 @@ exports.acceptEnterpriseInvite = async (req, res) => {
     return res.status(500).json({ message: "Failed to accept enterprise invite" });
   }
 };
+
+// @desc    Update user onboarding preferences
+// @route   POST /api/auth/onboarding
+exports.updateOnboarding = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const { profession, interests, goals, expectations, communicationStyle } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update preferences
+    user.preferences = {
+      profession: profession || "",
+      interests: Array.isArray(interests) ? interests : [],
+      goals: goals || "",
+      expectations: expectations || "",
+      communicationStyle: communicationStyle || "Professional",
+    };
+
+    // Mark onboarding as completed
+    user.onboardingStatus = "completed";
+    await user.save();
+
+    return res.status(200).json({
+      message: "Onboarding completed successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        onboardingStatus: user.onboardingStatus,
+        preferences: user.preferences,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update onboarding" });
+  }
+};
