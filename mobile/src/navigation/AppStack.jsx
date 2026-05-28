@@ -9,8 +9,7 @@ import { SubscriptionScreen } from "../screens/app/SubscriptionScreen";
 import { SubscriptionCheckoutScreen } from "../screens/app/SubscriptionCheckoutScreen";
 import { JournalScreen } from "../screens/app/JournalScreen";
 import { AddJournalScreen } from "../screens/app/AddJournalScreen";
-import { CourseDetailsScreen } from "../screens/app/CourseDetailsScreen";
-import { TasksScreen } from "../screens/app/TasksScreen";
+import { AdminUsersScreen } from "../screens/app/AdminUsersScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -36,7 +35,6 @@ const CoursesStack = () => (
     }}
   >
     <Stack.Screen name="CoursesList" component={CoursesScreen} />
-    <Stack.Screen name="CourseDetails" component={CourseDetailsScreen} />
   </Stack.Navigator>
 );
 
@@ -65,59 +63,20 @@ const JournalStack = () => (
   </Stack.Navigator>
 );
 
-const SubscriptionStack = () => (
+const AdminStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerShown: false,
     }}
   >
-    <Stack.Screen name="SubscriptionHome" component={SubscriptionScreen} />
-    <Stack.Screen
-      name="SubscriptionCheckout"
-      component={SubscriptionCheckoutScreen}
-    />
-  </Stack.Navigator>
-);
-
-const JournalStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-    }}
-  >
-    <Stack.Screen name="JournalHome" component={JournalScreen} />
-    <Stack.Screen name="JournalEditor" component={AddJournalScreen} />
-  </Stack.Navigator>
-);
-
-const TasksStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-    }}
-  >
-    <Stack.Screen name="TasksHome" component={TasksScreen} />
+    <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
   </Stack.Navigator>
 );
 
 export const AppStack = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { colors } = useTheme();
-
-  React.useEffect(() => {
-    const allowedRoles = [
-      "user",
-      "enterpriseUser",
-      "enterpriseAdmin",
-      "enterprise",
-      "(Pro)PlanUser",
-      "admin",
-    ];
-
-    if (user?.role && !allowedRoles.includes(user.role)) {
-      logout();
-    }
-  }, [logout, user?.role]);
 
   return (
     <Tab.Navigator
@@ -182,17 +141,19 @@ export const AppStack = () => {
           ),
         }}
       />
-      <Tab.Screen
-        name="Tasks"
-        component={TasksStack}
-        options={{
-          title: "Tasks",
-          tabBarLabel: "Tasks",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="check-square" size={size} color={color} />
-          ),
-        }}
-      />
+      {isAdmin && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminStack}
+          options={{
+            title: "Admin",
+            tabBarLabel: "Admin",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="shield" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 };

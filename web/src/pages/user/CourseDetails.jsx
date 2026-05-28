@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+import { getStoredToken } from "../../utils/authStorage";
+const API_URL = "http://localhost:7001";
 
 export default function CourseDetails() {
   const { courseId } = useParams();
@@ -60,7 +61,7 @@ const courseTitle = location.state?.courseTitle || "Course";
   useEffect(() => {
     const fetchStreak = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getStoredToken();
         if (!token) return;
 
         const res = await fetch(`${API_URL}/api/streak/me`, {
@@ -84,24 +85,16 @@ const courseTitle = location.state?.courseTitle || "Course";
   useEffect(() => {
     if (!lessons.length) return;
 
-    // Track if component unmounts to prevent setting state on unmounted component
     let cancelled = false;
 
     const deriveDurations = async () => {
-      // Auto-derive video duration from actual video metadata when lesson duration is missing or invalid.
-      // This handles lessons where admin didn't specify duration—we extract it directly from the video file.
       const candidates = lessons.filter((lesson) => {
         const minutes = Number(lesson.duration);
-        return (
-          (!Number.isFinite(minutes) || minutes <= 0) &&
-          (lesson.videoUrl || lesson.videoFile)
-        );
+        return (!Number.isFinite(minutes) || minutes <= 0) && lesson.videoFile;
       });
 
       if (!candidates.length) return;
 
-      // Create virtual video elements to load metadata and extract duration (in seconds).
-      // This allows us to show accurate video length without requiring user to upload duration manually.
       const results = await Promise.all(
         candidates.map(
           (lesson) =>
@@ -115,16 +108,13 @@ const courseTitle = location.state?.courseTitle || "Course";
               };
 
               video.onerror = () => resolve({ id: lesson._id, seconds: null });
-              // Support both external URLs (videoUrl) and uploaded files (videoFile stored at API_URL + path)
-              video.src = lesson.videoUrl || `${API_URL}${lesson.videoFile}`;
+              video.src = `${API_URL}${lesson.videoFile}`;
             })
         )
       );
 
-      // Prevent state update if component unmounted while fetching durations
       if (cancelled) return;
 
-      // Store derived durations in state, indexed by lesson ID for quick lookup
       setDerivedDurationSeconds((prev) => {
         const next = { ...prev };
         results.forEach(({ id, seconds }) => {
@@ -147,7 +137,6 @@ const courseTitle = location.state?.courseTitle || "Course";
     const activeLesson = lessons[activeLessonIndex];
     if (!activeLesson?._id) return;
 
-    // Prevent state updates if user navigates away before async fetch completes
     let ignore = false;
 
     const loadLessonData = async () => {
@@ -155,12 +144,10 @@ const courseTitle = location.state?.courseTitle || "Course";
       setNotesSaveState("saved");
       setIsPlaying(false);
 
-      // Prefer localStorage for faster UX; backend data will override if user is logged in
       const savedNotes = localStorage.getItem(`lesson-notes-${activeLesson._id}`) || "";
       const savedJournal = localStorage.getItem(`lesson-journal-${activeLesson._id}`) || "";
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
 
-      // If not logged in, use only localStorage data
       if (!token) {
         if (!ignore) {
           setNotes(savedNotes);
@@ -171,7 +158,6 @@ const courseTitle = location.state?.courseTitle || "Course";
       }
 
       try {
-        // Fetch backend-synced personal notes for this lesson
         const res = await fetch(`${API_URL}/api/lessons/${activeLesson._id}/personal-notes`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -185,7 +171,6 @@ const courseTitle = location.state?.courseTitle || "Course";
         const data = await res.json();
 
         if (!ignore) {
-          // Backend data takes priority; fall back to localStorage if empty
           setNotes(data?.notes ?? savedNotes);
           setJournal(data?.journal ?? savedJournal);
           setLessonDataReady(true);
@@ -193,7 +178,6 @@ const courseTitle = location.state?.courseTitle || "Course";
       } catch (err) {
         console.error("Error loading lesson notes:", err);
         if (!ignore) {
-          // If backend fails, use localStorage and mark as local-only
           setNotes(savedNotes);
           setJournal(savedJournal);
           setNotesSaveState("local");
@@ -209,16 +193,14 @@ const courseTitle = location.state?.courseTitle || "Course";
     };
   }, [activeLessonIndex, lessons]);
 
-  // Auto-save notes and journal with debouncing (700ms) to avoid excessive backend requests
   useEffect(() => {
     const activeLesson = lessons[activeLessonIndex];
     if (!activeLesson?._id || !lessonDataReady) return;
 
-    // Always save to localStorage first for offline availability
     localStorage.setItem(`lesson-notes-${activeLesson._id}`, notes);
     localStorage.setItem(`lesson-journal-${activeLesson._id}`, journal);
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
 
     if (!token) {
       setNotesSaveState("local");
@@ -227,8 +209,6 @@ const courseTitle = location.state?.courseTitle || "Course";
 
     setNotesSaveState("saving");
 
-    // Debounce backend sync—wait 700ms of inactivity before uploading.
-    // This prevents rapid API calls while user is still actively typing.
     const timeoutId = setTimeout(async () => {
       try {
         const res = await fetch(`${API_URL}/api/lessons/${activeLesson._id}/personal-notes`, {
@@ -247,7 +227,6 @@ const courseTitle = location.state?.courseTitle || "Course";
         setNotesSaveState("saved");
       } catch (err) {
         console.error("Error saving lesson notes:", err);
-        // If save fails, mark as local-only (data is not lost since localStorage keeps it)
         setNotesSaveState("local");
       }
     }, 700);
@@ -313,7 +292,7 @@ const courseTitle = location.state?.courseTitle || "Course";
 
   const completeLessonStreak = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       if (!token) return;
 
       const res = await fetch(`${API_URL}/api/streak/complete-lesson`, {
@@ -358,17 +337,14 @@ const courseTitle = location.state?.courseTitle || "Course";
     await completeLessonStreak();
   };
 
-  // Auto-complete lesson when video finishes and auto-advance to next lesson
   const handleVideoEnded = async () => {
     setIsPlaying(false);
 
-    // Mark as completed if not already (ensures streak is updated)
     if (!completedLessons.includes(activeLessonIndex)) {
       addCompletedLesson(activeLessonIndex);
       await completeLessonStreak();
     }
 
-    // Automatically move to next lesson for seamless progression
     goNextLesson();
   };
 
@@ -444,10 +420,10 @@ const courseTitle = location.state?.courseTitle || "Course";
           <div className="p-4 md:p-6">
             <div className="overflow-hidden rounded-3xl shadow-xl bg-gradient-to-r from-purple-700 via-pink-600 to-red-500">
               <div className="relative group">
-                {activeLesson.videoUrl || activeLesson.videoFile ? (
+                {activeLesson.videoFile ? (
                   <video
                     ref={videoRef}
-                    src={activeLesson.videoUrl || `${API_URL}${activeLesson.videoFile}`}
+                    src={`${API_URL}${activeLesson.videoFile}`}
                     onEnded={handleVideoEnded}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}

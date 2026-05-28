@@ -9,11 +9,10 @@ import {
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
+import { getStoredToken } from "../../utils/authStorage";
 
-// API endpoint for journal operations.
-const API_URL = "http://localhost:7001";
+const API_URL = "http://localhost:7001/api/journals";
 
-// Utility function: Convert Date object to ISO-like local date string (YYYY-MM-DD).
 const getLocalDateString = (date = new Date()) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -21,7 +20,6 @@ const getLocalDateString = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-// Utility function: Parse date string (YYYY-MM-DD) into a local Date object.
 const parseDateInputAsLocal = (dateString) => {
   if (!dateString) {
     return new Date();
@@ -31,7 +29,6 @@ const parseDateInputAsLocal = (dateString) => {
   return new Date(year, month - 1, day);
 };
 
-// Utility function: Extract date key from Date object or return empty string.
 const getLocalDateKey = (date) => {
   if (!date) {
     return "";
@@ -40,7 +37,6 @@ const getLocalDateKey = (date) => {
   return getLocalDateString(date);
 };
 
-// Static month label mappings for calendar display.
 const monthOptions = [
   { value: 0, label: "January" },
   { value: 1, label: "February" },
@@ -56,14 +52,12 @@ const monthOptions = [
   { value: 11, label: "December" },
 ];
 
-// Main component: Free-tier journal interface with date-based entry filtering.
 const FreePlanJournal = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Component state: UI mode, entries, selection, and loading states.
-  const [mode, setMode] = useState("list"); // Controls which journal view is currently rendered.
+  const [mode, setMode] = useState("list"); // list | add | edit | view | dateEvent
   const [entries, setEntries] = useState([]);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,11 +66,9 @@ const FreePlanJournal = () => {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
 
-  // Auth and URL parameters.
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
   const dateFromQuery = searchParams.get("date");
 
-  // Initialize with date from URL query parameter if present.
   useEffect(() => {
     if (dateFromQuery) {
       const parsed = parseDateInputAsLocal(dateFromQuery);
@@ -86,13 +78,12 @@ const FreePlanJournal = () => {
     }
   }, [dateFromQuery]);
 
-  // Fetch all journal entries for the authenticated user from the API.
   const fetchJournals = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(`${API_URL}/api/journals`, {
+      const response = await fetch(API_URL, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -114,12 +105,10 @@ const FreePlanJournal = () => {
     }
   };
 
-  // Trigger fetch on component mount or token change.
   useEffect(() => {
     fetchJournals();
   }, [token]);
 
-  // Filter entries to only those matching the currently selected date.
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
       const createdAt = entry.createdAt;
@@ -131,14 +120,12 @@ const FreePlanJournal = () => {
     });
   }, [entries, selectedDate]);
 
-  // Sort all entries by creation date (newest first).
   const sortedEntries = useMemo(() => {
     return [...entries].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [entries]);
 
-  // Build calendar grid structure for the current display month.
   const calendarData = useMemo(() => {
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
@@ -182,7 +169,6 @@ const FreePlanJournal = () => {
     };
   }, [calendarMonth]);
 
-  // Generate year range options for the calendar year selector.
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const startYear = currentYear - 50;
@@ -196,18 +182,16 @@ const FreePlanJournal = () => {
     return years;
   }, []);
 
-  // Sync the calendar display month with the selected date when it changes.
   useEffect(() => {
     const parsed = parseDateInputAsLocal(selectedDate);
     setCalendarMonth(parsed);
   }, [selectedDate]);
 
-  // Create a new journal entry via API and add to the local entries list.
   const handleCreate = async (newEntry) => {
     try {
       setError("");
 
-      const response = await fetch(`${API_URL}/api/journals`, {
+      const response = await fetch(API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -234,12 +218,11 @@ const FreePlanJournal = () => {
     }
   };
 
-  // Update an existing journal entry via API and refresh local state.
   const handleUpdate = async (updatedEntry) => {
     try {
       setError("");
 
-      const response = await fetch(`${API_URL}/api/journals/${updatedEntry._id}`, {
+      const response = await fetch(`${API_URL}/${updatedEntry._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -271,12 +254,11 @@ const FreePlanJournal = () => {
     }
   };
 
-  // Delete a journal entry via API and remove from the entries list.
   const handleDelete = async (id) => {
     try {
       setError("");
 
-      const response = await fetch(`${API_URL}/api/journals/${id}`, {
+      const response = await fetch(`${API_URL}/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -295,31 +277,26 @@ const FreePlanJournal = () => {
     }
   };
 
-  // Navigate to edit mode for an entry.
   const handleEditClick = (entry) => {
     setSelectedEntry(entry);
     setMode("edit");
   };
 
-  // Navigate to view mode for an entry.
   const handleViewClick = (entry) => {
     setSelectedEntry(entry);
     setMode("view");
   };
 
-  // Switch to create entry mode.
   const handleAddClick = () => {
     setSelectedEntry(null);
     setMode("add");
   };
 
-  // Return to list view and clear selection.
   const handleBack = () => {
     setMode("list");
     setSelectedEntry(null);
   };
 
-  // Exit date-specific view and return to default list.
   const handleBackFromDateEvent = () => {
     setSelectedDate(getLocalDateString());
     setMode("list");
@@ -327,7 +304,14 @@ const FreePlanJournal = () => {
     navigate("/dashboard/journal", { replace: true });
   };
 
-  // Switch to date-specific view when a calendar day is clicked.
+  const handleTodayClick = () => {
+    const today = getLocalDateString();
+    setCalendarMonth(new Date());
+    setSelectedDate(today);
+    setMode("dateEvent");
+    setShowCalendar(false);
+  };
+
   const handleDateClick = (day) => {
     const newDate = new Date(
       calendarMonth.getFullYear(),
@@ -347,21 +331,17 @@ const FreePlanJournal = () => {
     setMode("dateEvent");
   };
 
-  // Format date for display in list views.
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
 
-  // Format selected date for display in the calendar selector.
   const formatSelectedDate = (dateString) => {
     const [year, month, day] = dateString.split("-").map(Number);
     return new Date(year, month - 1, day).toLocaleDateString();
   };
 
-  // Determine which entries to display in the main list.
   const displayedEntries = sortedEntries;
 
-  // Render conditional views based on current mode.
   if (mode === "add") {
     return <AddJournal onBack={handleBack} onSave={handleCreate} />;
   }
@@ -396,9 +376,7 @@ const FreePlanJournal = () => {
     );
   }
 
-  // Compute theme-based CSS classes for consistent styling across sections.
-
-  // These theme classes are used only in the date-specific view.
+  // Theme classes for date event mode
   const bgClass = theme === "dark" ? "bg-slate-950" : "bg-white";
   const scrollBgClass = theme === "dark" ? "bg-slate-950" : "bg-gray-100";
   const darkText = theme === "dark" ? "text-gray-400" : "text-gray-500";
@@ -409,7 +387,7 @@ const FreePlanJournal = () => {
   const darkTitle = theme === "dark" ? "text-gray-100" : "text-gray-700";
   const darkContent = theme === "dark" ? "text-gray-400" : "text-gray-500";
 
-  // Render entries filtered for the currently selected date.
+  // Date Event mode (filtered by date)
   if (mode === "dateEvent") {
     return (
       <div className={"w-full h-full flex flex-col " + bgClass}>
@@ -501,6 +479,13 @@ const FreePlanJournal = () => {
     >
       <div className="bg-blue-500 px-6 py-4 flex justify-end">
         <div className="relative flex items-center gap-3">
+          <button
+            onClick={handleTodayClick}
+            type="button"
+            className="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-lg font-semibold relative z-10"
+          >
+            Today
+          </button>
 
           <div className="inline-flex items-center overflow-hidden rounded-lg shadow-sm bg-blue-700 text-white relative z-20">
             <button

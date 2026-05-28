@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useParams } from "react-router-dom";
+import { getStoredToken } from "../../utils/authStorage";
 import {
   FiEdit,
   FiTrash2,
@@ -9,60 +10,11 @@ import {
   FiStar,
 } from "react-icons/fi";
 
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
-const CLOUDINARY_UPLOAD_PRESET =
-  import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
-const CLOUDINARY_FOLDERS = {
-  lessonThumbnail: "seraniai/lessons/thumbnails",
-  lessonVideo: "seraniai/lessons/videos",
-};
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
-
-function getAuthHeaders() {
-  // Lesson mutations are admin-protected; attach bearer token for write operations.
-  const token = localStorage.getItem("token") || localStorage.getItem("authToken") || "";
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function resolveMediaUrl(url) {
-  if (!url) return "";
-  if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
-}
-
-async function uploadToCloudinary(file, resourceType, folder) {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-    throw new Error("Cloudinary is not configured in the web app");
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-  formData.append("folder", folder);
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Cloudinary upload failed");
-  }
-
-  return res.json();
-}
-
 const AdminLessons = () => {
   const emptyLessonForm = {
     title: "",
     description: "",
     videoUrl: "",
-    thumbnailUrl: "",
     thumbnail: null,
     video: null,
   };
@@ -85,7 +37,6 @@ const AdminLessons = () => {
   const [lessonSearch, setLessonSearch] = useState("");
   const [lessonSort, setLessonSort] = useState("order-asc");
   const [videoFilter, setVideoFilter] = useState("all");
-  const [thumbnailPreview, setThumbnailPreview] = useState("");
 
   const [newLesson, setNewLesson] = useState(emptyLessonForm);
 
@@ -122,7 +73,9 @@ const AdminLessons = () => {
 
   const fetchLessons = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/lessons/course/${courseId}`);
+      const res = await fetch(
+        `http://localhost:7001/api/lessons/course/${courseId}`,
+      );
 
       const data = await res.json();
 
@@ -154,7 +107,6 @@ const AdminLessons = () => {
     newLesson.title !== initialLessonData.title ||
     newLesson.description !== initialLessonData.description ||
     newLesson.videoUrl !== initialLessonData.videoUrl ||
-    newLesson.thumbnailUrl !== initialLessonData.thumbnailUrl ||
     !!newLesson.thumbnail ||
     !!newLesson.video;
 
@@ -168,7 +120,6 @@ const AdminLessons = () => {
 
     setShowModal(false);
     setFormErrors({});
-    setThumbnailPreview("");
   };
 
   useEffect(() => {
@@ -176,8 +127,8 @@ const AdminLessons = () => {
 
     const fetchCourseName = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API_BASE}/api/admin/courses`, {
+        const token = getStoredToken();
+        const res = await fetch("http://localhost:7001/api/admin/courses", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -227,44 +178,24 @@ const AdminLessons = () => {
       setIsSavingLesson(true);
       setFeedback({ type: "", message: "" });
 
-      let thumbnailUrl = newLesson.thumbnailUrl || "";
-      let videoUrl = newLesson.videoUrl || "";
-
-      if (newLesson.thumbnail) {
-        const uploadedThumbnail = await uploadToCloudinary(
-          newLesson.thumbnail,
-          "image",
-          CLOUDINARY_FOLDERS.lessonThumbnail,
-        );
-        thumbnailUrl = uploadedThumbnail.secure_url;
-      }
-
-      if (newLesson.video) {
-        const uploadedVideo = await uploadToCloudinary(
-          newLesson.video,
-          "video",
-          CLOUDINARY_FOLDERS.lessonVideo,
-        );
-        videoUrl = uploadedVideo.secure_url;
-      }
-
       const formData = new FormData();
 
       formData.append("courseId", courseId);
       formData.append("title", newLesson.title);
       formData.append("description", newLesson.description);
-      formData.append("videoUrl", videoUrl);
+      formData.append("videoUrl", newLesson.videoUrl);
       formData.append("order", lessons.length + 1);
-      formData.append("thumbnailUrl", thumbnailUrl);
+
+      if (newLesson.thumbnail)
+        formData.append("thumbnail", newLesson.thumbnail);
+
+      if (newLesson.video) formData.append("video", newLesson.video);
 
       if (editingId) {
         const res = await fetch(
-          `${API_BASE}/api/lessons/${editingId}`,
+          `http://localhost:7001/api/lessons/${editingId}`,
           {
             method: "PUT",
-            headers: {
-              ...getAuthHeaders(),
-            },
             body: formData,
           },
         );
@@ -277,11 +208,8 @@ const AdminLessons = () => {
           throw new Error(message);
         }
       } else {
-        const res = await fetch(`${API_BASE}/api/lessons`, {
+        const res = await fetch(`http://localhost:7001/api/lessons`, {
           method: "POST",
-          headers: {
-            ...getAuthHeaders(),
-          },
           body: formData,
         });
 
@@ -299,7 +227,6 @@ const AdminLessons = () => {
       setShowModal(false);
       setEditingId(null);
       setFormErrors({});
-      setThumbnailPreview("");
       setFeedback({
         type: "success",
         message: editingId
@@ -330,11 +257,8 @@ const AdminLessons = () => {
       setDeletingLessonId(id);
       setFeedback({ type: "", message: "" });
 
-      const res = await fetch(`${API_BASE}/api/lessons/${id}`, {
+      const res = await fetch(`http://localhost:7001/api/lessons/${id}`, {
         method: "DELETE",
-        headers: {
-          ...getAuthHeaders(),
-        },
       });
 
       if (!res.ok) {
@@ -388,20 +312,13 @@ const AdminLessons = () => {
       const targetPayload = new FormData();
       targetPayload.append("order", currentOrder);
 
-      // Swap two adjacent order values to move one lesson up/down atomically.
       const [resA, resB] = await Promise.all([
-        fetch(`${API_BASE}/api/lessons/${currentLesson._id}`, {
+        fetch(`http://localhost:7001/api/lessons/${currentLesson._id}`, {
           method: "PUT",
-          headers: {
-            ...getAuthHeaders(),
-          },
           body: currentPayload,
         }),
-        fetch(`${API_BASE}/api/lessons/${targetLesson._id}`, {
+        fetch(`http://localhost:7001/api/lessons/${targetLesson._id}`, {
           method: "PUT",
-          headers: {
-            ...getAuthHeaders(),
-          },
           body: targetPayload,
         }),
       ]);
@@ -435,7 +352,6 @@ const AdminLessons = () => {
       title: lesson.title,
       description: lesson.description,
       videoUrl: lesson.videoUrl,
-      thumbnailUrl: lesson.thumbnail || "",
       thumbnail: null,
       video: null,
     });
@@ -446,12 +362,9 @@ const AdminLessons = () => {
       title: lesson.title,
       description: lesson.description,
       videoUrl: lesson.videoUrl,
-      thumbnailUrl: lesson.thumbnail || "",
       thumbnail: null,
       video: null,
     });
-
-    setThumbnailPreview(resolveMediaUrl(lesson.thumbnail));
 
     setShowModal(true);
   };
@@ -474,7 +387,6 @@ const AdminLessons = () => {
             setEditingId(null);
             setNewLesson(emptyLessonForm);
             setInitialLessonData(emptyLessonForm);
-            setThumbnailPreview("");
             setShowModal(true);
           }}
           className="bg-blue-600 text-white px-4 py-2 rounded"
@@ -554,7 +466,7 @@ const AdminLessons = () => {
             className="bg-white rounded-xl shadow hover:shadow-lg transition"
           >
             <img
-              src={resolveMediaUrl(lesson.thumbnail) || "https://via.placeholder.com/400"}
+              src={`http://localhost:7001${lesson.thumbnail}`}
               alt=""
               className="h-44 w-full object-cover rounded-t-xl"
             />
@@ -673,29 +585,14 @@ const AdminLessons = () => {
 
             <input
               type="file"
-              accept="image/*"
               className="mb-3"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
+              onChange={(e) =>
                 setNewLesson({
                   ...newLesson,
-                  thumbnail: file,
-                });
-                setThumbnailPreview(
-                  file
-                    ? URL.createObjectURL(file)
-                    : resolveMediaUrl(newLesson.thumbnailUrl),
-                );
-              }}
+                  thumbnail: e.target.files[0],
+                })
+              }
             />
-
-            {thumbnailPreview ? (
-              <img
-                src={thumbnailPreview}
-                alt="Lesson thumbnail preview"
-                className="h-32 w-full object-cover rounded-lg mb-3 border"
-              />
-            ) : null}
 
             <label className="text-sm font-medium">
               <br /> Video File
@@ -703,12 +600,11 @@ const AdminLessons = () => {
 
             <input
               type="file"
-              accept="video/*"
               className="mb-3"
               onChange={(e) =>
                 setNewLesson({
                   ...newLesson,
-                  video: e.target.files?.[0] || null,
+                  video: e.target.files[0],
                 })
               }
             />

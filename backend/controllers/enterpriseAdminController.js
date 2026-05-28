@@ -8,14 +8,11 @@ const sendVerificationEmail = require('../utils/emailService');
 
 const { sendEnterpriseInviteEmail } = sendVerificationEmail;
 
-/* Invitation expiry period in hours */
 const INVITE_EXPIRY_HOURS = 72;
 
-/* Hash invitation token for secure storage */
 const hashInviteToken = (token) =>
   crypto.createHash('sha256').update(String(token)).digest('hex');
 
-/* Calculate seat usage summary for an enterprise */
 const getSeatSummary = async ({ enterpriseId, ownerId }) => {
   const enterprise = await Enterprise.findById(enterpriseId).select('ownerId');
   if (!enterprise) {
@@ -26,7 +23,6 @@ const getSeatSummary = async ({ enterpriseId, ownerId }) => {
     };
   }
 
-  /* Fetch active Business subscription to determine seat limit */
   const activeBusinessSubscription = await Subscription.findOne({
     userId: ownerId,
     status: 'Active',
@@ -34,7 +30,8 @@ const getSeatSummary = async ({ enterpriseId, ownerId }) => {
   }).sort({ createdAt: -1 });
 
   const seatLimit = Math.max(1, Number(activeBusinessSubscription?.seats || 1));
-  /* Count currently linked users to avoid inflated seat usage from stale member IDs */
+  // Count seats from users currently linked to the enterprise.
+  // This avoids inflated seat usage caused by stale member IDs in old enterprise history.
   const linkedUsers = await User.find({ enterpriseId }).select('_id');
   const seatsUsed = linkedUsers.length;
 
@@ -45,7 +42,7 @@ const getSeatSummary = async ({ enterpriseId, ownerId }) => {
   };
 };
 
-/* Fetch all users and invites for the enterprise with pagination and status updates */
+// GET ALL USERS IN ENTERPRISE
 exports.getEnterpriseUsers = async (req, res) => {
   try {
     const enterpriseId = req.user.enterpriseId;
@@ -127,7 +124,7 @@ exports.getEnterpriseUsers = async (req, res) => {
   }
 };
 
-/* Add user to enterprise by email with seat limit validation */
+// ADD USER TO ENTERPRISE (search by email and add existing user)
 exports.addUserToEnterprise = async (req, res) => {
   const { email } = req.body;
   const normalizedEmail = String(email || '').trim().toLowerCase();

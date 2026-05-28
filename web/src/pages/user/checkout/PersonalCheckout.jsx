@@ -1,40 +1,36 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { getStoredToken } from "../../../utils/authStorage";
 
-/* API configuration */
-const API_URL = "http://localhost:7001";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
-/* Personal subscription plan definitions */
 const PERSONAL_PLANS = {
   pro: {
     id: "pro",
     name: "Pro",
     price: "4000",
-    subtitle: "Everything included",
+    subtitle: "Maximize productivity and growth",
     features: [
-      "Unlimited AI conversations",
-      "AI-powered emotional insights and analysis",
-      "Full access to all courses and content",
-      "Advanced mood tracking and analytics",
-      "Unlimited daily journal entries",
-      "Priority customer support",
+      "Maximum AI usage and best insights",
+      "Faster responses and priority handling",
+      "Deep analytics",
+      "Full access to all content and courses",
+      "Premium support channel",
+      "Best for heavy usage users",
     ],
   },
 };
 
-/* Personal checkout page component for Pro plan purchases */
 export default function PersonalCheckout() {
   const navigate = useNavigate();
   const { planId } = useParams();
 
-  /* State management for payment processing */
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  /* Memoized plan selection based on route parameter */
   const plan = useMemo(() => PERSONAL_PLANS[planId], [planId]);
 
-  /* Initialize PayHere payment processing for the selected plan */
   const handleConfirm = async () => {
     if (!plan) return;
 
@@ -42,8 +38,8 @@ export default function PersonalCheckout() {
     setError("");
 
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/billing/payhere`, {
+      const token = getStoredToken();
+      const res = await fetch(`${API_BASE}/api/billing/payhere`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,7 +55,6 @@ export default function PersonalCheckout() {
         return;
       }
 
-      /* Store order ID and submit PayHere form */
       const { actionUrl, payload } = data;
       localStorage.setItem(
         "payhere_pending_order_id",
@@ -87,7 +82,6 @@ export default function PersonalCheckout() {
     }
   };
 
-  /* Show error message if plan is invalid */
   if (!plan) {
     return (
       <main className="min-h-screen bg-white px-6 py-16 text-neutral-900">

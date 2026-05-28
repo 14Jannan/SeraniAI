@@ -27,24 +27,19 @@ const {
   getCurrentUser,
   acceptEnterpriseInvite,
   cancelEnterprisePremiumAccess,
-  updateOnboarding,
 } = require("../controllers/authController");
-
-// =============================
-// 🔐 JWT GENERATORS
-// =============================
 
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, role: user.role, name: user.name, email: user.email },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" }, // Access token is short-lived
+    { expiresIn: "15m" },
   );
 
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }, // Refresh token is long-lived
+    { expiresIn: "7d" },
   );
 
   return { accessToken, refreshToken };
@@ -54,7 +49,7 @@ const generateTokens = (user) => {
 const setRefreshCookie = (res, refreshToken) => {
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: false, // Set to true in production with HTTPS
+    secure: process.env.NODE_ENV === "production",
     sameSite: "Lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
@@ -89,8 +84,11 @@ router.post("/logout", logoutUser);
 router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
 router.get("/me", protect, getCurrentUser);
 router.post("/invites/accept", protect, acceptEnterpriseInvite);
-router.post("/enterprise/cancel-premium", protect, cancelEnterprisePremiumAccess);
-router.post("/onboarding", protect, updateOnboarding);
+router.post(
+  "/enterprise/cancel-premium",
+  protect,
+  cancelEnterprisePremiumAccess,
+);
 
 // =============================
 // 🔵 GOOGLE OAUTH

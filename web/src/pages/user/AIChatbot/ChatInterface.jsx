@@ -6,6 +6,7 @@ import SeraniAILogo from "./SeraniAILogo";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import OnboardingForm from "./OnboardingForm";
+import { getStoredUser } from "../../../utils/authStorage";
 
 function ChatInterface() {
   const [messages, setMessages] = useState([]);
@@ -31,7 +32,7 @@ function ChatInterface() {
   useEffect(() => {
     (async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = getStoredUser() || {};
         const premiumRoles = ["enterpriseUser", "enterpriseAdmin", "(Pro)PlanUser"];
         if (premiumRoles.includes(user.role) && user.onboardingStatus !== "completed") {
           setShowOnboarding(true);

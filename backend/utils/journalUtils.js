@@ -1,10 +1,14 @@
 const Journal = require("../models/journalModel");
 const ChromaDBService = require("../services/chromaDBService");
 
-// Initialize ChromaDB client for semantic vector indexing and retrieval.
 const chromadb = new ChromaDBService();
 
-// Persist a journal entry and normalize optional analysis metadata.
+/**
+ * Shared utility to create a journal entry.
+ * @param {string} userId - The ID of the user.
+ * @param {object} journalData - The journal details { title, content, mood, tags, moodConfidence, moodSource, aiInsight }.
+ * @returns {Promise<object>} The created journal entry.
+ */
 exports.saveJournalEntry = async (
   userId,
   { title, content, mood, tags, moodConfidence, moodSource, aiInsight }
@@ -40,7 +44,7 @@ exports.saveJournalEntry = async (
         : undefined,
   });
 
-  // Index journal content in ChromaDB to support semantic retrieval and similarity search.
+  // Index in ChromaDB for semantic search
   try {
     await chromadb.addEmbedding(journal.content, "journals", {
       journalId: journal._id.toString(),
@@ -50,8 +54,8 @@ exports.saveJournalEntry = async (
       timestamp: journal.createdAt.toISOString()
     });
   } catch (error) {
-    // Graceful degradation: continue without failing if vector indexing is unavailable.
     console.error("Failed to index journal in ChromaDB:", error.message);
+    // We don't throw here to ensure the journal creation still succeeds
   }
 
   return journal;

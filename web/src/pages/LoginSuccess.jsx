@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // ✅ Version 4+ uses a named import: { jwtDecode }
 import { jwtDecode } from "jwt-decode";
+import { getAuthDestination, saveAuthSession } from "../utils/authStorage";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
@@ -19,7 +20,6 @@ const LoginSuccess = () => {
 
     try {
       // 1. Save the short-lived Access Token
-      localStorage.setItem("token", token);
 
       // 2. Decode the token to get user info (id, role, etc.)
       const decoded = jwtDecode(token);
@@ -32,7 +32,16 @@ const LoginSuccess = () => {
         role: decoded.role,
         name: decoded.name || fallbackName,
       };
-      localStorage.setItem("user", JSON.stringify(userObj));
+      saveAuthSession({ token, user: userObj, rememberMe: true });
+
+      const pendingInviteToken = localStorage.getItem("pendingEnterpriseInviteToken");
+      if (pendingInviteToken) {
+        localStorage.removeItem("pendingEnterpriseInviteToken");
+        navigate(`/enterprise/invite/accept?token=${pendingInviteToken}`, {
+          replace: true,
+        });
+        return;
+      }
 
       const pendingInviteToken = localStorage.getItem("pendingEnterpriseInviteToken");
       if (pendingInviteToken) {
@@ -44,15 +53,7 @@ const LoginSuccess = () => {
       }
 
       // 4. Role-based Redirect
-      const role = decoded?.role || "user";
-
-      if (role === "admin") {
-        navigate("/admin/users", { replace: true });
-      } else if (role === "enterpriseAdmin") {
-        navigate("/dashboard/enterprise-manager", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+      navigate(getAuthDestination(userObj), { replace: true });
     } catch (err) {
       console.error("Login process failed:", err);
       localStorage.removeItem("token");

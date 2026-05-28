@@ -1,9 +1,10 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { getStoredToken, getStoredUser } from '../utils/authStorage';
 
 const PrivateRoute = ({ allowedRoles, children }) => {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user'));
+  const token = getStoredToken();
+  const user = getStoredUser();
 
   if (!token || !user) {
     // Not logged in, redirect to login
