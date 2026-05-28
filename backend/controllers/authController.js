@@ -38,12 +38,12 @@ const generateAuthTokens = (user) => {
 
 const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
   const isProd = process.env.NODE_ENV === "production";
-  // Use SameSite=None for testing and production to allow cross-site refresh requests.
-  // In production the cookie will be Secure; in development Secure is false so local HTTP works.
+  const sameSite = isProd ? "None" : "Lax";
   const cookieOptions = {
     httpOnly: true,
     secure: isProd,
-    sameSite: "None",
+    sameSite,
+    path: "/",
   };
   if (rememberMe) {
     cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
@@ -55,7 +55,8 @@ const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
   const flagCookieOptions = {
     httpOnly: false,
     secure: isProd,
-    sameSite: "None",
+    sameSite,
+    path: "/",
   };
   if (rememberMe) {
     flagCookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
@@ -69,7 +70,7 @@ const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
   if (!isProd) {
     try {
       console.log(
-        `setRefreshCookie(dev): rememberMe=${rememberMe} sameSite=${cookieOptions.sameSite} secure=${cookieOptions.secure} (Note: browsers may still block SameSite=None cookies unless served over HTTPS)`,
+        `setRefreshCookie(dev): rememberMe=${rememberMe} sameSite=${cookieOptions.sameSite} secure=${cookieOptions.secure}`,
       );
     } catch (e) {
       // ignore logging failures

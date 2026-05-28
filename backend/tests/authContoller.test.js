@@ -354,7 +354,7 @@ describe("authController", () => {
       expect(res.cookie).toHaveBeenCalledWith(
         "refreshToken",
         "refresh-token",
-        expect.objectContaining({ sameSite: "None", secure: false }),
+        expect.objectContaining({ sameSite: "Lax", secure: false }),
       );
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ token: "access-token" }),
@@ -384,7 +384,7 @@ describe("authController", () => {
         "refreshToken",
         "refresh-token",
         expect.objectContaining({
-          sameSite: "None",
+          sameSite: "Lax",
           secure: false,
           maxAge: 7 * 24 * 60 * 60 * 1000,
         }),
@@ -392,7 +392,7 @@ describe("authController", () => {
       expect(res.cookie).toHaveBeenCalledWith(
         "rememberMe",
         "true",
-        expect.objectContaining({ sameSite: "None", secure: false }),
+        expect.objectContaining({ sameSite: "Lax", secure: false }),
       );
     });
   });
@@ -540,7 +540,7 @@ describe("authController", () => {
         "refreshToken",
         "new-refresh-token",
         expect.objectContaining({
-          sameSite: "None",
+          sameSite: "Lax",
           secure: false,
           maxAge: 7 * 24 * 60 * 60 * 1000,
         }),
@@ -548,7 +548,7 @@ describe("authController", () => {
       expect(res.cookie).toHaveBeenCalledWith(
         "rememberMe",
         "true",
-        expect.objectContaining({ sameSite: "None", secure: false }),
+        expect.objectContaining({ sameSite: "Lax", secure: false }),
       );
       expect(res.json).toHaveBeenCalledWith({ token: "new-access-token" });
     });

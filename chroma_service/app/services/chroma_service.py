@@ -6,7 +6,7 @@ posthog.capture = lambda *args, **kwargs: None
 import chromadb
 from chromadb.config import Settings
 import uuid
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from app.config import PERSIST_DIR, EMBEDDING_MODEL, COLLECTIONS
 
 class ChromaServiceSingleton:
@@ -61,7 +61,7 @@ class ChromaServiceSingleton:
         )
         return ids
 
-    def search(self, query: str, collection: str, n_results: int = 5, where: Optional[Dict] = None) -> tuple[List[Dict], List[List[float]]]:
+    def search(self, query: str, collection: str, n_results: int = 5, where: Optional[Dict] = None) -> Tuple[List[Dict], List[List[float]]]:
         """Search for similar documents with optional filtering"""
         col = self._client.get_collection(name=collection)
         results = col.query(
