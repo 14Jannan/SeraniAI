@@ -1,32 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FiEdit2, FiPlus, FiPower, FiTrash2, FiX } from "react-icons/fi";
-import {
-  createTask,
-  deleteTask,
-  fetchAllTasks,
-  updateTask,
-} from "../../api/tasksApi";
+import { useQueryClient } from "@tanstack/react-query";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { createTask, deleteTask, updateTask } from "../../api/tasksApi";
+import { useFetchTasks } from "../../hooks/useFetch";
 
 const CATEGORY_OPTIONS = [
-  "Mindfulness",
-  "Stress Relief",
-  "Emotional Awareness",
-  "Self-Care",
-  "Focus",
+  "Mindfulness", "Stress Relief", "Emotional Awareness", "Self-Care", "Focus",
 ];
-
 const TYPE_OPTIONS = ["breathing", "timer", "input", "guided", "action"];
 const DIFFICULTY_OPTIONS = ["easy", "medium", "hard"];
 
 const emptyForm = {
-  id: "",
-  title: "",
-  category: "Mindfulness",
-  duration: "3 min",
-  type: "guided",
-  isActive: true,
-  difficulty: "easy",
-  configText: "{}",
+  id: "", title: "", category: "Mindfulness",
+  duration: "3 min", type: "guided", isActive: true,
+  difficulty: "easy", configText: "{}",
 };
 
 function toForm(task) {
@@ -43,48 +32,30 @@ function toForm(task) {
 }
 
 export default function AdminTasks() {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [feedback, setFeedback] = useState("");
+  const queryClient = useQueryClient();
 
+  const { data, isLoading: loading, error: tasksError } = useFetchTasks();
+  const tasks = Array.isArray(data) ? data : [];
+  const error = tasksError?.message || "";
+
+  const [feedback, setFeedback] = useState("");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState("");
   const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-
-  const loadTasks = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const data = await fetchAllTasks();
-      setTasks(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e.message || "Failed to load tasks");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  const [formError, setFormError] = useState("");
 
   const filteredTasks = useMemo(() => {
     const query = search.trim().toLowerCase();
-
     return tasks.filter((task) => {
       const matchesQuery =
         !query ||
         (task.title || "").toLowerCase().includes(query) ||
         (task.id || "").toLowerCase().includes(query);
-
       const matchesCategory =
         categoryFilter === "all" || task.category === categoryFilter;
-
       return matchesQuery && matchesCategory;
     });
   }, [categoryFilter, search, tasks]);
@@ -92,12 +63,14 @@ export default function AdminTasks() {
   const openCreate = () => {
     setEditingTaskId("");
     setFormData(emptyForm);
+    setFormError("");
     setIsModalOpen(true);
   };
 
   const openEdit = (task) => {
     setEditingTaskId(task.id);
     setFormData(toForm(task));
+    setFormError("");
     setIsModalOpen(true);
   };
 
@@ -105,6 +78,7 @@ export default function AdminTasks() {
     if (saving) return;
     setIsModalOpen(false);
     setEditingTaskId("");
+    setFormError("");
   };
 
   const onChange = (event) => {
@@ -121,7 +95,7 @@ export default function AdminTasks() {
     try {
       setSaving(true);
       setFeedback("");
-      setError("");
+      setFormError("");
 
       let parsedConfig = {};
       try {
@@ -146,20 +120,17 @@ export default function AdminTasks() {
       }
 
       if (editingTaskId) {
-        const updated = await updateTask(editingTaskId, payload);
-        setTasks((current) =>
-          current.map((task) => (task.id === editingTaskId ? updated : task))
-        );
+        await updateTask(editingTaskId, payload);
         setFeedback("Task updated");
       } else {
-        const created = await createTask(payload);
-        setTasks((current) => [created, ...current]);
+        await createTask(payload);
         setFeedback("Task created");
       }
 
+      await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       closeModal();
     } catch (e) {
-      setError(e.message || "Save failed");
+      setFormError(e.message || "Save failed");
     } finally {
       setSaving(false);
     }
@@ -170,64 +141,68 @@ export default function AdminTasks() {
     if (!ok) return;
 
     try {
-      setError("");
+      setFormError("");
       await deleteTask(id);
-      setTasks((current) => current.filter((task) => task.id !== id));
+      await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setFeedback("Task deleted");
     } catch (e) {
-      setError(e.message || "Delete failed");
+      setFormError(e.message || "Delete failed");
     }
   };
 
   const onToggleActive = async (task) => {
     try {
-      setError("");
-      const updated = await updateTask(task.id, { isActive: !task.isActive });
-      setTasks((current) =>
-        current.map((row) => (row.id === task.id ? updated : row))
-      );
+      setFormError("");
+      await updateTask(task.id, { isActive: !task.isActive });
+      await queryClient.invalidateQueries({ queryKey: ["tasks"] });
     } catch (e) {
-      setError(e.message || "Failed to toggle task");
+      setFormError(e.message || "Failed to toggle task");
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Task Management</h1>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+          Task Management
+        </h1>
         <button
           type="button"
           onClick={openCreate}
           className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white shadow hover:bg-emerald-700"
         >
-          <FiPlus />
-          Add Task
+          <FiPlus /> Add Task
         </button>
       </div>
 
       <div className="flex flex-wrap gap-3 rounded-2xl bg-white p-4 shadow dark:bg-[#0d1a2e]">
         <input
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by title or id"
           className="min-w-[240px] flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-900"
         />
         <select
           value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
+          onChange={(e) => setCategoryFilter(e.target.value)}
           className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
         >
           <option value="all">All categories</option>
-          {CATEGORY_OPTIONS.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
+          {CATEGORY_OPTIONS.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
       </div>
 
-      {error && <div className="rounded-lg bg-rose-100 px-4 py-2 text-rose-700">{error}</div>}
-      {feedback && <div className="rounded-lg bg-emerald-100 px-4 py-2 text-emerald-700">{feedback}</div>}
+      {error && (
+        <div className="rounded-lg bg-rose-100 px-4 py-2 text-rose-700">{error}</div>
+      )}
+      {formError && (
+        <div className="rounded-lg bg-rose-100 px-4 py-2 text-rose-700">{formError}</div>
+      )}
+      {feedback && (
+        <div className="rounded-lg bg-emerald-100 px-4 py-2 text-emerald-700">{feedback}</div>
+      )}
 
       <div className="overflow-hidden rounded-2xl bg-white shadow dark:bg-[#0d1a2e]">
         <div className="overflow-x-auto">
@@ -244,11 +219,27 @@ export default function AdminTasks() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center">
-                    Loading tasks...
-                  </td>
-                </tr>
+                Array(5).fill(0).map((_, i) => (
+                  <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
+                    <td className="px-4 py-3">
+                      <Skeleton width={140} />
+                      <Skeleton width={80} className="mt-1" />
+                    </td>
+                    <td className="px-4 py-3"><Skeleton width={90} /></td>
+                    <td className="px-4 py-3"><Skeleton width={70} /></td>
+                    <td className="px-4 py-3"><Skeleton width={60} /></td>
+                    <td className="px-4 py-3">
+                      <Skeleton width={55} height={22} borderRadius={20} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <Skeleton width={30} height={30} borderRadius={6} />
+                        <Skeleton width={30} height={30} borderRadius={6} />
+                        <Skeleton width={30} height={30} borderRadius={6} />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : filteredTasks.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center">
@@ -259,7 +250,9 @@ export default function AdminTasks() {
                 filteredTasks.map((task) => (
                   <tr key={task.id} className="border-t border-gray-100 dark:border-gray-800">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-800 dark:text-white">{task.title}</div>
+                      <div className="font-medium text-gray-800 dark:text-white">
+                        {task.title}
+                      </div>
                       <div className="text-xs text-gray-500">{task.id}</div>
                     </td>
                     <td className="px-4 py-3">{task.category}</td>
@@ -319,10 +312,20 @@ export default function AdminTasks() {
               <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
                 {editingTaskId ? "Edit Task" : "Create Task"}
               </h2>
-              <button type="button" onClick={closeModal} className="rounded p-1 text-gray-500 hover:bg-gray-100">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100"
+              >
                 <FiX />
               </button>
             </div>
+
+            {formError && (
+              <div className="mb-4 rounded-lg bg-rose-100 px-4 py-2 text-rose-700">
+                {formError}
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="text-sm">
@@ -352,10 +355,8 @@ export default function AdminTasks() {
                   onChange={onChange}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  {CATEGORY_OPTIONS.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
               </label>
@@ -367,10 +368,8 @@ export default function AdminTasks() {
                   onChange={onChange}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  {TYPE_OPTIONS.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
+                  {TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
               </label>
@@ -391,10 +390,8 @@ export default function AdminTasks() {
                   onChange={onChange}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  {DIFFICULTY_OPTIONS.map((difficulty) => (
-                    <option key={difficulty} value={difficulty}>
-                      {difficulty}
-                    </option>
+                  {DIFFICULTY_OPTIONS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
               </label>

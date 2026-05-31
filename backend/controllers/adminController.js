@@ -1,5 +1,6 @@
 const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
+const { getCache, setCache, deleteCache } = require("../utils/cache");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const normalizeEmail = (email) => String(email || "").trim();
@@ -7,7 +8,12 @@ const normalizeEmail = (email) => String(email || "").trim();
 // GET ALL USERS
 exports.getAllUsers = async (req, res) => {
   try {
+    const cached=await getCache("admin:users");
+    if(cached) return res.json(cached);
+
+
     const users = await User.find({}).select("-password");
+    await setCache("admin:users", users, 120); // Cache for 5 minutes
     return res.json(users);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -46,7 +52,7 @@ exports.createUser = async (req, res) => {
       role: normalizedRole,
       isVerified: true,
     });
-
+    await deleteCache("admin:users");
     return res.status(201).json({
       _id: user._id,
       name: user.name,
@@ -109,7 +115,7 @@ exports.updateUser = async (req, res) => {
     }
 
     const updatedUser = await user.save();
-
+    await deleteCache("admin:users");
     return res.json({
       _id: updatedUser._id,
       name: updatedUser.name,
@@ -128,6 +134,7 @@ exports.deleteUser = async (req, res) => {
 
     if (user) {
       await user.deleteOne();
+      await deleteCache("admin:users");
       return res.json({ message: "User removed" });
     }
 
