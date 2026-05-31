@@ -1,16 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { fetchSubscriptions, deleteSubscriptionById } from "../../api/subscriptionApi";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
-/* Admin page component for managing all user subscriptions */
 const AdminSubscriptions = () => {
-  /* State management for subscriptions list and UI feedback */
   const [subscriptions, setSubscriptions] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
 
-  /* Fetch all subscriptions on component mount */
   useEffect(() => {
     const loadSubscriptions = async () => {
       try {
@@ -22,21 +21,17 @@ const AdminSubscriptions = () => {
         setLoading(false);
       }
     };
-
     loadSubscriptions();
   }, []);
 
-  /* Filter subscriptions based on search query (email or payment ID) */
   const query = search.trim().toLowerCase();
   const filteredData = subscriptions.filter((sub) => {
     if (!query) return true;
-
     const email = sub.userId?.email?.toLowerCase() || "";
     const paymentId = String(sub.paymentId || "").toLowerCase();
     return email.includes(query) || paymentId.includes(query);
   });
 
-  /* Handle subscription deletion with confirmation */
   const handleDelete = async (subscriptionId) => {
     const ok = window.confirm(
       "Delete this subscription? The user will be downgraded to Free."
@@ -46,7 +41,9 @@ const AdminSubscriptions = () => {
     try {
       setDeletingId(subscriptionId);
       await deleteSubscriptionById(subscriptionId);
-      setSubscriptions((prev) => prev.filter((sub) => sub._id !== subscriptionId));
+      setSubscriptions((prev) =>
+        prev.filter((sub) => sub._id !== subscriptionId)
+      );
       setError("");
     } catch {
       setError("Failed to delete subscription");
@@ -55,22 +52,19 @@ const AdminSubscriptions = () => {
     }
   };
 
-  /* Show loading state while fetching data */
-  if (loading) {
-    return <p className="mt-10 text-center">Loading subscriptions...</p>;
-  }
-
-  /* Show error message if data fetch fails */
-  if (error) {
+  // ✅ REMOVED the early return for loading
+  // error still shows early
+  if (error && !loading) {
     return <p className="mt-10 text-center text-red-500">{error}</p>;
   }
 
-  /* Main admin subscriptions management table */
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold dark:text-white">Subscriptions</h1>
-        <p className="text-gray-500 dark:text-gray-400">Manage user subscriptions.</p>
+        <p className="text-gray-500 dark:text-gray-400">
+          Manage user subscriptions.
+        </p>
       </div>
 
       <div className="mb-4">
@@ -98,50 +92,87 @@ const AdminSubscriptions = () => {
           </thead>
 
           <tbody>
-            {filteredData.map((sub) => (
-              <tr
-                key={sub._id}
-                className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
-              >
-                <td className="p-4">{sub.userId?.email || "N/A"}</td>
-                <td className="p-4">
-                  {sub.plan} ({sub.billingCycle || "Monthly"})
-                </td>
-                <td className="p-4">
-                  {sub.currency || "LKR"} {Number(sub.amount || 0).toLocaleString()}
-                </td>
-                <td className="p-4">
-                  <span
-                    className={`rounded-full px-3 py-1 text-sm ${
-                      sub.status === "Active"
-                        ? "bg-green-100 text-green-600"
-                        : sub.status === "Expired"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-yellow-100 text-yellow-600"
-                    }`}
-                  >
-                    {sub.status}
-                  </span>
-                </td>
-                <td className="p-4">{new Date(sub.startDate).toLocaleDateString()}</td>
-                <td className="p-4">{new Date(sub.endDate).toLocaleDateString()}</td>
-                <td className="p-4">
-                  <button
-                    onClick={() => handleDelete(sub._id)}
-                    disabled={deletingId === sub._id}
-                    className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {deletingId === sub._id ? "Deleting..." : "Delete"}
-                  </button>
+            {loading ? (
+              // ✅ skeleton rows while loading
+              Array(5).fill(0).map((_, i) => (
+                <tr key={i} className="border-b dark:border-gray-700">
+                  <td className="p-4">
+                    <Skeleton width={160} />
+                  </td>
+                  <td className="p-4">
+                    <Skeleton width={100} />
+                  </td>
+                  <td className="p-4">
+                    <Skeleton width={80} />
+                  </td>
+                  <td className="p-4">
+                    <Skeleton width={70} height={24} borderRadius={20} />
+                  </td>
+                  <td className="p-4">
+                    <Skeleton width={90} />
+                  </td>
+                  <td className="p-4">
+                    <Skeleton width={90} />
+                  </td>
+                  <td className="p-4">
+                    <Skeleton width={60} height={30} borderRadius={6} />
+                  </td>
+                </tr>
+              ))
+            ) : filteredData.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-6 text-center text-gray-500">
+                  No subscriptions found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              // ✅ real data rows
+              filteredData.map((sub) => (
+                <tr
+                  key={sub._id}
+                  className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
+                >
+                  <td className="p-4">{sub.userId?.email || "N/A"}</td>
+                  <td className="p-4">
+                    {sub.plan} ({sub.billingCycle || "Monthly"})
+                  </td>
+                  <td className="p-4">
+                    {sub.currency || "LKR"}{" "}
+                    {Number(sub.amount || 0).toLocaleString()}
+                  </td>
+                  <td className="p-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-sm ${
+                        sub.status === "Active"
+                          ? "bg-green-100 text-green-600"
+                          : sub.status === "Expired"
+                          ? "bg-red-100 text-red-600"
+                          : "bg-yellow-100 text-yellow-600"
+                      }`}
+                    >
+                      {sub.status}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    {new Date(sub.startDate).toLocaleDateString()}
+                  </td>
+                  <td className="p-4">
+                    {new Date(sub.endDate).toLocaleDateString()}
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => handleDelete(sub._id)}
+                      disabled={deletingId === sub._id}
+                      className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingId === sub._id ? "Deleting..." : "Delete"}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-
-        {filteredData.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No subscriptions found.</div>
-        )}
       </div>
     </div>
   );
