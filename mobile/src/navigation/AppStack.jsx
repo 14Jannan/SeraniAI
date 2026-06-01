@@ -2,6 +2,7 @@ import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
 import { AIChatbotScreen } from "../screens/app/AIChatbotScreen";
 import { CoursesScreen } from "../screens/app/CoursesScreen";
@@ -77,6 +78,8 @@ export const AppStack = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(12, insets.bottom + 8);
 
   return (
     <Tab.Navigator
@@ -85,15 +88,16 @@ export const AppStack = () => {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
-          height: 62,
-          paddingTop: 6,
-          paddingBottom: 8,
+          height: 62 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: bottomPadding,
           borderTopColor: colors.border,
           backgroundColor: colors.surface,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: "700",
+          lineHeight: 16,
         },
       }}
     >

@@ -1,89 +1,604 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Animated,
+  Alert,
+  TouchableWithoutFeedback,
+  Keyboard
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
+import { Feather } from "@expo/vector-icons";
+import * as chatApi from "../../api/chatApi";
+
+const DRAWER_WIDTH = 280;
 
 export const AIChatbotScreen = () => {
   const { colors } = useTheme();
+  const navigation = useNavigation();
+  
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const newMsg = { id: Date.now().toString(), text: input, fromUser: true };
-    setMessages((prev) => [...prev, newMsg]);
-    setInput("");
-    // Placeholder for AI response
-    setTimeout(() => {
-      const botMsg = { id: (Date.now() + 1).toString(), text: "AI is thinking...", fromUser: false };
-      setMessages((prev) => [...prev, botMsg]);
-    }, 800);
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const flatListRef = useRef(null);
+
+  // Toggle Drawer Animation
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: isDrawerOpen ? 0 : -DRAWER_WIDTH,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [isDrawerOpen]);
+
+  // Load chat history on mount
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const loadHistory = async () => {
+    try {
+      const res = await chatApi.fetchHistory();
+      setHistory(res.data || []);
+    } catch (err) {
+      console.error("Failed to load chat history:", err);
+    }
   };
 
-  const renderItem = ({ item }) => (
-    <View style={[styles.messageBubble, { alignSelf: item.fromUser ? "flex-end" : "flex-start", backgroundColor: item.fromUser ? colors.primary : colors.surfaceAlt }]}>
-      <Text style={{ color: item.fromUser ? colors.onPrimary : colors.text }}>{item.text}</Text>
+  const handleNewChat = () => {
+    setMessages([]);
+    setActiveSessionId(null);
+    setIsDrawerOpen(false);
+  };
+
+  const handleOpenSession = async (sessionId) => {
+    try {
+      setLoading(true);
+      setIsDrawerOpen(false);
+      const res = await chatApi.fetchSession(sessionId);
+      setMessages(res.data?.messages || []);
+      setActiveSessionId(sessionId);
+    } catch (err) {
+      console.error("Failed to load chat session:", err);
+      Alert.alert("Error", "Could not load this conversation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    Alert.alert(
+      "Delete Conversation",
+      "Are you sure you want to delete this chat session?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await chatApi.deleteSession(sessionId);
+              if (activeSessionId === sessionId) {
+                handleNewChat();
+              }
+              loadHistory();
+            } catch (err) {
+              console.error("Failed to delete chat session:", err);
+              Alert.alert("Error", "Could not delete this conversation.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSend = async () => {
+    const cleanText = input.trim();
+    if (!cleanText || loading) return;
+
+    // Show user message immediately
+    const userMsg = { id: Date.now().toString(), role: "user", content: cleanText };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+
+    try {
+      setLoading(true);
+      
+      const payload = {
+        message: cleanText,
+        localDate: new Date().toDateString(),
+      };
+      if (activeSessionId) {
+        payload.sessionId = activeSessionId;
+      }
+
+      const res = await chatApi.sendMessage(payload);
+      const { sessionId, reply } = res.data;
+
+      // Update activeSessionId if it's a new chat
+      if (!activeSessionId) {
+        setActiveSessionId(sessionId);
+      }
+
+      // Add bot reply to messages list
+      const botMsg = { id: (Date.now() + 1).toString(), role: "assistant", content: reply };
+      setMessages((prev) => [...prev, botMsg]);
+
+      // Reload history list so sidebar updates with the correct title
+      loadHistory();
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      Alert.alert("Error", "Failed to send message. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderHeader = () => (
+    <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
+        <Feather name="arrow-left" size={24} color={colors.text} />
+      </TouchableOpacity>
+      <Text style={[styles.headerTitle, { color: colors.text }]}>SeraniAI Chat</Text>
+      <TouchableOpacity style={styles.headerBtn} onPress={() => setIsDrawerOpen(true)}>
+        <Feather name="menu" size={24} color={colors.text} />
+      </TouchableOpacity>
     </View>
   );
 
-  return (
-    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <FlatList
-        data={messages}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesContainer}
-      />
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
-          placeholder="Type a message..."
-          placeholderTextColor={colors.muted}
-          value={input}
-          onChangeText={setInput}
-        />
-        <TouchableOpacity style={[styles.sendButton, { backgroundColor: colors.primary }]} onPress={handleSend}>
-          <Text style={{ color: colors.onPrimary, fontWeight: "bold" }}>Send</Text>
-        </TouchableOpacity>
+  const renderWelcome = () => (
+    <View style={styles.welcomeContainer}>
+      <View style={[styles.welcomeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.welcomeIconContainer, { backgroundColor: colors.surfaceAlt }]}>
+          <Feather name="message-square" size={36} color={colors.primary} />
+        </View>
+        <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome to SeraniAI</Text>
+        <Text style={[styles.welcomeSubtitle, { color: colors.muted }]}>
+          Your personal AI companion for growth and productivity.
+        </Text>
       </View>
-    </KeyboardAvoidingView>
+    </View>
+  );
+
+  const renderMessageItem = ({ item }) => {
+    const isUser = item.role === "user";
+    return (
+      <View
+        style={[
+          styles.messageBubbleContainer,
+          { alignSelf: isUser ? "flex-end" : "flex-start" },
+        ]}
+      >
+        {!isUser && (
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+            <Text style={styles.avatarText}>S</Text>
+          </View>
+        )}
+        <View
+          style={[
+            styles.messageBubble,
+            {
+              backgroundColor: isUser ? colors.primary : colors.surfaceAlt,
+              borderBottomRightRadius: isUser ? 2 : 16,
+              borderBottomLeftRadius: isUser ? 16 : 2,
+              marginLeft: isUser ? 0 : 8,
+              marginRight: isUser ? 8 : 0,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.messageText,
+              { color: isUser ? "#fff" : colors.text },
+            ]}
+          >
+            {item.content}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderDrawer = () => {
+    if (!isDrawerOpen) return null;
+    return (
+      <View style={StyleSheet.absoluteFillObject}>
+        {/* Backdrop */}
+        <TouchableWithoutFeedback onPress={() => setIsDrawerOpen(false)}>
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
+
+        {/* Sliding Panel */}
+        <Animated.View
+          style={[
+            styles.drawer,
+            {
+              backgroundColor: colors.surface,
+              borderRightColor: colors.border,
+              transform: [{ translateX: slideAnim }],
+            },
+          ]}
+        >
+          <SafeAreaView style={styles.drawerContainer} edges={["top", "bottom"]}>
+            <View style={styles.drawerHeader}>
+              <Text style={[styles.drawerTitle, { color: colors.text }]}>Conversations</Text>
+              <TouchableOpacity onPress={() => setIsDrawerOpen(false)}>
+                <Feather name="x" size={24} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.newChatBtn, { backgroundColor: colors.primary }]}
+              onPress={handleNewChat}
+            >
+               <Feather name="plus" size={18} color="#fff" />
+              <Text style={styles.newChatBtnText}>New Conversation</Text>
+            </TouchableOpacity>
+
+            <FlatList
+              data={history}
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => (
+                <View
+                  style={[
+                    styles.historyItem,
+                    {
+                      backgroundColor:
+                        activeSessionId === item._id
+                          ? colors.surfaceAlt
+                          : "transparent",
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.historyItemBtn}
+                    onPress={() => handleOpenSession(item._id)}
+                  >
+                    <Feather
+                      name="message-square"
+                      size={16}
+                      color={
+                        activeSessionId === item._id
+                          ? colors.primary
+                          : colors.muted
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.historyItemText,
+                        {
+                          color:
+                            activeSessionId === item._id
+                              ? colors.primary
+                              : colors.text,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.title || "Untitled Chat"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDeleteSession(item._id)}
+                  >
+                    <Feather name="trash-2" size={16} color={colors.muted} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyHistory}>
+                  <Text style={{ color: colors.muted }}>No recent chats</Text>
+                </View>
+              }
+              contentContainerStyle={styles.drawerList}
+            />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
+      {renderHeader()}
+      
+      <KeyboardAvoidingView
+        style={styles.chatArea}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      >
+        {messages.length === 0 ? (
+          renderWelcome()
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessageItem}
+            keyExtractor={(item) => item.id || item._id}
+            contentContainerStyle={styles.messagesContainer}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          />
+        )}
+
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.loadingText}>SeraniAI is thinking...</Text>
+          </View>
+        )}
+
+        <View style={[styles.inputArea, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.muted}
+            value={input}
+            onChangeText={setInput}
+            multiline
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+            blurOnSubmit={false}
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendBtn,
+              {
+                backgroundColor: input.trim() && !loading ? colors.primary : colors.surfaceAlt,
+                opacity: input.trim() && !loading ? 1 : 0.6
+              }
+            ]}
+            onPress={handleSend}
+            disabled={!input.trim() || loading}
+          >
+            <Feather
+              name="send"
+              size={18}
+              color={input.trim() && !loading ? "#fff" : colors.muted}
+            />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      {renderDrawer()}
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  headerBtn: {
+    padding: 8,
+  },
+  chatArea: {
+    flex: 1,
   },
   messagesContainer: {
     flexGrow: 1,
-    justifyContent: "flex-end",
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  messageBubbleContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginVertical: 6,
+    maxWidth: "80%",
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  avatarText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   messageBubble: {
-    maxWidth: "80%",
-    padding: 10,
-    borderRadius: 12,
-    marginVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.02,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    elevation: 1,
   },
-  inputContainer: {
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.03)",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    marginVertical: 6,
+    marginLeft: 36,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: "#64748b",
+    fontSize: 14,
+  },
+  inputArea: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
   },
   input: {
     flex: 1,
-    height: 40,
+    minHeight: 40,
+    maxHeight: 120,
     borderRadius: 20,
-    paddingHorizontal: 12,
-    marginRight: 8,
-  },
-  sendButton: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
+    fontSize: 15,
+  },
+  sendBtn: {
+    width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    marginLeft: 8,
+  },
+  welcomeContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  welcomeCard: {
+    width: "100%",
+    padding: 24,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  welcomeIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  welcomeTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    zIndex: 999,
+  },
+  drawer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: DRAWER_WIDTH,
+    zIndex: 1000,
+    borderRightWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  drawerContainer: {
+    flex: 1,
+  },
+  drawerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+  },
+  drawerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  newChatBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  newChatBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  drawerList: {
+    paddingHorizontal: 12,
+  },
+  historyItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginVertical: 4,
+    borderRadius: 8,
+  },
+  historyItemBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  historyItemText: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 10,
+    flex: 1,
+  },
+  deleteBtn: {
+    padding: 6,
+  },
+  emptyHistory: {
+    alignItems: "center",
+    paddingVertical: 24,
   },
 });

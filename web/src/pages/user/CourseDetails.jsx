@@ -39,6 +39,15 @@ const courseTitle = location.state?.courseTitle || "Course";
   }, [completedLessons, courseId]);
 
   useEffect(() => {
+    if (location.state?.lessonId && lessons.length > 0) {
+      const index = lessons.findIndex(l => l._id.toString() === location.state.lessonId.toString());
+      if (index !== -1) {
+        setActiveLessonIndex(index);
+      }
+    }
+  }, [location.state?.lessonId, lessons]);
+
+  useEffect(() => {
     setLoading(true);
     setError("");
 

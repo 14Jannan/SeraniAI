@@ -25,6 +25,7 @@
     "react-calendar": "^6.0.1",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.73.1",
+    "react-hot-toast": "^2.6.0",
     "react-icons": "5.5.0",
     "react-router-dom": "^7.12.0"
   },

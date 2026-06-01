@@ -40,6 +40,7 @@ import AIChat from "./pages/user/AIChatbot/AIChat";
 import Courses from "./pages/user/Courses";
 import CourseDetails from "./pages/user/CourseDetails";
 import TasksPage from "./pages/user/TasksPage";
+import Settings from "./pages/user/Settings";
 
 /* ---------------- COMPONENTS ---------------- */
 
@@ -141,6 +142,9 @@ function App() {
                   </PlanFeatureGate>
                 }
               />
+
+              {/* Settings */}
+              <Route path="settings" element={<Settings />} />
 
               {/* Enterprise Manager (EnterpriseAdmin only) */}
               <Route
