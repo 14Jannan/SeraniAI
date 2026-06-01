@@ -4,7 +4,7 @@ import { User, Copy, Check, Edit, FileText, Download, PlayCircle, Sparkles } fro
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-function MessageList({ messages = [], loading = false, onEditMessage = null, onMoodSelect = null }) {
+function MessageList({ messages = [], loading = false, onEditMessage = null }) {
   const bottomRef = useRef(null);
   const navigate = useNavigate();
   const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -25,15 +25,6 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
       onEditMessage(content, index);
     }
   };
-
-  const moods = [
-    { emoji: "😊", label: "Happy", color: "from-yellow-400/20 to-orange-400/20", iconColor: "text-orange-500", message: "I'm feeling happy today! Let's talk about something positive." },
-    { emoji: "😢", label: "Sad", color: "from-blue-400/20 to-indigo-400/20", iconColor: "text-blue-500", message: "I'm feeling a bit down. Can we talk?" },
-    { emoji: "🤩", label: "Excited", color: "from-orange-400/20 to-red-400/20", iconColor: "text-orange-600", message: "I'm so excited! I have something to share!" },
-    { emoji: "😰", label: "Stressed", color: "from-red-400/20 to-rose-400/20", iconColor: "text-red-500", message: "I'm feeling stressed. I could use some advice." },
-    { emoji: "🤔", label: "Curious", color: "from-purple-400/20 to-blue-400/20", iconColor: "text-purple-500", message: "I'm curious and want to learn something new!" },
-    { emoji: "💭", label: "Thoughtful", color: "from-indigo-400/20 to-purple-400/20", iconColor: "text-indigo-500", message: "I'm in a reflective mood. Let's have a deep conversation." },
-  ];
 
   const renderMessageContent = (content) => {
     if (!content) return null;
@@ -272,36 +263,15 @@ function MessageList({ messages = [], loading = false, onEditMessage = null, onM
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-4xl w-full text-center"
+          className="max-w-2xl w-full text-center"
         >
-          <div className="mb-12">
+          <div className="mb-8">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">
-              Hello! How are you feeling <span className="text-blue-600">today?</span>
+              Welcome to <span className="text-blue-600">SeraniAI</span>
             </h2>
             <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">
-              Select your mood to start our session
+              Your personal AI companion for growth and productivity
             </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {moods.map((mood, idx) => (
-              <motion.button
-                key={mood.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                onClick={() => onMoodSelect && onMoodSelect(mood.message)}
-                className={`group relative p-8 bg-white dark:bg-gray-800/40 rounded-[32px] border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-900 shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col items-center gap-4 overflow-hidden`}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${mood.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                <span className="text-5xl group-hover:scale-125 transition-transform duration-500 relative z-10">
-                  {mood.emoji}
-                </span>
-                <span className={`text-[10px] font-black uppercase tracking-[0.2em] relative z-10 ${mood.iconColor}`}>
-                  {mood.label}
-                </span>
-              </motion.button>
-            ))}
           </div>
         </motion.div>
       </div>

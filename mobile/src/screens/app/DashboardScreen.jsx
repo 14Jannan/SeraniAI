@@ -28,7 +28,7 @@ export const DashboardScreen = ({ navigation }) => {
       style={styles.scrollView}
       contentContainerStyle={[
         styles.container,
-        { backgroundColor: colors.background },
+        { backgroundColor: colors.background, paddingBottom: 24 },
       ]}
     >
       <View style={[styles.hero, { backgroundColor: colors.primaryStrong }]}>
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignSelf: "flex-start",
   },
-  content: { paddingTop: 20 },
+  content: { paddingTop: 20, paddingBottom: 8 },
   sectionTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 14 },
   card: {
     padding: 14,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { getUserSubscription } from '../api/subscriptionApi'
@@ -18,6 +18,7 @@ import {
   FiCheckSquare,
   FiUsers,
   FiCreditCard,
+  FiChevronDown,
 } from 'react-icons/fi'
 
 const UserLayout = () => {
@@ -26,6 +27,8 @@ const UserLayout = () => {
 
   const [user, setUser] = useState({ name: 'User' });
   const [subscription, setSubscription] = useState(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef(null);
   const isDark = theme === 'dark';
 
   const roleToPlanLabel = (role, fallbackPlan) => {
@@ -74,6 +77,17 @@ const UserLayout = () => {
     };
 
     fetchProfileAndSubscription();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleLogout = () => {
@@ -202,47 +216,67 @@ const UserLayout = () => {
 
           {/* User + Subscription */}
           <div className="border-t border-white/20 pt-4">
+            <div className="relative" ref={profileMenuRef}>
+              <div className="flex items-center gap-3 mb-3">
+                <button
+                  onClick={() => setShowProfileMenu((prev) => !prev)}
+                  className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center font-bold text-white border-2 border-white/20 transition hover:bg-blue-400"
+                >
+                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </button>
 
-            <div className="flex items-center gap-3 text-white mb-3">
+                <div className="flex-1 min-w-0 text-white">
+                  <p className="text-sm font-semibold truncate">{user.name}</p>
+                  <p className="text-xs text-white/70">{roleToPlanLabel(user?.role, subscription?.plan)}</p>
+                </div>
 
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold border-2 border-white/20">
-                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">
-                  {user.name}
-                </p>
-                <p className="text-xs text-white/70">
-                  {roleToPlanLabel(user?.role, subscription?.plan)}
-                </p>
-              </div>
-
-              {subscriptionAction.type === 'button' && (
                 <button
                   onClick={handleSubscriptionAction}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 hover:bg-gray-100 transition"
+                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15"
                 >
-                  {subscriptionAction.label}
+                  {subscriptionAction.label || 'Upgrade'}
                 </button>
+              </div>
+
+              {showProfileMenu && (
+                <div className="absolute inset-x-0 bottom-full mb-3 bg-white rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden text-gray-900 dark:text-white z-20">
+                  <button
+                    onClick={() => {
+                      navigate('/dashboard/settings');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <div className="font-medium">Settings</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Profile & preferences</div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/subscription');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <div className="font-medium">Upgrade to Pro</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Unlock premium features</div>
+                  </button>
+                </div>
               )}
             </div>
 
-            {subscriptionAction.type === 'managed' && (
-              <p className="text-xs text-white/60 ml-[52px]">
-                Subscription managed by your enterprise admin.
-              </p>
-            )}
-
-            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-white/80 hover:text-white text-sm w-full"
+              className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-red-400 transition hover:text-red-300"
             >
               <FiLogOut />
               Logout
             </button>
 
+            {subscriptionAction.type === 'managed' && (
+              <p className="text-xs text-white/60 mt-3">
+                Subscription managed by your enterprise admin.
+              </p>
+            )}
           </div>
         </div>
       </aside>

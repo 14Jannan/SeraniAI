@@ -3,8 +3,11 @@ const Journal = require("../models/journalModel");
 const Chat = require("../models/chatModels");
 const Lesson = require("../models/lessonModel");
 const UserTaskProgress = require("../models/userTaskProgressModel");
+const Enrollment = require("../models/enrollmentModel");
+const Course = require("../models/courseModel");
 const mongoose = require("mongoose");
 const OpenAI = require("openai");
+const { decrypt } = require("../utils/encryption");
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -64,7 +67,7 @@ exports.getDashboardStats = async (req, res) => {
       })),
       ...recentChats.map((c) => ({
         type: "chat",
-        title: c.title || "AI Chat session",
+        title: decrypt(c.title) || "AI Chat session",
         time: c.updatedAt,
         id: c._id,
       })),
@@ -251,6 +254,29 @@ exports.getDashboardStats = async (req, res) => {
         message: "Great job today! You’ve completed all your recommended activities."
     };
 
+    // 5b. Recently Accessed Lessons
+    let recentLessons = [];
+    if (user.lessonProgress && user.lessonProgress.length > 0) {
+      const sortedProgress = [...user.lessonProgress].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 4);
+      const lessonIds = sortedProgress.map(lp => lp.lessonId);
+      
+      const lessonDetails = await Lesson.find({ _id: { $in: lessonIds } })
+        .populate("courseId", "title")
+        .lean();
+
+      recentLessons = sortedProgress.map(lp => {
+        const detail = lessonDetails.find(ld => ld._id.toString() === lp.lessonId.toString());
+        return {
+          _id: lp.lessonId,
+          title: detail ? detail.title : "Unknown Lesson",
+          courseId: detail?.courseId?._id || null,
+          courseTitle: detail?.courseId?.title || "Unknown Course",
+          thumbnailUrl: detail?.thumbnail || "",
+          lastAccessedAt: lp.updatedAt
+        };
+      });
+    }
+
     res.json({
       userName: user.name,
       stats: {
@@ -260,6 +286,7 @@ exports.getDashboardStats = async (req, res) => {
         aiInteractions,
       },
       recentActivity: activities,
+      recentLessons,
       journalTrends: dailyActivity,
       chatTrends: dailyChatActivity,
       courseTrends: dailyCourseActivity,
@@ -324,7 +351,7 @@ exports.getWeeklyReport = async (req, res) => {
     }
 
     if (chats.length > 0) {
-      const chatSummary = chats.map(c => `- ${c.title || "New Chat"} (${c.updatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })})`).join("\n");
+      const chatSummary = chats.map(c => `- ${decrypt(c.title) || "New Chat"} (${c.updatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })})`).join("\n");
       contextParts.push("--- RECENT CHAT TOPICS ---\n" + chatSummary + "\n\n");
     } else {
       contextParts.push("No AI chat interactions this week.\n\n");

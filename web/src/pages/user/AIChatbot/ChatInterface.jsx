@@ -96,11 +96,6 @@ function ChatInterface() {
     setEditingMessageIndex(null);
     setEditingMessageContent(null);
   };
-
-  const handleMoodSelect = (message) => {
-    sendToBackend(message);
-  };
-
   // Send message: handles normal send, mood send, and edits
   const sendToBackend = async (text, file = null) => {
     const clean = (text || "").trim();
@@ -213,7 +208,6 @@ function ChatInterface() {
             messages={messages}
             loading={loading}
             onEditMessage={handleEditMessage}
-            onMoodSelect={handleMoodSelect}
           />
         </div>
 

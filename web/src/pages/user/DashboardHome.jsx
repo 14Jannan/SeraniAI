@@ -225,7 +225,7 @@ const DashboardHome = () => {
     );
   }
 
-  const { userName, stats, recentActivity, journalTrends, chatTrends, courseTrends, recommendations = [], completionStatus } = data;
+  const { userName, stats, recentActivity, recentLessons = [], journalTrends, chatTrends, courseTrends, recommendations = [], completionStatus } = data;
 
   const handleDismiss = (id) => {
     const newDismissed = [...dismissedItems, id];
@@ -239,11 +239,89 @@ const DashboardHome = () => {
   const activeRecommendations = recommendations.filter(r => !dismissedItems.includes(r.id));
 
   const statCards = [
-    { label: 'Total Journals', value: stats.totalJournals, icon: PenTool, color: 'text-purple-600', bg: 'bg-purple-100', trend: 'Updated' },
+    { label: 'Total Journals', value: stats.totalJournals, icon: PenTool, color: 'text-purple-600', bg: 'bg-green-100', trend: 'Updated' },
     { label: 'Daily Tasks', value: stats.dailyTasks, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100', trend: 'Today' },
     { label: 'Completed Lessons', value: stats.completedLessons, icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: 'Total Progress' },
     { label: 'AI Interactions', value: stats.aiInteractions, icon: MessageSquare, color: 'text-amber-600', bg: 'bg-amber-100', trend: 'Active Chat' },
   ];
+
+  const handleSaveJournal = async () => {
+    try {
+      setIsSavingJournal(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL}/api/journals`, {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: "Quick Reflection",
+          content: journalContent,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save journal entry');
+      }
+
+      const result = await response.json();
+      setJournalContent("");
+      setShowJournalModal(false);
+      // Optionally refresh dashboard stats
+      window.location.reload();
+    } catch (err) {
+      console.error("Journal save error:", err);
+      alert("Failed to save journal entry. Please try again later.");
+    } finally {
+      setIsSavingJournal(false);
+    }
+  };
+
+  const handleSaveMood = async () => {
+    try {
+      setIsSavingMood(true);
+      const token = localStorage.getItem("token");
+      
+      // Map emoji to mood string
+      const moodMap = {
+        '😢': 'sad',
+        '😐': 'neutral', 
+        '🙂': 'happy',
+        '😁': 'excited'
+      };
+      
+      const moodString = moodMap[selectedMood] || 'neutral';
+      
+      const response = await fetch(`${API_URL}/api/journals`, {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: "Mood Check",
+          content: `Feeling ${moodString} ${selectedMood}`,
+          mood: moodString
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save mood');
+      }
+
+      const result = await response.json();
+      setSelectedMood(null);
+      setShowWellnessModal(false);
+      // Optionally refresh dashboard stats
+      window.location.reload();
+    } catch (err) {
+      console.error("Mood save error:", err);
+      alert("Failed to save mood. Please try again later.");
+    } finally {
+      setIsSavingMood(false);
+    }
+  };
 
   // Quick Actions removed in favor of Recommendations
 
@@ -630,6 +708,86 @@ const DashboardHome = () => {
           </button>
         </motion.div>
       </div>
+
+      {/* Recently Accessed Lessons */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6 pt-4"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold dark:text-white flex items-center gap-2">
+            <GraduationCap className="text-blue-600" size={24} />
+            {recentLessons.length > 0 ? "Recently Accessed Lessons" : "Start Your Learning Journey"}
+          </h3>
+          <Link to="/dashboard/courses" className="text-blue-600 hover:text-blue-700 text-xs font-bold uppercase tracking-widest">
+            {recentLessons.length > 0 ? "Explore More" : "View All Courses"}
+          </Link>
+        </div>
+        
+        {recentLessons.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {recentLessons.map((lesson, i) => (
+              <motion.div
+                key={lesson._id || i}
+                whileHover={{ y: -5 }}
+                className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden group cursor-pointer"
+                onClick={() => navigate(`/dashboard/course/${lesson.courseId}`, { state: { lessonId: lesson._id, courseTitle: lesson.courseTitle } })}
+              >
+                <div className="aspect-video relative overflow-hidden">
+                  <img 
+                    src={lesson.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60'} 
+                    alt={lesson.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                    <span className="text-white text-xs font-bold flex items-center gap-1">
+                      <Play size={12} fill="currentColor" /> Resume Lesson
+                    </span>
+                  </div>
+                  <div className="absolute top-3 left-3 px-2 py-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-sm">
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">{lesson.courseTitle}</span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 transition-colors">
+                    {lesson.title}
+                  </h4>
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-gray-400">
+                      <Clock size={12} />
+                      <span className="text-[10px] font-bold">
+                        Accessed {new Date(lesson.lastAccessedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                      <ChevronRight size={16} />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-[32px] p-10 border border-dashed border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center space-y-4">
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600">
+              <BookOpen size={32} />
+            </div>
+            <div>
+              <h4 className="text-lg font-bold dark:text-white">No lessons accessed yet</h4>
+              <p className="text-sm text-gray-500 max-w-sm mt-1">
+                Explore our courses and start your first lesson to see your progress here.
+              </p>
+            </div>
+            <Link 
+              to="/dashboard/courses"
+              className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all"
+            >
+              Start Learning
+            </Link>
+          </div>
+        )}
+      </motion.div>
 
       {/* Weekly Report Modal */}
       {showReportModal && (
