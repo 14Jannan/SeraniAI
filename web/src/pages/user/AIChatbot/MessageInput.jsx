@@ -102,7 +102,7 @@ function MessageInput({ onSend, loading, editValue = null, onCancelEdit = null }
           </div>
         )}
 
-        <div className="relative flex gap-3 border border-gray-200 dark:border-white/10 rounded-2xl p-3 shadow-sm bg-gray-50 dark:bg-white/5 focus-within:bg-white dark:focus-within:bg-white/10 focus-within:border-blue-300 dark:focus-within:border-white/20 focus-within:ring-4 focus-within:ring-blue-50 dark:focus-within:ring-blue-900/20 transition-all duration-200">
+        <div className="relative flex gap-3 border border-slate-200 dark:border-slate-700 rounded-3xl p-3 shadow-sm bg-slate-50 dark:bg-slate-950/90 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-blue-300 dark:focus-within:border-blue-500/20 focus-within:ring-4 focus-within:ring-blue-50 dark:focus-within:ring-blue-950/20 transition-all duration-200">
           <input
             type="file"
             ref={fileInputRef}
@@ -123,7 +123,6 @@ function MessageInput({ onSend, loading, editValue = null, onCancelEdit = null }
             ref={textareaRef}
             className="flex-1 resize-none outline-none bg-transparent relative z-10 text-[15px] leading-relaxed py-1 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             rows={1}
-            placeholder=""
             value={text}
             disabled={loading}
             onChange={(e) => setText(e.target.value)}

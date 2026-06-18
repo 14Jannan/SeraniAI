@@ -3,7 +3,10 @@ const payHereService = require('../services/payHereService');
 const mongoose = require('mongoose');
 const User = require('../models/userModel');
 const Enterprise = require('../models/enterpriseModel');
+const { getCache, setCache, deleteCache } = require("../utils/cache");
 
+
+/* Normalize plan names to standard format */
 const normalizePlan = (plan) => {
   if (typeof plan !== 'string') return null;
 
@@ -13,20 +16,24 @@ const normalizePlan = (plan) => {
   return null;
 };
 
-// GET all subscriptions
+/* Fetch all subscriptions with populated user information - admin endpoint */
 exports.getAllSubscriptions = async (req, res) => {
   try {
+    const cached = await getCache("admin:subscriptions");
+    if (cached) return res.status(200).json(cached);
+
     const subscriptions = await Subscription.find()
-      .populate('userId', 'name email')
+      .populate("userId", "name email")
       .sort({ createdAt: -1 });
 
+    await setCache("admin:subscriptions", subscriptions, 120); // 2 minutes
     res.status(200).json(subscriptions);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching subscriptions', error });
+    res.status(500).json({ message: "Error fetching subscriptions", error });
   }
 };
 
-// GET single subscription
+/* Fetch single subscription by ID with validation */
 exports.getSubscriptionById = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -46,7 +53,7 @@ exports.getSubscriptionById = async (req, res) => {
   }
 };
 
-// CREATE subscription
+/* Create new subscription with comprehensive validation */
 exports.createSubscription = async (req, res) => {
   try {
     const { userId, plan, amount, startDate, endDate, billingCycle } = req.body;
@@ -114,7 +121,7 @@ exports.createSubscription = async (req, res) => {
   }
 };
 
-// UPDATE subscription status
+/* Update subscription status */
 exports.updateSubscriptionStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -132,7 +139,7 @@ exports.updateSubscriptionStatus = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ message: 'Subscription not found' });
     }
-
+    await deleteCache("admin:subscriptions");
     res.status(200).json(updated);
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -143,7 +150,7 @@ exports.updateSubscriptionStatus = async (req, res) => {
   }
 };
 
-// DELETE subscription (admin)
+/* Delete subscription and downgrade user to free plan */
 exports.deleteSubscription = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -167,6 +174,7 @@ exports.deleteSubscription = async (req, res) => {
     }
 
     await Subscription.findByIdAndDelete(req.params.id);
+    await deleteCache("admin:subscriptions");
 
     if (userId) {
       // Ensure the affected user is treated as a free user after deletion.

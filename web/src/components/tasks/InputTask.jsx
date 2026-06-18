@@ -1,22 +1,14 @@
 import { CheckCircle2, Send } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { InputTaskData } from "./taskTypes";
 
-type InputTaskProps = {
-  task: InputTaskData;
-  completed: boolean;
-  initialValue: string;
-  onSubmit: (value: string) => void;
-};
-
-export function InputTask({ task, completed, initialValue, onSubmit }: InputTaskProps) {
-  const [value, setValue] = useState(initialValue);
+export function InputTask({ task, completed, initialValue, onSubmit }) {
+  const [value, setValue] = useState(String(initialValue ?? ""));
   const placeholder = String(task.config?.placeholder || "Write your response...");
   const buttonLabel = String(task.config?.buttonLabel || "Save response");
   const prompt = String(task.config?.prompt || "Reflect briefly and respond.");
 
   useEffect(() => {
-    setValue(initialValue);
+    setValue(String(initialValue ?? ""));
   }, [initialValue]);
 
   const handleSubmit = () => {

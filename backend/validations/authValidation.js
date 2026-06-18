@@ -30,6 +30,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: emailSchema,
   password: z.string().trim().min(1, "Password is required"),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 const forgotPasswordSchema = z.object({

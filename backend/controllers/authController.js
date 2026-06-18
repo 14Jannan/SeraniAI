@@ -4,15 +4,24 @@ const crypto = require("crypto");
 const User = require("../models/userModel");
 const Enterprise = require("../models/enterpriseModel");
 const Subscription = require("../models/subscriptionModel");
+const Chat = require("../models/chatModels");
+const Journal = require("../models/journalModel");
+const Enrollment = require("../models/enrollmentModel");
+const UserTaskProgress = require("../models/userTaskProgressModel");
 const EnterpriseInvite = require("../models/enterpriseInviteModel");
 const sendVerificationEmail = require("../utils/emailService");
-const otpGenerator = require("otp-generator");
 const oauthTokenService = require("../utils/oauthTokenService");
+
+// Generate cryptographically secure 6-digit OTP
+const generateSecureOTP = () => {
+  return crypto.randomInt(100000, 1000000).toString();
+};
 
 const normalizeEmail = (email) => String(email || "").trim();
 const hashInviteToken = (token) =>
   crypto.createHash("sha256").update(String(token)).digest("hex");
 
+//token creation access
 const generateAuthTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, role: user.role, name: user.name, email: user.email },
@@ -31,18 +40,51 @@ const generateAuthTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
-const setRefreshCookie = (res, refreshToken) => {
-  res.cookie("refreshToken", refreshToken, {
+const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
+  const isProd = process.env.NODE_ENV === "production";
+  const sameSite = isProd ? "None" : "Lax";
+  const cookieOptions = {
     httpOnly: true,
-    secure: false,
-    sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+    secure: isProd,
+    sameSite,
+    path: "/",
+  };
+  if (rememberMe) {
+    cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
+  }
+
+  res.cookie("refreshToken", refreshToken, cookieOptions);
+
+  // Persist a non-httpOnly flag cookie so the server can detect rememberMe on refresh
+  const flagCookieOptions = {
+    httpOnly: false,
+    secure: isProd,
+    sameSite,
+    path: "/",
+  };
+  if (rememberMe) {
+    flagCookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
+    res.cookie("rememberMe", "true", flagCookieOptions);
+  } else {
+    // Ensure any previous rememberMe cookie is cleared
+    res.clearCookie("rememberMe", flagCookieOptions);
+  }
+
+  // Helpful debug logs to verify cookie behavior during development
+  if (!isProd) {
+    try {
+      console.log(
+        `setRefreshCookie(dev): rememberMe=${rememberMe} sameSite=${cookieOptions.sameSite} secure=${cookieOptions.secure}`,
+      );
+    } catch (e) {
+      // ignore logging failures
+    }
+  }
 };
 
 // 1. REGISTER USER & SEND OTP
-// @desc    Register new user
-// @route   POST /api/auth/register
+//register new user
+//route POST /api/auth/register
 exports.registerUser = async (req, res) => {
   // 1. Get confirmPassword from the request body
   const { name, email, password, confirmPassword, role } = req.body;
@@ -62,12 +104,8 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 5. Generate OTP (Only digits)
-    const otp = otpGenerator.generate(6, {
-      upperCaseAlphabets: false,
-      specialChars: false,
-      lowerCaseAlphabets: false,
-    });
+    // 5. Generate OTP (Only digits) - Cryptographically secure
+    const otp = generateSecureOTP();
     // expires in 10 mins
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -161,11 +199,7 @@ exports.resendVerificationOtp = async (req, res) => {
       return res.status(400).json({ message: "User is already verified" });
     }
 
-    const otp = otpGenerator.generate(6, {
-      upperCaseAlphabets: false,
-      specialChars: false,
-      lowerCaseAlphabets: false,
-    });
+    const otp = generateSecureOTP();
 
     user.otp = otp;
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
@@ -183,7 +217,7 @@ exports.resendVerificationOtp = async (req, res) => {
 
 // 3. LOGIN (Only if verified)
 exports.loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe = false } = req.body;
   const normalizedEmail = normalizeEmail(email);
 
   try {
@@ -215,7 +249,7 @@ exports.loginUser = async (req, res) => {
     }
 
     const { accessToken, refreshToken } = generateAuthTokens(user);
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, rememberMe);
 
     res.json({
       token: accessToken,
@@ -243,13 +277,8 @@ exports.forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 1. GENERATE 6-DIGIT OTP
-    // (Removing the line that caused user.createPasswordResetToken error)
-    const otp = otpGenerator.generate(6, {
-      upperCaseAlphabets: false,
-      specialChars: false,
-      lowerCaseAlphabets: false,
-    });
+    // 1. GENERATE 6-DIGIT OTP - Cryptographically secure
+    const otp = generateSecureOTP();
 
     // 2. SAVE OTP TO DATABASE
     user.otp = otp;
@@ -316,17 +345,32 @@ exports.refreshAccessToken = async (req, res) => {
   }
 
   try {
+    // Log incoming cookies to help debug refresh issues (dev only)
+    if (process.env.NODE_ENV !== "production") {
+      try {
+        console.log("/api/auth/refresh cookies:", req.cookies);
+      } catch (e) {}
+    }
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id);
 
     if (!user) return res.status(401).json({ message: "User not found" });
 
-    // Generate new short-lived Access Token
-    const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" },
-    );
+    // Generate new access token AND new refresh token
+    const { accessToken, refreshToken: newRefreshToken } =
+      generateAuthTokens(user);
+    // Preserve the rememberMe preference if present in cookies
+    const rememberMeFlag = req.cookies.rememberMe === "true";
+    setRefreshCookie(res, newRefreshToken, rememberMeFlag); // Set the new refresh token in cookie
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        "refreshAccessToken: issued new access token for user",
+        user._id,
+        "rememberMe=",
+        rememberMeFlag,
+      );
+    }
 
     res.json({ token: accessToken });
   } catch (error) {
@@ -338,6 +382,7 @@ exports.refreshAccessToken = async (req, res) => {
 // @route   POST /api/auth/logout
 exports.logoutUser = (req, res) => {
   res.clearCookie("refreshToken");
+  res.clearCookie("rememberMe");
   res.status(200).json({ message: "Logged out successfully" });
 };
 
@@ -383,10 +428,53 @@ exports.getCurrentUser = async (req, res) => {
       enterpriseId: req.user.enterpriseId || null,
       status: req.user.status,
       onboardingStatus: req.user.onboardingStatus || "pending",
-      preferences: req.user.preferences || {}
+      preferences: req.user.preferences || {},
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch user profile" });
+  }
+};
+
+// @desc    Delete current authenticated user account
+// @route   DELETE /api/auth/me
+exports.deleteCurrentUser = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.enterpriseId) {
+      await Enterprise.findByIdAndUpdate(user.enterpriseId, {
+        $pull: { members: userId },
+      });
+
+      if (user.role === "enterpriseAdmin") {
+        const enterprise = await Enterprise.findById(user.enterpriseId).lean();
+        if (enterprise && String(enterprise.ownerId) === String(userId)) {
+          await Enterprise.findByIdAndDelete(user.enterpriseId);
+        }
+      }
+    }
+
+    await Subscription.deleteMany({ userId });
+    await Chat.deleteMany({ user: userId });
+    await Journal.deleteMany({ user: userId });
+    await Enrollment.deleteMany({ userId });
+    await UserTaskProgress.deleteMany({ user: userId });
+
+    await user.deleteOne();
+
+    res.clearCookie("refreshToken");
+    res.clearCookie("rememberMe");
+    return res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete account" });
   }
 };
 
@@ -399,9 +487,9 @@ exports.cancelEnterprisePremiumAccess = async (req, res) => {
     }
 
     if (req.user.role !== "enterpriseUser") {
-      return res
-        .status(400)
-        .json({ message: "Only enterprise users can cancel enterprise premium access" });
+      return res.status(400).json({
+        message: "Only enterprise users can cancel enterprise premium access",
+      });
     }
 
     const user = await User.findById(req.user._id);
@@ -433,7 +521,9 @@ exports.cancelEnterprisePremiumAccess = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to cancel enterprise premium access" });
+    return res
+      .status(500)
+      .json({ message: "Failed to cancel enterprise premium access" });
   }
 };
 
@@ -453,10 +543,15 @@ exports.acceptEnterpriseInvite = async (req, res) => {
     }
 
     const tokenHash = hashInviteToken(token);
-    const invite = await EnterpriseInvite.findOne({ tokenHash, status: "pending" });
+    const invite = await EnterpriseInvite.findOne({
+      tokenHash,
+      status: "pending",
+    });
 
     if (!invite) {
-      return res.status(404).json({ message: "Invite not found or already processed" });
+      return res
+        .status(404)
+        .json({ message: "Invite not found or already processed" });
     }
 
     if (invite.expiresAt <= new Date()) {
@@ -470,8 +565,12 @@ exports.acceptEnterpriseInvite = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const userEmail = String(user.email || "").trim().toLowerCase();
-    const invitedEmail = String(invite.invitedEmail || "").trim().toLowerCase();
+    const userEmail = String(user.email || "")
+      .trim()
+      .toLowerCase();
+    const invitedEmail = String(invite.invitedEmail || "")
+      .trim()
+      .toLowerCase();
 
     if (userEmail !== invitedEmail) {
       return res.status(403).json({
@@ -479,13 +578,20 @@ exports.acceptEnterpriseInvite = async (req, res) => {
       });
     }
 
-    const enterprise = await Enterprise.findById(invite.enterpriseId).select("ownerId members name");
+    const enterprise = await Enterprise.findById(invite.enterpriseId).select(
+      "ownerId members name",
+    );
     if (!enterprise) {
       return res.status(404).json({ message: "Enterprise not found" });
     }
 
-    if (String(user.enterpriseId || "") && String(user.enterpriseId) !== String(enterprise._id)) {
-      return res.status(409).json({ message: "You already belong to another enterprise" });
+    if (
+      String(user.enterpriseId || "") &&
+      String(user.enterpriseId) !== String(enterprise._id)
+    ) {
+      return res
+        .status(409)
+        .json({ message: "You already belong to another enterprise" });
     }
 
     const activeBusinessSubscription = await Subscription.findOne({
@@ -494,8 +600,13 @@ exports.acceptEnterpriseInvite = async (req, res) => {
       plan: "Business",
     }).sort({ createdAt: -1 });
 
-    const seatLimit = Math.max(1, Number(activeBusinessSubscription?.seats || 1));
-    const memberIds = new Set((enterprise.members || []).map((memberId) => String(memberId)));
+    const seatLimit = Math.max(
+      1,
+      Number(activeBusinessSubscription?.seats || 1),
+    );
+    const memberIds = new Set(
+      (enterprise.members || []).map((memberId) => String(memberId)),
+    );
     if (enterprise.ownerId) {
       memberIds.add(String(enterprise.ownerId));
     }
@@ -503,7 +614,9 @@ exports.acceptEnterpriseInvite = async (req, res) => {
     const alreadyMember = memberIds.has(String(user._id));
     const seatsUsed = memberIds.size;
     if (!alreadyMember && seatsUsed >= seatLimit) {
-      return res.status(400).json({ message: "No seats available in this enterprise" });
+      return res
+        .status(400)
+        .json({ message: "No seats available in this enterprise" });
     }
 
     user.enterpriseId = enterprise._id;
@@ -536,7 +649,9 @@ exports.acceptEnterpriseInvite = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to accept enterprise invite" });
+    return res
+      .status(500)
+      .json({ message: "Failed to accept enterprise invite" });
   }
 };
 

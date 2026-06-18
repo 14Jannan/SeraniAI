@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useParams } from "react-router-dom";
+import { getStoredToken } from "../../utils/authStorage";
 import {
   FiEdit,
   FiTrash2,
@@ -126,7 +127,7 @@ const AdminLessons = () => {
 
     const fetchCourseName = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getStoredToken();
         const res = await fetch("http://localhost:7001/api/admin/courses", {
           headers: {
             Authorization: `Bearer ${token}`,

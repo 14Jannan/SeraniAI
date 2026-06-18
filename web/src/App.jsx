@@ -45,6 +45,7 @@ import Settings from "./pages/user/Settings";
 /* ---------------- COMPONENTS ---------------- */
 
 import PrivateRoute from "./components/PrivateRoute";
+import PublicOnlyRoute from "./components/PublicOnlyRoute";
 import JournalRouteGuard from "./components/JournalRouteGuard";
 import PlanFeatureGate from "./components/PlanFeatureGate";
 
@@ -60,13 +61,62 @@ function App() {
       >
         <Routes>
           {/* ---------- PUBLIC ROUTES ---------- */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/login-success" element={<LoginSuccess />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/verify" element={<Verify />} />
+          <Route
+            path="/"
+            element={
+              <PublicOnlyRoute>
+                <Landing />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/login-success"
+            element={
+              <PublicOnlyRoute>
+                <LoginSuccess />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicOnlyRoute>
+                <Register />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicOnlyRoute>
+                <ForgotPassword />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <PublicOnlyRoute>
+                <ResetPassword />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/verify"
+            element={
+              <PublicOnlyRoute>
+                <Verify />
+              </PublicOnlyRoute>
+            }
+          />
           <Route
             path="/enterprise/invite/accept"
             element={<AcceptEnterpriseInvite />}

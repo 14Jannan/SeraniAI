@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { getStoredToken } from "../../../utils/authStorage";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
@@ -37,7 +38,7 @@ export default function PersonalCheckout() {
     setError("");
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       const res = await fetch(`${API_BASE}/api/billing/payhere`, {
         method: "POST",
         headers: {

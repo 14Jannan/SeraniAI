@@ -1,19 +1,29 @@
 import { createRequire } from "node:module";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sendVerificationEmailMock } = vi.hoisted(() => ({
-  sendVerificationEmailMock: vi.fn(),
+const { sendMailMock, createTransportMock } = vi.hoisted(() => ({
+  sendMailMock: vi.fn(),
+  createTransportMock: vi.fn(),
 }));
 
-vi.mock("../utils/emailService", () => ({
-  default: sendVerificationEmailMock,
-  __esModule: true,
-}));
+vi.mock("nodemailer", () => {
+  createTransportMock.mockImplementation(() => ({
+    sendMail: sendMailMock,
+  }));
+
+  return {
+    default: {
+      createTransport: createTransportMock,
+    },
+    createTransport: createTransportMock,
+    __esModule: true,
+  };
+});
 
 const require = createRequire(import.meta.url);
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const otpGenerator = require("otp-generator");
 const User = require("../models/userModel");
 const oauthTokenService = require("../utils/oauthTokenService");
 const {
@@ -41,6 +51,7 @@ describe("authController", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    sendMailMock.mockResolvedValue({ messageId: "test-message-id" });
     process.env.JWT_SECRET = "test_secret";
     process.env.JWT_REFRESH_SECRET = "test_refresh_secret";
   });
@@ -94,7 +105,8 @@ describe("authController", () => {
       vi.spyOn(User, "findOne").mockResolvedValue(null);
       vi.spyOn(bcrypt, "genSalt").mockResolvedValue("salt");
       vi.spyOn(bcrypt, "hash").mockResolvedValue("hashed-password");
-      vi.spyOn(otpGenerator, "generate").mockReturnValue("123456");
+      vi.spyOn(crypto, "randomInt").mockReturnValue(123456);
+      sendMailMock.mockRejectedValue(new Error("smtp fail"));
       vi.spyOn(User, "create").mockResolvedValue({
         _id: "u2",
         email: "alice@test.com",
@@ -342,10 +354,45 @@ describe("authController", () => {
       expect(res.cookie).toHaveBeenCalledWith(
         "refreshToken",
         "refresh-token",
-        expect.objectContaining({ sameSite: "Lax" }),
+        expect.objectContaining({ sameSite: "Lax", secure: false }),
       );
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ token: "access-token" }),
+      );
+    });
+
+    it("sets persistent refresh cookie and rememberMe flag when rememberMe=true", async () => {
+      vi.spyOn(User, "findOne").mockResolvedValue(verifiedUser);
+      vi.spyOn(bcrypt, "compare").mockResolvedValue(true);
+      vi.spyOn(jwt, "sign")
+        .mockReturnValueOnce("access-token")
+        .mockReturnValueOnce("refresh-token");
+      const res = mockRes();
+
+      await loginUser(
+        {
+          body: {
+            email: "bob@test.com",
+            password: "pass",
+            rememberMe: true,
+          },
+        },
+        res,
+      );
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        "refreshToken",
+        "refresh-token",
+        expect.objectContaining({
+          sameSite: "Lax",
+          secure: false,
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        }),
+      );
+      expect(res.cookie).toHaveBeenCalledWith(
+        "rememberMe",
+        "true",
+        expect.objectContaining({ sameSite: "Lax", secure: false }),
       );
     });
   });
@@ -368,8 +415,8 @@ describe("authController", () => {
         save: vi.fn().mockResolvedValue(undefined),
       };
       vi.spyOn(User, "findOne").mockResolvedValue(user);
-      vi.spyOn(otpGenerator, "generate").mockReturnValue("654321");
-      sendVerificationEmailMock.mockRejectedValue(new Error("smtp fail"));
+      vi.spyOn(crypto, "randomInt").mockReturnValue(654321);
+      sendMailMock.mockRejectedValue(new Error("smtp fail"));
       const res = mockRes();
 
       await forgotPassword({ body: { email: "carol@test.com" } }, res);
@@ -475,6 +522,36 @@ describe("authController", () => {
 
       expect(res.json).toHaveBeenCalledWith({ token: "new-access-token" });
     });
+
+    it("preserves rememberMe persistence during refresh", async () => {
+      vi.spyOn(jwt, "verify").mockReturnValue({ id: "u1" });
+      vi.spyOn(User, "findById").mockResolvedValue({ _id: "u1", role: "user" });
+      vi.spyOn(jwt, "sign")
+        .mockReturnValueOnce("new-access-token")
+        .mockReturnValueOnce("new-refresh-token");
+      const res = mockRes();
+
+      await refreshAccessToken(
+        { cookies: { refreshToken: "ok", rememberMe: "true" } },
+        res,
+      );
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        "refreshToken",
+        "new-refresh-token",
+        expect.objectContaining({
+          sameSite: "Lax",
+          secure: false,
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        }),
+      );
+      expect(res.cookie).toHaveBeenCalledWith(
+        "rememberMe",
+        "true",
+        expect.objectContaining({ sameSite: "Lax", secure: false }),
+      );
+      expect(res.json).toHaveBeenCalledWith({ token: "new-access-token" });
+    });
   });
 
   describe("logoutUser", () => {
@@ -483,6 +560,7 @@ describe("authController", () => {
       logoutUser({}, res);
 
       expect(res.clearCookie).toHaveBeenCalledWith("refreshToken");
+      expect(res.clearCookie).toHaveBeenCalledWith("rememberMe");
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         message: "Logged out successfully",

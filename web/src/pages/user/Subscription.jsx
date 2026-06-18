@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 import Modal from "../../components/Modal";
 import { cancelSubscription, getUserSubscription } from "../../api/subscriptionApi";
 import { cancelEnterprisePremiumAccess } from "../../api/authApi";
+import {
+  getAuthStorageMode,
+  getStoredToken,
+  getStoredUser,
+  saveAuthSession,
+} from "../../utils/authStorage";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
@@ -269,7 +275,7 @@ export default function Subscription() {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     const orderId = localStorage.getItem("payhere_pending_order_id");
 
     if (!token || !orderId) {
@@ -300,7 +306,7 @@ export default function Subscription() {
   // Fetch current subscription
   useEffect(() => {
     try {
-      const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+      const storedUser = getStoredUser();
       setCurrentUserRole(storedUser?.role || null);
     } catch {
       setCurrentUserRole(null);
@@ -375,7 +381,10 @@ export default function Subscription() {
     try {
       const response = await cancelEnterprisePremiumAccess();
       if (response.data?.user) {
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        saveAuthSession({
+          user: response.data.user,
+          rememberMe: getAuthStorageMode() === "localStorage",
+        });
       }
       alert(response.data?.message || "Enterprise premium access cancelled.");
       window.location.reload();

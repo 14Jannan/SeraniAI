@@ -11,6 +11,11 @@ require("dotenv").config();
 const dbConnect = require("./config/dbConnect");
 require("./config/passport"); // Load passport configuration
 
+if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+  console.error("ERROR: JWT_SECRET and JWT_REFRESH_SECRET must be defined in .env");
+  process.exit(1);
+}
+
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");

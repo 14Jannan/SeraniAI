@@ -1,24 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
-import { getCurrentUser } from '../../api/authApi';
-import { Sun, Moon, User, Save, LogOut } from 'lucide-react';
+import { getCurrentUser, deleteCurrentUser } from '../../api/authApi';
+import { getUserSubscription } from '../../api/subscriptionApi';
+import { Sun, Moon, User, Save, LogOut, CreditCard, ChevronRight, Upload } from 'lucide-react';
+import {
+  clearAuthSession,
+  getAuthStorageMode,
+  getStoredUser,
+  saveAuthSession,
+} from '../../utils/authStorage';
 
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
+  const profileImageInputRef = useRef(null);
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getStoredUser());
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [subscription, setSubscription] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
+    displayName: getStoredUser()?.name || '',
+    profileImage: getStoredUser()?.profileImage || '',
   });
 
   useEffect(() => {
@@ -26,13 +36,31 @@ const Settings = () => {
       try {
         const response = await getCurrentUser();
         if (response?.data) {
-          setUser(response.data);
+          const storedUser = getStoredUser() || {};
+          const mergedUser = {
+            ...storedUser,
+            ...response.data,
+            profileImage: storedUser.profileImage || response.data.profileImage || '',
+          };
+
+          setUser(mergedUser);
           setFormData({
-            firstName: response.data.firstName || '',
-            lastName: response.data.lastName || '',
-            email: response.data.email || '',
-            phone: response.data.phone || '',
+            displayName: mergedUser.name || '',
+            profileImage: mergedUser.profileImage || '',
           });
+
+          saveAuthSession({
+            user: mergedUser,
+            rememberMe: getAuthStorageMode() === 'localStorage',
+          });
+        }
+
+        // Fetch subscription data
+        try {
+          const subResponse = await getUserSubscription();
+          setSubscription(subResponse.data);
+        } catch (error) {
+          console.error('Failed to fetch subscription:', error);
         }
       } catch (error) {
         console.error('Failed to fetch user:', error);
@@ -52,11 +80,63 @@ const Settings = () => {
     }));
   };
 
+  const handleProfileImageChange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setSaveMessage('Please choose an image file.');
+      setTimeout(() => setSaveMessage(''), 3000);
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({
+        ...prev,
+        profileImage: String(reader.result || ''),
+      }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      // TODO: Call API to update user profile
-      // For now, just show success message
+      const trimmedDisplayName = formData.displayName.trim();
+
+      if (!trimmedDisplayName) {
+        setSaveMessage('Display name is required.');
+        setTimeout(() => setSaveMessage(''), 3000);
+        return;
+      }
+
+      const updatedUser = {
+        ...(user || {}),
+        name: trimmedDisplayName,
+        profileImage: formData.profileImage || '',
+      };
+
+      setUser(updatedUser);
+      setFormData({
+        displayName: updatedUser.name || '',
+        profileImage: updatedUser.profileImage || '',
+      });
+
+      saveAuthSession({
+        user: updatedUser,
+        rememberMe: getAuthStorageMode() === 'localStorage',
+      });
+
+      window.dispatchEvent(
+        new CustomEvent('serani:user-updated', { detail: updatedUser }),
+      );
+
       setSaveMessage('Profile updated successfully!');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
@@ -68,9 +148,44 @@ const Settings = () => {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthSession();
+    // Redirect to login page
     navigate('/login');
   };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    setDeleteError('');
+
+    try {
+      await deleteCurrentUser();
+      clearAuthSession();
+      navigate('/login');
+    } catch (error) {
+      setDeleteError(
+        error?.response?.data?.message || 'Unable to delete account. Please try again.',
+      );
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const historyEntries = subscription
+    ? subscription.transactionHistory && subscription.transactionHistory.length > 0
+      ? subscription.transactionHistory
+      : [
+          {
+            date: subscription.lastCharged || subscription.createdAt || new Date(),
+            amount: subscription.amount || 0,
+            status:
+              subscription.payHereStatus === 'ACTIVE' || subscription.status === 'Active'
+                ? 'Paid'
+                : subscription.status || 'Pending',
+            description: `${subscription.plan || 'Subscription'} charge`,
+          },
+        ]
+    : [];
 
   if (loading) {
     return (
@@ -152,81 +267,76 @@ const Settings = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    isDark
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                  placeholder="First Name"
-                />
+            <div className={`flex flex-col gap-4 rounded-2xl border border-dashed p-4 ${isDark ? 'border-gray-600 bg-gray-900/40' : 'border-gray-300 bg-gray-50'}`}>
+              <div className="flex items-center gap-4">
+                <div className={`h-20 w-20 overflow-hidden rounded-2xl border ${isDark ? 'border-gray-600 bg-gray-700' : 'border-gray-200 bg-gray-100'}`}>
+                  {formData.profileImage ? (
+                    <img src={formData.profileImage} alt="Profile preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className={`flex h-full w-full items-center justify-center text-xl font-bold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {formData.displayName ? formData.displayName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <p className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>Profile image</p>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Upload an image to use across your profile.
+                  </p>
+                </div>
               </div>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Last Name
-                </label>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => profileImageInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                >
+                  <Upload size={18} />
+                  Change image
+                </button>
+
+                {formData.profileImage && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, profileImage: '' }))}
+                    className={`px-4 py-2 rounded-lg border transition ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    Remove image
+                  </button>
+                )}
+
                 <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    isDark
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                  placeholder="Last Name"
+                  ref={profileImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfileImageChange}
+                  className="hidden"
                 />
               </div>
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Email
+                Display Name
               </label>
               <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                disabled
-                className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-gray-400'
-                    : 'bg-gray-100 border-gray-300 text-gray-600'
-                }`}
-                placeholder="Email"
-              />
-              <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Email cannot be changed
-              </p>
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Phone
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
+                type="text"
+                name="displayName"
+                value={formData.displayName}
                 onChange={handleInputChange}
                 className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   isDark
                     ? 'bg-gray-700 border-gray-600 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
-                placeholder="Phone Number"
+                placeholder="Display Name"
               />
+            </div>
+
+            <div className={`rounded-lg border px-4 py-3 text-sm ${isDark ? 'border-gray-700 bg-gray-900/40 text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'}`}>
+              Only your display name and profile image can be edited here.
             </div>
 
             <button
@@ -240,42 +350,143 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* Important Settings Section */}
+        {/* Billing Section */}
         <div className={`mb-8 p-6 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <h2 className="text-xl font-bold mb-6">Important Settings</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900">
+              <CreditCard size={20} className="text-green-600 dark:text-green-400" />
+            </div>
+            <h2 className="text-xl font-bold">Billing</h2>
+          </div>
 
-          <div className="space-y-4">
-            <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'}`}>
-              <h3 className="font-semibold mb-2">Two-Factor Authentication</h3>
-              <p className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Add an extra layer of security to your account
-              </p>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                Enable 2FA
+          <div className={`p-4 rounded-lg mb-6 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'} border`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg">
+                  {subscription?.plan === "Personal" ? "Pro Plan" : subscription?.plan === "Business" ? "Business Plan" : "Free Plan"}
+                </h3>
+                <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Intelligence for everyday tasks
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/subscription')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                Upgrade
               </button>
             </div>
+          </div>
 
-            <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'}`}>
-              <h3 className="font-semibold mb-2">Data & Privacy</h3>
-              <p className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Manage your data and privacy preferences
-              </p>
-              <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
-                View Privacy Settings
-              </button>
+          <h3 className="font-semibold mb-4 text-base">Billing history</h3>
+          <div className={`rounded-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+            {historyEntries.length > 0 ? (
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {historyEntries.map((transaction, idx) => {
+                  const amountDisplay = Number.isFinite(Number(transaction.amount))
+                    ? Number(transaction.amount).toFixed(2)
+                    : String(transaction.amount || '0.00');
+
+                  return (
+                    <div key={idx} className={`p-4 flex items-center justify-between ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition`}>
+                      <div className="flex-1">
+                        <div className={`font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          {new Date(transaction.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </div>
+                        <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {transaction.description || 'Subscription charge'}
+                        </div>
+                      </div>
+                      <div className={`font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                        LKR {amountDisplay}
+                      </div>
+                      <div className="ml-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          transaction.status === 'Paid' || transaction.status === 'paid'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {transaction.status || 'Paid'}
+                        </span>
+                      </div>
+                      <button className={`ml-4 text-sm font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}>
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={`p-6 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                No billing history yet
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Account Section */}
+        <div className={`mb-8 p-6 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <h2 className="text-xl font-bold mb-6">Account</h2>
+
+          <div className={`space-y-4 p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+            {/* Name */}
+            <div className="flex items-center justify-between py-3 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Name</span>
+              <span className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                {formData.displayName || user?.name || 'Not set'}
+              </span>
             </div>
 
-            <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'}`}>
-              <h3 className="font-semibold mb-2">Account Sessions</h3>
-              <p className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Manage your active sessions and devices
-              </p>
-              <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
-                Manage Sessions
+            {/* Email */}
+            <div className="flex items-center justify-between py-3 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Email</span>
+              <span className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                {user?.email || 'Not set'}
+              </span>
+            </div>
+
+            {/* Delete Account */}
+            <div className="flex items-center justify-between py-3">
+              <span className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Delete account</span>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                Delete
               </button>
             </div>
           </div>
         </div>
+
+        {/* Delete Account Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 rounded-lg">
+            <div className={`p-6 rounded-lg max-w-sm w-full mx-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+              <h3 className="text-lg font-bold mb-4">Delete Account</h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Are you sure you want to delete your account? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeletingAccount ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+              {deleteError && (
+                <p className="mt-4 text-sm text-red-500">{deleteError}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Logout Section */}
         <div className={`p-6 rounded-lg border ${isDark ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'}`}>

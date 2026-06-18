@@ -2,12 +2,15 @@ const Course = require("../models/courseModel");
 const Lesson = require("../models/lessonModel");
 const Enrollment = require("../models/enrollmentModel");
 const Category = require("../models/categoryModel");
+const { getCache, setCache, deleteCache } = require("../utils/cache");
 
 exports.getAdminCategories = async (req, res) => {
   try {
+    const cached = await getCache("admin:categories");
+    if (cached) return res.json(cached);
+
     const categories = await Category.find({ isDeleted: false }).sort({ name: 1 });
 
-    // Keep backward compatibility with existing course categories.
     const courseCategories = await Course.distinct("category", {
       isDeleted: false,
       category: { $nin: [null, ""] },
@@ -29,7 +32,12 @@ exports.getAdminCategories = async (req, res) => {
       }
     });
 
-    return res.json(Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name)));
+    const result = Array.from(merged.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    await setCache("admin:categories", result, 300); // 5 minutes
+    return res.json(result);
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -52,6 +60,7 @@ exports.createAdminCategory = async (req, res) => {
     }
 
     const category = await Category.create({ name: rawName });
+    await deleteCache("admin:categories"); // bust cache
     return res.status(201).json(category);
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -73,11 +82,14 @@ exports.deleteAdminCategory = async (req, res) => {
     });
 
     if (usedByCourses) {
-      return res.status(400).json({ message: "Category is used by courses and cannot be deleted" });
+      return res
+        .status(400)
+        .json({ message: "Category is used by courses and cannot be deleted" });
     }
 
     category.isDeleted = true;
     await category.save();
+    await deleteCache("admin:categories"); // bust cache
 
     return res.json({ message: "Category deleted" });
   } catch (err) {
@@ -87,37 +99,40 @@ exports.deleteAdminCategory = async (req, res) => {
 
 exports.getAdminCourseDashboard = async (req, res) => {
   try {
+    const cached = await getCache("admin:course:dashboard");
+    if (cached) return res.json(cached);
+
     const totalCourses = await Course.countDocuments({ isDeleted: false });
     const totalLessons = await Lesson.countDocuments({ isDeleted: { $ne: true } });
-    const totalEnrolled = await Enrollment.countDocuments({}); // real enrollments
-
-    // rating system not implemented yet
+    const totalEnrolled = await Enrollment.countDocuments({});
     const avgRating = null;
 
-    res.json({
-      totalCourses,
-      totalLessons,
-      totalEnrolled,
-      avgRating,
-    });
+    const result = { totalCourses, totalLessons, totalEnrolled, avgRating };
+    await setCache("admin:course:dashboard", result, 120); // 2 minutes
+    res.json(result);
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 exports.getAdminCourses = async (req, res) => {
   try {
     const search = (req.query.search || "").trim();
+
+    // search queries are dynamic — only cache the no-search version
+    const cacheKey = search ? null : "admin:courses:all";
+    if (cacheKey) {
+      const cached = await getCache(cacheKey);
+      if (cached) return res.json(cached);
+    }
+
     const matchStage = {
       isDeleted: false,
-      ...(search
-        ? { title: { $regex: search, $options: "i" } }
-        : {}),
+      ...(search ? { title: { $regex: search, $options: "i" } } : {}),
     };
 
     const courses = await Course.aggregate([
       { $match: matchStage },
-
-      // count lessons per course
       {
         $lookup: {
           from: "lessons",
@@ -127,8 +142,6 @@ exports.getAdminCourses = async (req, res) => {
           pipeline: [{ $match: { isDeleted: { $ne: true } } }],
         },
       },
-
-      // count enrollments per course
       {
         $lookup: {
           from: "enrollments",
@@ -137,24 +150,17 @@ exports.getAdminCourses = async (req, res) => {
           as: "enrollments",
         },
       },
-
       {
         $addFields: {
           lessonsCount: { $size: "$lessons" },
           enrolledCount: { $size: "$enrollments" },
         },
       },
-
-      {
-        $project: {
-          lessons: 0,
-          enrollments: 0,
-        },
-      },
-
+      { $project: { lessons: 0, enrollments: 0 } },
       { $sort: { createdAt: -1 } },
     ]);
 
+    if (cacheKey) await setCache(cacheKey, courses, 300); // 5 minutes, only non-search
     res.json(courses);
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
@@ -163,7 +169,8 @@ exports.getAdminCourses = async (req, res) => {
 
 exports.createCourse = async (req, res) => {
   try {
-    const { title, instructorName, description, category, level, isPublished } = req.body;
+    const { title, instructorName, description, category, level, isPublished } =
+      req.body;
 
     const normalizedPublished =
       isPublished === undefined ? true : String(isPublished) === "true";
@@ -175,61 +182,46 @@ exports.createCourse = async (req, res) => {
       category,
       level,
       isPublished: normalizedPublished,
-      thumbnailUrl: req.file
-        ? `http://localhost:7001/uploads/${req.file.filename}`
-        : "",
+      thumbnailUrl:
+        req.body.thumbnailUrl ||
+        (req.file ? `${process.env.BASE_URL}/uploads/${req.file.filename}` : ""),
     });
 
     await newCourse.save();
+
+    // bust all course-related caches
+    await deleteCache("admin:courses:all");
+    await deleteCache("admin:course:dashboard");
 
     res.status(201).json(newCourse);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-exports.createLesson = async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    const { title, videoUrl, durationMinutes, thumbnailUrl, orderIndex } = req.body;
 
-    if (!title || !videoUrl) {
-      return res.status(400).json({ message: "Title and videoUrl are required" });
-    }
-
-    const lesson = await Lesson.create({
-      courseId,
-      title,
-      videoUrl,
-      durationMinutes: durationMinutes || 0,
-      thumbnailUrl: thumbnailUrl || "",
-      orderIndex: orderIndex || 1,
-      isPublished: true,
-    });
-
-    res.status(201).json(lesson);
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
 exports.deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
+    const course = await Course.findById(id);
 
-    const course = await Course.findByIdAndUpdate(
-      id,
-      { isDeleted: true },
-      { returnDocument: "after" }
-    );
-
-    if (!course) {
+    if (!course || course.isDeleted) {
       return res.status(404).json({ message: "Course not found" });
     }
+
+    course.isDeleted = true;
+    await course.save();
+
+    // bust all course-related caches
+    await deleteCache("admin:courses:all");
+    await deleteCache("admin:course:dashboard");
+    await deleteCache(`lessons:${id}`); // lessons for this course no longer needed
 
     res.json({ message: "Course deleted", courseId: id });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 exports.updateCourse = async (req, res) => {
   try {
     const { id } = req.params;
@@ -245,23 +237,29 @@ exports.updateCourse = async (req, res) => {
       description: req.body.description,
       category: req.body.category,
       level: req.body.level,
-      ...(normalizedPublished !== undefined ? { isPublished: normalizedPublished } : {}),
+      ...(normalizedPublished !== undefined
+        ? { isPublished: normalizedPublished }
+        : {}),
     };
 
-    if (req.file) {
-      updateData.thumbnailUrl = `http://localhost:7001/uploads/${req.file.filename}`;
+    if (req.body.thumbnailUrl) {
+      updateData.thumbnailUrl = req.body.thumbnailUrl;
+    } else if (req.file) {
+      updateData.thumbnailUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
     }
 
     const updated = await Course.findByIdAndUpdate(id, updateData, {
       returnDocument: "after",
     });
 
+    if (!updated) return res.status(404).json({ message: "Course not found" });
+
+    // bust all course-related caches
+    await deleteCache("admin:courses:all");
+    await deleteCache("admin:course:dashboard");
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
-
-
-

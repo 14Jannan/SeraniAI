@@ -4,6 +4,8 @@ import { addUser, updateUser, deleteUser } from "../../api/adminApi";
 import Modal from "../../components/Modal";
 import { useFetchUSers } from "../../hooks/useFetch";
 import { queryClient } from "../../main";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -227,12 +229,26 @@ const AdminUsers = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="4" className="text-center p-4">
-                    Loading...
-                  </td>
-                </tr>
-              ) : (
+                <>
+                  {Array(6).fill(0).map((_, i) => (
+                    <tr key={i} className="border-b dark:border-gray-700">
+                      <td className="px-6 py-4">
+                        <Skeleton width={120} baseColor="#e5e7eb" highlightColor="#f3f4f6"/>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Skeleton width={180} baseColor="#e5e7eb" highlightColor="#f3f4f6"/>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Skeleton width={90} height={26} borderRadius={20} baseColor="#e5e7eb" highlightColor="#f3f4f6"/>
+                      </td>
+                      <td className="px-6 py-4 flex justify-end gap-4">
+                        <Skeleton width={32} height={32} borderRadius={6} baseColor="#e5e7eb" highlightColor="#f3f4f6"/>
+                        <Skeleton width={32} height={32} borderRadius={6} baseColor="#e5e7eb" highlightColor="#f3f4f6"/>
+                      </td>
+                    </tr>
+                  ))}
+                </>
+                ) : (
                 users.map((user) => {
                   const displayRole =
                     user.role === "enterprise" ? "enterpriseUser" : user.role;

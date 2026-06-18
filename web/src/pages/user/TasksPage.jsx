@@ -17,7 +17,6 @@ import { InputTask } from "../../components/tasks/InputTask";
 import { TaskCard } from "../../components/tasks/TaskCard";
 import { TimerTask } from "../../components/tasks/TimerTask";
 import { useLocalStorageState } from "../../components/tasks/useLocalStorageState";
-import type { TaskData, TaskProgress } from "../../components/tasks/taskTypes";
 import {
   fetchDailyTasks,
   fetchTaskProgress,
@@ -25,15 +24,13 @@ import {
   saveTaskProgress,
 } from "../../api/tasksApi";
 
-type MoodKey = "low" | "neutral" | "focused" | "anxious";
-
 const STORAGE_KEYS = {
   mood: "serani-mood-selection",
   localProgress: "serani-task-local-progress",
   taskResults: "serani-task-results",
 };
 
-const MOOD_TASK_HINTS: Record<MoodKey, string[]> = {
+const MOOD_TASK_HINTS = {
   low: ["Self-Care", "Stress Relief"],
   neutral: ["Mindfulness", "Emotional Awareness"],
   focused: ["Focus", "Mindfulness"],
@@ -52,19 +49,7 @@ function todayDateKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function TaskRenderer({
-  task,
-  completed,
-  savedResult,
-  onComplete,
-  onSaveResult,
-}: {
-  task: TaskData;
-  completed: boolean;
-  savedResult: string;
-  onComplete: () => void;
-  onSaveResult: (value: string) => void;
-}) {
+function TaskRenderer({ task, completed, savedResult, onComplete, onSaveResult }) {
   switch (task.type) {
     case "breathing":
       return <BreathingTask task={task} completed={completed} onComplete={onComplete} />;
@@ -92,15 +77,15 @@ function TaskRenderer({
 }
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<TaskData[]>([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dateKey, setDateKey] = useState(todayDateKey());
   const [streakCount, setStreakCount] = useState(0);
 
-  const [selectedMood, setSelectedMood] = useLocalStorageState<MoodKey>(STORAGE_KEYS.mood, "neutral");
-  const [completedTaskIds, setCompletedTaskIds] = useLocalStorageState<string[]>(STORAGE_KEYS.localProgress, []);
-  const [taskResults, setTaskResults] = useLocalStorageState<Record<string, string>>(STORAGE_KEYS.taskResults, {});
+  const [selectedMood, setSelectedMood] = useLocalStorageState(STORAGE_KEYS.mood, "neutral");
+  const [completedTaskIds, setCompletedTaskIds] = useLocalStorageState(STORAGE_KEYS.localProgress, []);
+  const [taskResults, setTaskResults] = useLocalStorageState(STORAGE_KEYS.taskResults, {});
 
   useEffect(() => {
     let active = true;
@@ -119,7 +104,7 @@ export default function TasksPage() {
           return;
         }
 
-        const normalizedTasks = (backendTasks || []).filter((task: TaskData) => task.isActive);
+        const normalizedTasks = (backendTasks || []).filter((task) => task.isActive);
 
         setDateKey(backendDateKey || todayDateKey());
         setTasks(normalizedTasks);
@@ -151,6 +136,7 @@ export default function TasksPage() {
   }, [setCompletedTaskIds, setTaskResults]);
 
   useEffect(() => {
+    // Persist every progress change so refresh/device switch keeps the same daily state.
     if (!dateKey || tasks.length === 0) {
       return;
     }
@@ -172,6 +158,7 @@ export default function TasksPage() {
   }, [completedTaskIds, dateKey, taskResults, tasks]);
 
   const filteredTasks = useMemo(() => {
+    // Reorder by current mood preference, then cap to a focused daily set.
     const preferredCategories = MOOD_TASK_HINTS[selectedMood] || [];
 
     const preferred = tasks.filter((task) => preferredCategories.includes(task.category));
@@ -192,18 +179,18 @@ export default function TasksPage() {
     { label: "XP", value: `${xp}`, icon: Sparkles, tone: "text-violet-600" },
   ];
 
-  const moodOptions: Array<{ key: MoodKey; label: string }> = [
+  const moodOptions = [
     { key: "low", label: "Low Energy" },
     { key: "neutral", label: "Neutral" },
     { key: "focused", label: "Focused" },
     { key: "anxious", label: "Anxious" },
   ];
 
-  const markComplete = (taskId: string) => {
+  const markComplete = (taskId) => {
     setCompletedTaskIds((current) => (current.includes(taskId) ? current : [...current, taskId]));
   };
 
-  const handleSaveResult = (taskId: string, value: string) => {
+  const handleSaveResult = (taskId, value) => {
     setTaskResults((current) => ({
       ...current,
       [taskId]: value,

@@ -412,6 +412,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 16,
   },

@@ -36,6 +36,11 @@ const lessonSchema = new mongoose.Schema(
 
   duration: {
     type: Number
+  },
+
+  isDeleted: {
+    type: Boolean,
+    default: false
   }
 
 },

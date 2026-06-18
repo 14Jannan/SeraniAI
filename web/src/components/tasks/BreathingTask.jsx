@@ -1,17 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Pause, Play, RotateCcw, CheckCircle2 } from "lucide-react";
-import type { BreathingTaskData } from "./taskTypes";
 
-type BreathingTaskProps = {
-  task: BreathingTaskData;
-  completed: boolean;
-  onComplete: () => void;
-};
-
-type BreathingPhase = "idle" | "inhale" | "hold" | "exhale";
-
-export function BreathingTask({ task, completed, onComplete }: BreathingTaskProps) {
+export function BreathingTask({ task, completed, onComplete }) {
   const inhaleSeconds = Number(task.config?.inhale || 4);
   const holdSeconds = Number(task.config?.hold || 4);
   const exhaleSeconds = Number(task.config?.exhale || 4);
@@ -19,19 +10,19 @@ export function BreathingTask({ task, completed, onComplete }: BreathingTaskProp
   const cycles = Number(task.config?.cycles || 4);
 
   const [isRunning, setIsRunning] = useState(false);
-  const [phase, setPhase] = useState<BreathingPhase>("idle");
+  const [phase, setPhase] = useState("idle");
   const [cycleCount, setCycleCount] = useState(0);
 
   const phaseSequence = useMemo(
     () => {
       const sequence = [
-        { phase: "inhale" as const, duration: inhaleSeconds },
-        { phase: "hold" as const, duration: holdSeconds },
-        { phase: "exhale" as const, duration: exhaleSeconds },
+        { phase: "inhale", duration: inhaleSeconds },
+        { phase: "hold", duration: holdSeconds },
+        { phase: "exhale", duration: exhaleSeconds },
       ];
 
       if (holdAfterExhaleSeconds > 0) {
-        sequence.push({ phase: "hold" as const, duration: holdAfterExhaleSeconds });
+        sequence.push({ phase: "hold", duration: holdAfterExhaleSeconds });
       }
 
       return sequence;
@@ -57,7 +48,7 @@ export function BreathingTask({ task, completed, onComplete }: BreathingTaskProp
     }
 
     let cancelled = false;
-    let timeoutId: number | undefined;
+    let timeoutId;
     let stepIndex = 0;
     let completedCycles = cycleCount;
 

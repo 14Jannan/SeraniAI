@@ -1,16 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Sparkles } from "lucide-react";
-import type { ReactNode } from "react";
-import type { TaskData } from "./taskTypes";
 
-type TaskCardProps = {
-  task: TaskData;
-  completed: boolean;
-  children: ReactNode;
-};
-
-export function TaskCard({ task, completed, children }: TaskCardProps) {
-  const toneClassByCategory: Record<string, string> = {
+export function TaskCard({ task, completed, children }) {
+  const toneClassByCategory = {
     Mindfulness: "from-blue-200 to-sky-100",
     "Stress Relief": "from-emerald-200 to-teal-100",
     "Emotional Awareness": "from-violet-200 to-purple-100",

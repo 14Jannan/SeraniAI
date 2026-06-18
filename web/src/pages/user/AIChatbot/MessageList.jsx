@@ -317,9 +317,9 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                   <div className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}>
                     {/* Bubble */}
                     <div
-                      className={`px-6 py-4 rounded-[32px] shadow-sm text-[17px] leading-relaxed break-words relative transition-all duration-300 ${isUser
-                        ? "bg-blue-600 text-white rounded-br-none shadow-blue-500/10"
-                        : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md text-gray-800 dark:text-gray-100 border border-white dark:border-gray-800 rounded-bl-none"
+                      className={`px-6 py-4 rounded-[28px] shadow-sm text-base leading-relaxed break-words relative transition-all duration-300 ${isUser
+                        ? "bg-blue-600 text-white shadow-blue-500/10"
+                        : "bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 shadow-slate-200/60 dark:shadow-slate-950/40"
                         }`}
                     >
                       {msg.fileUrl && (
