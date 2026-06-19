@@ -4,6 +4,12 @@ import { useTheme } from '../context/ThemeContext'
 import { getUserSubscription } from '../api/subscriptionApi'
 import { getCurrentUser } from '../api/authApi'
 import {
+  clearAuthSession,
+  getAuthStorageMode,
+  getStoredUser,
+  saveAuthSession,
+} from '../utils/authStorage'
+import {
   FiLogOut,
   FiHome,
   FiMessageSquare,
@@ -35,8 +41,8 @@ const UserLayout = () => {
   };
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) setUser(JSON.parse(userData));
+    const userData = getStoredUser();
+    if (userData) setUser(userData);
   }, []);
 
   useEffect(() => {
@@ -50,7 +56,10 @@ const UserLayout = () => {
         if (userResponse.status === 'fulfilled' && userResponse.value?.data) {
           const freshUser = userResponse.value.data;
           setUser(freshUser);
-          localStorage.setItem('user', JSON.stringify(freshUser));
+          saveAuthSession({
+            user: freshUser,
+            rememberMe: getAuthStorageMode() === 'localStorage',
+          });
         }
 
         if (
@@ -68,7 +77,7 @@ const UserLayout = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthSession();
     navigate('/login');
   };
 

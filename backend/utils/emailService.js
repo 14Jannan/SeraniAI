@@ -1,14 +1,25 @@
 const nodemailer = require("nodemailer");
 
+const createTransporter = () => {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
+
+  if (!emailUser || !emailPass) {
+    throw new Error("Missing email credentials");
+  }
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: emailUser,
+      pass: emailPass,
+    },
+  });
+};
+
 const sendVerificationEmail = async (email, otp) => {
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER, // Your Gmail address
-        pass: process.env.EMAIL_PASS, // Your Gmail App Password
-      },
-    });
+    const transporter = createTransporter();
 
     // Professional HTML Email Template
     const mailOptions = {
@@ -50,13 +61,7 @@ const sendEnterpriseInviteEmail = async ({
   expiresAt,
 }) => {
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const transporter = createTransporter();
 
     const expiryText = new Date(expiresAt).toLocaleString();
 

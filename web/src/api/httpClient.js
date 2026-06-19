@@ -1,4 +1,10 @@
 import axios from "axios";
+import {
+  clearAuthSession,
+  getAuthStorageMode,
+  getStoredToken,
+  saveAuthSession,
+} from "../utils/authStorage";
 
 const BASE_URL = "http://localhost:7001";
 const REFRESH_URL = `${BASE_URL}/api/auth/refresh`;
@@ -23,7 +29,7 @@ const processQueue = (error, token = null) => {
 };
 
 httpClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
 
   if (token && !config.headers?.Authorization) {
     config.headers = config.headers || {};
@@ -75,7 +81,11 @@ httpClient.interceptors.response.use(
         throw new Error("Token refresh did not return a token");
       }
 
-      localStorage.setItem("token", newToken);
+      saveAuthSession({
+        token: newToken,
+        rememberMe: getAuthStorageMode() === "localStorage",
+      });
+
       httpClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
       processQueue(null, newToken);
 
@@ -85,8 +95,7 @@ httpClient.interceptors.response.use(
       return httpClient(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      clearAuthSession();
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

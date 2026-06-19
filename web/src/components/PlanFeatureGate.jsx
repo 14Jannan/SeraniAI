@@ -1,15 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { getStoredUser } from "../utils/authStorage";
 
 /* Helper function to retrieve the user's role from localStorage */
 function getCurrentRole() {
-  try {
-    const raw = localStorage.getItem("user");
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed?.role || "user";
-  } catch (error) {
-    return "user";
-  }
+  return getStoredUser()?.role || "user";
 }
 
 /* Component that gates premium features behind a subscription requirement */

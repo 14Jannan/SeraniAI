@@ -11,8 +11,10 @@ require("dotenv").config();
 const dbConnect = require("./config/dbConnect");
 require("./config/passport"); // Load passport configuration
 
-const Category = require("./models/categoryModel");
-const { TASK_CATEGORIES } = require("./models/taskModel");
+if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+  console.error("ERROR: JWT_SECRET and JWT_REFRESH_SECRET must be defined in .env");
+  process.exit(1);
+}
 
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -29,24 +31,6 @@ const taskRoutes = require("./routes/taskRoutes");
 const chromaRoutes = require("./routes/chromaRoutes");
 
 dbConnect();
-
-// Seed default task categories on startup
-const initializeDefaultCategories = async () => {
-  try {
-    for (const categoryName of TASK_CATEGORIES) {
-      const exists = await Category.findOne({ name: categoryName, isDeleted: false });
-      if (!exists) {
-        await Category.create({ name: categoryName });
-        console.log(`✓ Created category: ${categoryName}`);
-      }
-    }
-    console.log("✓ Default categories initialized");
-  } catch (error) {
-    console.error("Error initializing categories:", error.message);
-  }
-};
-
-initializeDefaultCategories();
 
 const app = express();
 
