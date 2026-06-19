@@ -66,31 +66,6 @@ const JournalStack = () => (
   </Stack.Navigator>
 );
 
-const SubscriptionStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-    }}
-  >
-    <Stack.Screen name="SubscriptionHome" component={SubscriptionScreen} />
-    <Stack.Screen
-      name="SubscriptionCheckout"
-      component={SubscriptionCheckoutScreen}
-    />
-  </Stack.Navigator>
-);
-
-const JournalStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-    }}
-  >
-    <Stack.Screen name="JournalHome" component={JournalScreen} />
-    <Stack.Screen name="JournalEditor" component={AddJournalScreen} />
-  </Stack.Navigator>
-);
-
 const TasksStack = () => (
   <Stack.Navigator
     screenOptions={{
