@@ -593,6 +593,7 @@ export default function AdminCourses() {
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
                 <option value="Advanced">Advanced</option>
+                
               </select>
 
               <select
