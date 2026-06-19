@@ -1,12 +1,26 @@
 const axios = require("axios");
 
 class ChromaDBService {
-  constructor(baseUrl = process.env.CHROMA_API_URL || "http://localhost:5000/api") {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl) {
+    const rawBaseUrl =
+      baseUrl ||
+      process.env.CHROMA_API_URL ||
+      process.env.CHROMA_URL ||
+      "http://localhost:5000";
+
+    this.baseUrl = this.normalizeBaseUrl(rawBaseUrl);
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,
     });
+  }
+
+  normalizeBaseUrl(url) {
+    const trimmed = String(url || "").trim().replace(/\/+$/, "");
+    if (!trimmed) {
+      return "http://localhost:5000/api";
+    }
+    return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
   }
 
   /**

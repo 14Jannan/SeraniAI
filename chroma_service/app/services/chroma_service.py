@@ -1,8 +1,13 @@
 import os
 os.environ["ANONYMIZED_TELEMETRY"] = "false"
 os.environ["CHROMA_TELEMETRY_OFF"] = "true"
-import posthog
-posthog.capture = lambda *args, **kwargs: None
+try:
+    import posthog
+
+    posthog.capture = lambda *args, **kwargs: None
+except ImportError:
+    # Newer Chroma versions may not install posthog as a direct dependency.
+    pass
 import chromadb
 from chromadb.config import Settings
 import uuid
