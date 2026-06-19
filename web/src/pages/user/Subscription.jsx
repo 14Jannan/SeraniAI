@@ -599,11 +599,7 @@ export default function Subscription() {
           </p>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <p className="text-sm text-amber-800">
-              <strong>Note:</strong> Your subscription will be cancelled immediately, but you'll retain access until the end of your current billing period (
-              {currentSubscription?.nextChargeDate 
-                ? new Date(currentSubscription.nextChargeDate).toLocaleDateString()
-                : "end of period"}
-              ).
+              <strong>Note:</strong> Your subscription will be cancelled immediately.
             </p>
           </div>
 

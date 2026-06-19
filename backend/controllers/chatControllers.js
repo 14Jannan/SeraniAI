@@ -195,6 +195,13 @@ async function getTodayContext(userId, userMessage = "", localDateStr = "") {
 
     let context = `CURRENT_DATE: ${startOfDay.toDateString()}\n`;
     context += `FILTERED_GOOGLE_CALENDAR_EVENTS: [No calendar data provided in this request]\n\n`;
+    const recentJournals = await Journal.find({
+      user: userId,
+    })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("title content mood createdAt");
+
     const todayJournals = await Journal.find({
       user: userId,
       createdAt: { $gte: startOfDay }
@@ -228,6 +235,13 @@ async function getTodayContext(userId, userMessage = "", localDateStr = "") {
     // (Already declared above, appending now)
     if (todayJournals.length > 0) {
       context += "TODAY'S JOURNAL ENTRIES:\n" + todayJournals.map(j => `- [Title: ${j.title || "Untitled"}] Content: ${j.content}`).join("\n") + "\n\n";
+    }
+
+    if (recentJournals.length > 0) {
+      context += "RECENT JOURNAL ENTRIES (latest first):\n" + recentJournals.map((j) => {
+        const journalDate = j.createdAt ? new Date(j.createdAt).toDateString() : "Unknown date";
+        return `- [${journalDate}] [Title: ${j.title || "Untitled"}] Mood: ${j.mood || "unknown"} Content: ${j.content}`;
+      }).join("\n") + "\n\n";
     }
 
     if (todayLessonActivities.length > 0) {
