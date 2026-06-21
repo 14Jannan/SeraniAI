@@ -150,7 +150,7 @@ function ChatInterface() {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[#f0f9ff] dark:bg-[#0F172A] p-4 lg:p-6 gap-4 lg:gap-6 transition-colors duration-500">
+    <div className="flex h-full w-full overflow-hidden bg-[#f7fbff] dark:bg-[#050b16] p-4 lg:p-6 gap-4 lg:gap-6 transition-colors duration-500">
       {showOnboarding && <OnboardingForm onComplete={() => setShowOnboarding(false)} />}
       
       {/* History Drawer - Floating Overlay */}
@@ -167,10 +167,10 @@ function ChatInterface() {
       />
 
       {/* Main Chat Panel - Floating rounded card */}
-      <div className="flex-1 flex flex-col bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[40px] shadow-2xl border border-white/50 dark:border-gray-700/50 overflow-hidden relative transition-all duration-500">
+      <div className="flex-1 flex flex-col bg-white dark:bg-slate-950/95 backdrop-blur-xl rounded-[28px] shadow-[0_35px_75px_-45px_rgba(15,23,42,0.35)] border border-slate-200/70 dark:border-slate-800/80 overflow-hidden relative transition-all duration-500">
         
         {/* Modern Header */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-white/5 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm z-10 transition-colors">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-200/70 bg-white dark:bg-slate-950/95 backdrop-blur-sm z-10 transition-colors">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
               <SeraniAILogo size={24} color="#ffffff" />

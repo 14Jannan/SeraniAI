@@ -26,6 +26,7 @@ const {
   logoutUser,
   getOAuthProviderToken,
   getCurrentUser,
+  deleteCurrentUser,
   acceptEnterpriseInvite,
   cancelEnterprisePremiumAccess,
   updateOnboarding,
@@ -89,6 +90,7 @@ router.post("/refresh", refreshAccessToken);
 router.post("/logout", logoutUser);
 router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
 router.get("/me", protect, getCurrentUser);
+router.delete("/me", protect, deleteCurrentUser);
 router.post("/invites/accept", protect, acceptEnterpriseInvite);
 router.post("/enterprise/cancel-premium", protect, cancelEnterprisePremiumAccess);
 router.post(

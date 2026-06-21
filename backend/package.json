@@ -17,8 +17,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@langchain/core": "^1.2.0",
-    "@langchain/openai": "^1.5.1",
+    "@langchain/community": "^1.1.28",
+    "@langchain/openai": "^1.4.5",
     "axios": "^1.15.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",

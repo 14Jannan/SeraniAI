@@ -3,6 +3,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
 import { AIChatbotScreen } from "../screens/app/AIChatbotScreen";
 import { CoursesScreen } from "../screens/app/CoursesScreen";
@@ -107,12 +108,17 @@ export const AppStack = () => {
           height: 62 + insets.bottom,
           paddingTop: 8,
           paddingBottom: bottomPadding,
+          height: 62 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: bottomPadding,
           borderTopColor: colors.border,
           backgroundColor: colors.surface,
         },
         tabBarLabelStyle: {
           fontSize: 11,
+          fontSize: 11,
           fontWeight: "700",
+          lineHeight: 16,
           lineHeight: 16,
         },
       }}
