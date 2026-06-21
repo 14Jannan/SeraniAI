@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // ✅ Version 4+ uses a named import: { jwtDecode }
 import { jwtDecode } from "jwt-decode";
-import { getAuthDestination, saveAuthSession } from "../utils/authStorage";
+import { getAuthDestination, saveAuthSession, clearAuthSession } from "../utils/authStorage";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
@@ -47,8 +47,7 @@ const LoginSuccess = () => {
       navigate(getAuthDestination(userObj), { replace: true });
     } catch (err) {
       console.error("Login process failed:", err);
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      clearAuthSession();
       navigate("/login", { replace: true });
     }
   }, [location, navigate]);

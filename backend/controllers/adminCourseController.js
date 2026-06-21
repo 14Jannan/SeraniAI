@@ -8,6 +8,7 @@ const Course = require("../models/courseModel");
 const Lesson = require("../models/lessonModel");
 const Enrollment = require("../models/enrollmentModel");
 const Category = require("../models/categoryModel");
+const { deleteCache } = require("../utils/cache");
 
 /**
  * Get all categories (both from Category model and existing course categories)
@@ -270,6 +271,9 @@ exports.createCourse = async (req, res) => {
     // Save the new course to database
     await newCourse.save();
 
+    // Invalidate course cache
+    await deleteCache("courses:all");
+
     res.status(201).json(newCourse);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -299,6 +303,9 @@ exports.deleteCourse = async (req, res) => {
     // Perform soft delete by marking as deleted
     course.isDeleted = true;
     await course.save();
+
+    // Invalidate course cache
+    await deleteCache("courses:all");
 
     res.json({ message: "Course deleted", courseId: id });
   } catch (err) {
@@ -350,6 +357,9 @@ exports.updateCourse = async (req, res) => {
 
     // Return 404 if course doesn't exist
     if (!updated) return res.status(404).json({ message: "Course not found" });
+
+    // Invalidate course cache
+    await deleteCache("courses:all");
 
     // Return the updated course
     res.json(updated);

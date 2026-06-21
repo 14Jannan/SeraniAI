@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, CheckCircle, Sparkles } from "lucide-react";
 import { updateOnboarding } from "../../../api/authApi";
+import { getStoredToken, getStoredUser, saveAuthSession, getAuthStorageMode } from "../../../utils/authStorage";
 
 function OnboardingForm({ onComplete }) {
   const [step, setStep] = useState(1);
@@ -32,13 +33,17 @@ function OnboardingForm({ onComplete }) {
       setLoading(true);
       await updateOnboarding(formData);
       
-      // Update local storage user object
-      const localUser = JSON.parse(localStorage.getItem("user") || "{}");
-      localStorage.setItem("user", JSON.stringify({ 
-        ...localUser, 
-        onboardingStatus: "completed",
-        preferences: formData 
-      }));
+      // Update active storage user object
+      const localUser = getStoredUser() || {};
+      saveAuthSession({
+        token: getStoredToken(),
+        user: {
+          ...localUser,
+          onboardingStatus: "completed",
+          preferences: formData
+        },
+        rememberMe: getAuthStorageMode() === "localStorage"
+      });
 
       onComplete();
     } catch (err) {

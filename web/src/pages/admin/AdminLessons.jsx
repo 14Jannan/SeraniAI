@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useParams } from "react-router-dom";
+import { getStoredToken } from "../../utils/authStorage";
 import {
   FiEdit,
   FiTrash2,
@@ -21,7 +22,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
 function getAuthHeaders() {
   // Lesson mutations are admin-protected; attach bearer token for write operations.
-  const token = localStorage.getItem("token") || localStorage.getItem("authToken") || "";
+  const token = getStoredToken() || localStorage.getItem("authToken") || "";
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -176,7 +177,7 @@ const AdminLessons = () => {
 
     const fetchCourseName = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getStoredToken();
         const res = await fetch(`${API_BASE}/api/admin/courses`, {
           headers: {
             Authorization: `Bearer ${token}`,

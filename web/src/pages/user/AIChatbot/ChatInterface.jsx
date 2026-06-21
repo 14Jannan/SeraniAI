@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { History, Plus, User } from "lucide-react";
 import { fetchHistory, fetchSession, sendMessage } from "../../../api/chatApi";
+import { getStoredUser } from "../../../utils/authStorage";
 import HistoryDrawer from "./HistoryDrawer";
 import SeraniAILogo from "./SeraniAILogo";
 import MessageList from "./MessageList";
@@ -31,7 +32,7 @@ function ChatInterface() {
   useEffect(() => {
     (async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = getStoredUser() || {};
         const premiumRoles = ["enterpriseUser", "enterpriseAdmin", "(Pro)PlanUser"];
         if (premiumRoles.includes(user.role) && user.onboardingStatus !== "completed") {
           setShowOnboarding(true);

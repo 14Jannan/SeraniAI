@@ -1,6 +1,7 @@
 const Lesson = require("../models/lessonModel");
 const Course = require("../models/courseModel");
 const User = require("../models/userModel");
+const { getCache, setCache, deleteCache } = require("../utils/cache");
 
 exports.createLesson = async (req, res) => {
 	try {
@@ -45,6 +46,9 @@ exports.createLesson = async (req, res) => {
 
 		await lesson.save();
 
+		// Invalidate lesson cache for this course
+		await deleteCache(`lessons:course:${courseId}`);
+
 		res.status(201).json({ message: "Lesson created", lesson });
 	} catch (error) {
 		res.status(500).json({ message: error.message });
@@ -54,23 +58,25 @@ exports.createLesson = async (req, res) => {
 
 
 exports.getLessonsByCourse = async (req, res) => {
+	try {
+		const { courseId } = req.params;
+		const cacheKey = `lessons:course:${courseId}`;
+		const cachedLessons = await getCache(cacheKey);
+		if (cachedLessons) {
+			return res.json(cachedLessons);
+		}
 
-try {
+		// Hide soft-deleted lessons from users and admins by default.
+		const lessons = await Lesson.find({
+			courseId: courseId,
+			isDeleted: { $ne: true }
+		}).sort({ order: 1 });
 
-// Hide soft-deleted lessons from users and admins by default.
-const lessons = await Lesson.find({
-courseId: req.params.courseId,
-isDeleted: { $ne: true }
-}).sort({ order: 1 });
-
-res.json(lessons);
-
-}
-
-catch (error) {
-res.status(500).json({ message: error.message });
-}
-
+		await setCache(cacheKey, lessons, 300); // cache for 5 minutes
+		res.json(lessons);
+	} catch (error) {
+		res.status(500).json({ message: error.message });
+	}
 };
 
 
@@ -105,6 +111,9 @@ lesson.videoFile = "/uploads/" + req.files.video[0].filename;
 
 await lesson.save();
 
+// Invalidate lesson cache for this course
+await deleteCache(`lessons:course:${lesson.courseId}`);
+
 res.json({ message: "Lesson updated", lesson });
 
 }
@@ -130,6 +139,9 @@ return res.status(404).json({ message: "Lesson not found" });
 // Soft delete preserves historical progress/notes references.
 lesson.isDeleted = true;
 await lesson.save();
+
+// Invalidate lesson cache for this course
+await deleteCache(`lessons:course:${lesson.courseId}`);
 
 res.json({ message: "Lesson deleted" });
 

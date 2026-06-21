@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { acceptEnterpriseInvite } from "../../api/authApi";
+import { getStoredToken, saveAuthSession, getAuthStorageMode } from "../../utils/authStorage";
 
 const AcceptEnterpriseInvite = () => {
   const navigate = useNavigate();
@@ -26,7 +27,11 @@ const AcceptEnterpriseInvite = () => {
         const user = response.data?.user;
 
         if (user) {
-          localStorage.setItem("user", JSON.stringify(user));
+          saveAuthSession({
+            token: getStoredToken(),
+            user,
+            rememberMe: getAuthStorageMode() === "localStorage"
+          });
         }
 
         setStatus("success");

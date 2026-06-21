@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
+import { getStoredToken } from "../../utils/authStorage";
 
 // API endpoint for journal operations.
 const API_URL = "http://localhost:7001";
@@ -73,7 +74,7 @@ const FreePlanJournal = () => {
   const [showCalendar, setShowCalendar] = useState(false);
 
   // Auth and URL parameters.
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
   const dateFromQuery = searchParams.get("date");
 
   // Initialize with date from URL query parameter if present.

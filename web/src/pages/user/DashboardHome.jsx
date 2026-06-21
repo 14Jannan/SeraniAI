@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
+import { getStoredToken } from "../../utils/authStorage";
 
 const API_URL = "http://localhost:7001";
 
@@ -65,7 +66,7 @@ const DashboardHome = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
+        const token = getStoredToken();
         const response = await fetch(`${API_URL}/api/users/dashboard-stats`, {
           headers: {
             "Authorization": `Bearer ${token}`
@@ -172,7 +173,7 @@ const DashboardHome = () => {
   const handleGenerateReport = async () => {
     try {
       setIsGeneratingReport(true);
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       const response = await fetch(`${API_URL}/api/users/weekly-report`, {
         headers: {
           "Authorization": `Bearer ${token}`
@@ -248,7 +249,7 @@ const DashboardHome = () => {
   const handleSaveJournal = async () => {
     try {
       setIsSavingJournal(true);
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       const response = await fetch(`${API_URL}/api/journals`, {
         method: 'POST',
         headers: {
@@ -281,7 +282,7 @@ const DashboardHome = () => {
   const handleSaveMood = async () => {
     try {
       setIsSavingMood(true);
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       
       // Map emoji to mood string
       const moodMap = {

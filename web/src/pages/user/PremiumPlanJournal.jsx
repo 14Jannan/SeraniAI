@@ -22,6 +22,7 @@ import {
 import { jsPDF } from "jspdf";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
+import { getStoredToken } from "../../utils/authStorage";
 
 // API configuration for journal and summary endpoints.
 const API_URL = "http://localhost:7001";
@@ -202,7 +203,7 @@ const PremiumPlanJournal = () => {
     return years;
   }, []);
 
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
 
   const commonHeaders = {
     "Content-Type": "application/json",

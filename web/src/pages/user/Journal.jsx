@@ -1,12 +1,11 @@
 import React from "react";
 import PremiumPlanJournal from "./PremiumPlanJournal";
 import FreePlanJournal from "./FreePlanJournal";
+import { getStoredUser } from "../../utils/authStorage";
 
 function getCurrentRole() {
-  // Resolve the persisted user role, defaulting to the free-plan role on parse errors.
   try {
-    const raw = localStorage.getItem("user");
-    const parsed = raw ? JSON.parse(raw) : null;
+    const parsed = getStoredUser();
     return parsed?.role || "user";
   } catch (error) {
     return "user";

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getStoredToken } from "../../utils/authStorage";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
@@ -14,9 +15,8 @@ function resolveMediaUrl(url) {
 }
 
 function getToken() {
-  // adjust key if your project uses a different storage key
   return (
-    localStorage.getItem("token") || localStorage.getItem("authToken") || ""
+    getStoredToken() || localStorage.getItem("authToken") || ""
   );
 }
 
@@ -272,7 +272,7 @@ export default function AdminCourses() {
     try {
       setIsSavingCourse(true);
       setFeedback({ type: "", message: "" });
-      const token = localStorage.getItem("token");
+      const token = getToken();
       let thumbnailUrl = newCourse.thumbnailUrl || "";
 
       if (thumbnail) {
@@ -333,7 +333,7 @@ export default function AdminCourses() {
     try {
       setDeletingCourseId(id);
       setFeedback({ type: "", message: "" });
-      const token = localStorage.getItem("token");
+      const token = getToken();
       const res = await fetch(`${API_BASE}/api/admin/courses/${id}`, {
         method: "DELETE",
         headers: {
@@ -365,7 +365,7 @@ export default function AdminCourses() {
     try {
       setIsSavingCourse(true);
       setFeedback({ type: "", message: "" });
-      const token = localStorage.getItem("token");
+      const token = getToken();
       let thumbnailUrl = newCourse.thumbnailUrl || "";
 
       if (thumbnail) {

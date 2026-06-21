@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import { getStoredToken } from "../../utils/authStorage";
+
 const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
 export default function CourseDetails() {
@@ -69,7 +71,7 @@ const courseTitle = location.state?.courseTitle || "Course";
   useEffect(() => {
     const fetchStreak = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getStoredToken();
         if (!token) return;
 
         const res = await fetch(`${API_URL}/api/streak/me`, {
@@ -167,7 +169,7 @@ const courseTitle = location.state?.courseTitle || "Course";
       // Prefer localStorage for faster UX; backend data will override if user is logged in
       const savedNotes = localStorage.getItem(`lesson-notes-${activeLesson._id}`) || "";
       const savedJournal = localStorage.getItem(`lesson-journal-${activeLesson._id}`) || "";
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
 
       // If not logged in, use only localStorage data
       if (!token) {
@@ -227,7 +229,7 @@ const courseTitle = location.state?.courseTitle || "Course";
     localStorage.setItem(`lesson-notes-${activeLesson._id}`, notes);
     localStorage.setItem(`lesson-journal-${activeLesson._id}`, journal);
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
 
     if (!token) {
       setNotesSaveState("local");
@@ -322,7 +324,7 @@ const courseTitle = location.state?.courseTitle || "Course";
 
   const completeLessonStreak = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       if (!token) return;
 
       const res = await fetch(`${API_URL}/api/streak/complete-lesson`, {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getStoredToken } from '../utils/authStorage';
 
 /* API configuration for enterprise admin endpoints */
 const API_URL = 'http://localhost:7001';
@@ -6,7 +7,7 @@ const ENTERPRISE_ADMIN_API_URL = `${API_URL}/api/enterprise-admin`;
 
 /* Helper function to construct authorization headers from stored JWT token */
 const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     return {
         headers: {
             Authorization: `Bearer ${token}`
