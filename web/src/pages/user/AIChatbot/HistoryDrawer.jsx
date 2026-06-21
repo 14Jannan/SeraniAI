@@ -82,6 +82,20 @@ function HistoryDrawer({
               </button>
             </div>
 
+            {/* New Chat Button */}
+            <div className="px-8 pb-4">
+              <button
+                onClick={() => {
+                  onNewChat();
+                  onClose();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-4 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 rounded-2xl hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors capitalize tracking-wide"
+              >
+                <Plus size={16} />
+                <span>New Conversation</span>
+              </button>
+            </div>
+
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide">
               {conversations.length === 0 ? (
