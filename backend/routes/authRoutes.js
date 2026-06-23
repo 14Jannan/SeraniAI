@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const passport = require("passport");
-const jwt = require("jsonwebtoken");
 const { protect } = require("../middleware/authMiddleware");
 const validateRequest = require("../middleware/validateRequest");
 
@@ -29,37 +28,9 @@ const {
   acceptEnterpriseInvite,
   cancelEnterprisePremiumAccess,
   updateOnboarding,
+  generateAuthTokens,
+  setRefreshCookie,
 } = require("../controllers/authController");
-
-// =============================
-// 🔐 JWT GENERATORS
-// =============================
-
-const generateTokens = (user) => {
-  const accessToken = jwt.sign(
-    { id: user._id, role: user.role, name: user.name, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: "15m" }, // Access token is short-lived
-  );
-
-  const refreshToken = jwt.sign(
-    { id: user._id },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }, // Refresh token is long-lived
-  );
-
-  return { accessToken, refreshToken };
-};
-
-// Helper to set the cookie
-const setRefreshCookie = (res, refreshToken) => {
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: false, // Set to true in production with HTTPS
-    sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
-};
 
 // =============================
 // 🔐 LOCAL AUTH ROUTES
@@ -113,7 +84,7 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
   (req, res) => {
-    const { accessToken, refreshToken } = generateTokens(req.user);
+    const { accessToken, refreshToken } = generateAuthTokens(req.user);
     setRefreshCookie(res, refreshToken);
 
     // Redirect to Vite with the Access Token in URL
@@ -134,7 +105,7 @@ router.get(
   "/github/callback",
   passport.authenticate("github", { session: false }),
   (req, res) => {
-    const { accessToken, refreshToken } = generateTokens(req.user);
+    const { accessToken, refreshToken } = generateAuthTokens(req.user);
     setRefreshCookie(res, refreshToken);
 
     res.redirect(`${frontendUrl}/login-success?token=${accessToken}`);
@@ -154,7 +125,7 @@ router.get(
   "/facebook/callback",
   passport.authenticate("facebook", { session: false }),
   (req, res) => {
-    const { accessToken, refreshToken } = generateTokens(req.user);
+    const { accessToken, refreshToken } = generateAuthTokens(req.user);
     setRefreshCookie(res, refreshToken);
 
     res.redirect(`${frontendUrl}/login-success?token=${accessToken}`);

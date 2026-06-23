@@ -31,13 +31,30 @@ const generateAuthTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
-const setRefreshCookie = (res, refreshToken) => {
-  res.cookie("refreshToken", refreshToken, {
+const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
+  const cookieOptions = {
     httpOnly: true,
     secure: false,
     sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  };
+
+  // When rememberMe is true, persist the cookie for 7 days. Otherwise, omit
+  // maxAge so the browser treats it as a session cookie (cleared on browser close).
+  if (rememberMe) {
+    cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
+  }
+
+  res.cookie("refreshToken", refreshToken, cookieOptions);
+
+  if (rememberMe) {
+    res.cookie("rememberMe", "true", {
+      sameSite: "Lax",
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  } else {
+    res.clearCookie("rememberMe");
+  }
 };
 
 // 1. REGISTER USER & SEND OTP
@@ -183,7 +200,7 @@ exports.resendVerificationOtp = async (req, res) => {
 
 // 3. LOGIN (Only if verified)
 exports.loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body;
   const normalizedEmail = normalizeEmail(email);
 
   try {
@@ -215,7 +232,7 @@ exports.loginUser = async (req, res) => {
     }
 
     const { accessToken, refreshToken } = generateAuthTokens(user);
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, Boolean(rememberMe));
 
     res.json({
       token: accessToken,
@@ -310,6 +327,7 @@ exports.resetPassword = async (req, res) => {
 // @route   POST /api/auth/refresh
 exports.refreshAccessToken = async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
+  const rememberMe = req.cookies.rememberMe === "true";
 
   if (!refreshToken) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -321,12 +339,12 @@ exports.refreshAccessToken = async (req, res) => {
 
     if (!user) return res.status(401).json({ message: "User not found" });
 
-    // Generate new short-lived Access Token
-    const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" },
-    );
+    // Issue a brand new access token AND refresh token (rotation). Rotating
+    // the refresh token on every use limits the blast radius if a refresh
+    // token is ever stolen, since the old one becomes invalid immediately.
+    const { accessToken, refreshToken: newRefreshToken } =
+      generateAuthTokens(user);
+    setRefreshCookie(res, newRefreshToken, rememberMe);
 
     res.json({ token: accessToken });
   } catch (error) {
@@ -338,6 +356,7 @@ exports.refreshAccessToken = async (req, res) => {
 // @route   POST /api/auth/logout
 exports.logoutUser = (req, res) => {
   res.clearCookie("refreshToken");
+  res.clearCookie("rememberMe");
   res.status(200).json({ message: "Logged out successfully" });
 };
 
@@ -576,3 +595,8 @@ exports.updateOnboarding = async (req, res) => {
     return res.status(500).json({ message: "Failed to update onboarding data" });
   }
 };
+
+// Exported so authRoutes.js (OAuth callback handlers) can reuse the exact
+// same token-generation and cookie logic instead of duplicating it.
+exports.generateAuthTokens = generateAuthTokens;
+exports.setRefreshCookie = setRefreshCookie;

@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
-const User = require("../models/userModel");
+const User = require("../../models/userModel");
 const {
   createUser,
   deleteUser,
   getAllUsers,
   updateUser,
-} = require("../controllers/adminController");
+} = require("../../controllers/adminController");
 
 const mockRes = () => {
   const res = {};
