@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   useWindowDimensions,
-  Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -63,14 +62,17 @@ export const LandingScreen = ({ navigation }) => {
       <View style={styles.heroBlobOne} />
       <View style={styles.heroBlobTwo} />
 
+      {/* ── Header ── */}
       <View style={styles.headerWrap}>
-        <View>
+        {/* Brand — shrinks if needed */}
+        <View style={styles.brandBlock}>
           <Text style={[styles.brand, { color: colors.text }]}>SeraniAI</Text>
           <Text style={[styles.headerText, { color: colors.muted }]}>
             AI-powered virtual assistant
           </Text>
         </View>
 
+        {/* Actions — fixed width so they never overflow */}
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={() => toggleTheme(mode === "light" ? "dark" : "light")}
@@ -85,6 +87,7 @@ export const LandingScreen = ({ navigation }) => {
               color={colors.primary}
             />
           </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => navigation.navigate("Login")}
             style={[
@@ -96,12 +99,19 @@ export const LandingScreen = ({ navigation }) => {
               Login
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => navigation.navigate("Register")}
-            style={[styles.headerPrimary, { backgroundColor: colors.primary }]}
+            style={[
+              styles.headerPrimary,
+              { backgroundColor: colors.primary },
+            ]}
           >
             <Text
-              style={[styles.headerPrimaryText, { color: colors.primaryText }]}
+              style={[
+                styles.headerPrimaryText,
+                { color: colors.primaryText },
+              ]}
             >
               Sign Up
             </Text>
@@ -109,6 +119,7 @@ export const LandingScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* ── Hero Card ── */}
       <View
         style={[
           styles.heroCard,
@@ -126,7 +137,7 @@ export const LandingScreen = ({ navigation }) => {
               Meet SeraniAI
             </Text>
             <Text style={[styles.heroTitle, { color: colors.text }]}>
-              Your Smart Companion
+              Your Smart{"\n"}Companion
             </Text>
             <Text style={[styles.heroDescription, { color: colors.muted }]}>
               Serani AI brings the power of modern artificial intelligence into
@@ -134,22 +145,30 @@ export const LandingScreen = ({ navigation }) => {
               learning, Serani AI is built for the future.
             </Text>
 
+            {/* CTA buttons — each takes equal space, no overflow */}
             <View style={styles.ctaRow}>
               <TouchableOpacity
                 onPress={() => navigation.navigate("Register")}
-                style={[styles.primaryCta, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.primaryCta,
+                  { backgroundColor: colors.primary, flex: 1 },
+                ]}
               >
                 <Text
-                  style={[styles.primaryCtaText, { color: colors.primaryText }]}
+                  style={[
+                    styles.primaryCtaText,
+                    { color: colors.primaryText },
+                  ]}
                 >
                   START NOW
                 </Text>
                 <Feather
                   name="arrow-right"
-                  size={18}
+                  size={16}
                   color={colors.primaryText}
                 />
               </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() =>
                   scrollRef.current?.scrollTo({ y: 520, animated: true })
@@ -159,10 +178,16 @@ export const LandingScreen = ({ navigation }) => {
                   {
                     backgroundColor: colors.surfaceAlt,
                     borderColor: colors.border,
+                    flex: 1,
                   },
                 ]}
               >
-                <Text style={[styles.secondaryCtaText, { color: colors.text }]}>
+                <Text
+                  style={[
+                    styles.secondaryCtaText,
+                    { color: colors.text },
+                  ]}
+                >
                   Learn More
                 </Text>
               </TouchableOpacity>
@@ -171,7 +196,10 @@ export const LandingScreen = ({ navigation }) => {
 
           <View style={styles.heroVisualWrap}>
             <View
-              style={[styles.heroGlow, { backgroundColor: colors.heroStart }]}
+              style={[
+                styles.heroGlow,
+                { backgroundColor: colors.heroStart },
+              ]}
             />
             <Image
               source={{
@@ -181,8 +209,8 @@ export const LandingScreen = ({ navigation }) => {
               style={[
                 styles.robot,
                 {
-                  width: isWide ? 280 : isMedium ? 220 : 180,
-                  height: isWide ? 280 : isMedium ? 220 : 180,
+                  width: isWide ? 280 : isMedium ? 200 : 160,
+                  height: isWide ? 280 : isMedium ? 200 : 160,
                 },
               ]}
             />
@@ -196,6 +224,7 @@ export const LandingScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* ── Section heading ── */}
       <View style={styles.sectionHead}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           Everything You Need, All in One Place
@@ -206,6 +235,7 @@ export const LandingScreen = ({ navigation }) => {
         </Text>
       </View>
 
+      {/* ── Feature cards ── */}
       <View
         style={[
           styles.featuresGrid,
@@ -221,19 +251,23 @@ export const LandingScreen = ({ navigation }) => {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
                 width: isWide ? "24%" : "100%",
-                minHeight: isWide ? 190 : "auto",
               },
             ]}
           >
             <View
-              style={[styles.featureIcon, { backgroundColor: feature.accent }]}
+              style={[
+                styles.featureIcon,
+                { backgroundColor: feature.accent },
+              ]}
             >
               <Feather name={feature.icon} size={18} color="#FFFFFF" />
             </View>
             <Text style={[styles.featureTitle, { color: colors.text }]}>
               {feature.name}
             </Text>
-            <Text style={[styles.featureDescription, { color: colors.muted }]}>
+            <Text
+              style={[styles.featureDescription, { color: colors.muted }]}
+            >
               {feature.description}
             </Text>
           </View>
@@ -246,13 +280,12 @@ export const LandingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    paddingHorizontal: 18,
-    paddingTop: 18,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 32,
   },
-  scrollView: {
-    flex: 1,
-  },
+  scrollView: { flex: 1 },
+
   heroBlobOne: {
     position: "absolute",
     top: -60,
@@ -271,126 +304,142 @@ const styles = StyleSheet.create({
     borderRadius: 80,
     backgroundColor: "rgba(34,197,94,0.10)",
   },
+
+  // ── Header ──────────────────────────────────────────
   headerWrap: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
-    gap: 12,
+    marginBottom: 16,
+  },
+  // brand block shrinks so actions never get pushed off screen
+  brandBlock: {
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  brand: {
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  headerText: {
+    fontSize: 11,
+    marginTop: 2,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-  },
-  brand: {
-    fontSize: 24,
-    fontWeight: "900",
-  },
-  headerText: {
-    fontSize: 12,
-    marginTop: 2,
+    gap: 6,
+    flexShrink: 0, // never shrink — keeps buttons fully visible
   },
   themeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
   headerLink: {
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   headerLinkText: {
     fontWeight: "800",
+    fontSize: 13,
   },
   headerPrimary: {
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   headerPrimaryText: {
     fontWeight: "800",
+    fontSize: 13,
   },
+
+  // ── Hero ────────────────────────────────────────────
   heroCard: {
     borderWidth: 1,
-    borderRadius: 28,
-    padding: 18,
+    borderRadius: 24,
+    padding: 16,
     marginBottom: 24,
-    boxShadow: "0px 8px 20px rgba(0, 0, 0, 0.08)",
     elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
   heroGrid: {
-    gap: 18,
+    gap: 16,
     alignItems: "center",
   },
   heroCopy: {
     width: "100%",
   },
   eyebrow: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   heroTitle: {
-    fontSize: 42,
-    lineHeight: 46,
+    fontSize: 36,
+    lineHeight: 42,
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
   heroDescription: {
-    marginTop: 14,
-    fontSize: 16,
-    lineHeight: 24,
-    maxWidth: 620,
+    marginTop: 12,
+    fontSize: 15,
+    lineHeight: 23,
   },
+  // buttons sit side by side, each flex:1 so they split available space equally
   ctaRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 20,
+    gap: 10,
+    marginTop: 18,
   },
   primaryCta: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderRadius: 16,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 14,
   },
   primaryCtaText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900",
   },
   secondaryCta: {
     borderWidth: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 14,
   },
   secondaryCtaText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900",
   },
+
   heroVisualWrap: {
     alignItems: "center",
     justifyContent: "center",
   },
   heroGlow: {
     position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     opacity: 0.75,
   },
   robot: {},
   visualTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "900",
     marginTop: 6,
   },
@@ -398,51 +447,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+
+  // ── Features ─────────────────────────────────────────
   sectionHead: {
     alignItems: "center",
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 26,
+    lineHeight: 32,
     fontWeight: "900",
     textAlign: "center",
   },
   sectionSubtitle: {
     marginTop: 8,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: "center",
-    maxWidth: 760,
   },
   featuresGrid: {
-    gap: 14,
+    gap: 12,
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
   featureCard: {
     borderWidth: 1,
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 12,
-    boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.07)",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 10,
     elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
   },
   featureIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 12,
   },
   featureTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
   },
   featureDescription: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 22,
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 20,
   },
 });

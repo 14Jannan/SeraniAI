@@ -9,14 +9,16 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
-  Linking,
   Platform,
   useWindowDimensions,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { getApiBaseUrl } from "../../api/baseUrl";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export const RegisterScreen = ({ navigation }) => {
   const [name, setName] = useState("");
@@ -26,7 +28,7 @@ export const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register, error } = useAuth();
+  const { register, oauthLogin, error } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
@@ -34,34 +36,26 @@ export const RegisterScreen = ({ navigation }) => {
   const apiUrl = getApiBaseUrl();
 
   const socialLogins = [
-    {
-      key: "google",
-      label: "Google",
-      icon: <AntDesign name="google" size={20} color="#4285F4" />,
-      url: `${apiUrl}/auth/google`,
-    },
-    {
-      key: "github",
-      label: "GitHub",
-      icon: <AntDesign name="github" size={20} color="#111827" />,
-      url: `${apiUrl}/auth/github`,
-    },
-    {
-      key: "facebook",
-      label: "Facebook",
-      icon: <FontAwesome name="facebook-square" size={20} color="#1877F2" />,
-      url: `${apiUrl}/auth/facebook`,
-    },
+    { key: "google", label: "Google", icon: <AntDesign name="google" size={20} color="#4285F4" /> },
+    { key: "github", label: "GitHub", icon: <AntDesign name="github" size={20} color="#111827" /> },
+    { key: "facebook", label: "Facebook", icon: <FontAwesome name="facebook-square" size={20} color="#1877F2" /> },
   ];
 
-  const handleSocialLogin = async (url, label) => {
+  // Step 7 fix
+  const handleSocialLogin = async (provider, label) => {
     try {
       if (Platform.OS === "web") {
-        window.location.assign(url);
+        window.location.assign(`${apiUrl}/auth/${provider}`);
         return;
       }
-
-      await Linking.openURL(url);
+      const redirectUri = `seraniaiapp://auth`;
+      const url = `${apiUrl}/auth/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);
+      if (result.type === "success") {
+        const params = new URLSearchParams(result.url.split("?")[1]);
+        const code = params.get("code");
+        if (code) await oauthLogin(provider, code);
+      }
     } catch (openError) {
       Alert.alert("Unable to open link", `Could not start ${label} login`);
     }
@@ -71,29 +65,18 @@ export const RegisterScreen = ({ navigation }) => {
     if (!name || !email || !password || !confirmPassword)
       return Alert.alert("Validation Error", "Please fill in all fields");
     if (name.trim().length < 2)
-      return Alert.alert(
-        "Validation Error",
-        "Name must be at least 2 characters",
-      );
+      return Alert.alert("Validation Error", "Name must be at least 2 characters");
     if (password !== confirmPassword)
       return Alert.alert("Validation Error", "Passwords do not match");
     if (password.length < 6)
-      return Alert.alert(
-        "Validation Error",
-        "Password must be at least 6 characters",
-      );
+      return Alert.alert("Validation Error", "Password must be at least 6 characters");
 
     setLoading(true);
     try {
-      await register({
-        name: name.trim(),
-        email: email.trim(),
-        password,
-        confirmPassword,
-      });
+      await register({ name: name.trim(), email: email.trim(), password, confirmPassword });
       navigation.navigate("OTP", { email });
     } catch (err) {
-      Alert.alert("Registration Failed", error || "An error occurred");
+      Alert.alert("Registration Failed", err.response?.data?.message || error || "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -102,43 +85,27 @@ export const RegisterScreen = ({ navigation }) => {
   return (
     <ScrollView
       style={styles.scrollView}
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: colors.background },
-      ]}
+      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
     >
       <View style={styles.heroCircleLarge} />
       <View style={styles.heroCircleSmall} />
+
       <View style={styles.topRow}>
         <Text style={[styles.topBrand, { color: colors.text }]}>SeraniAI</Text>
         <TouchableOpacity
           onPress={() => toggleTheme(mode === "light" ? "dark" : "light")}
-          style={[
-            styles.themeButton,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
+          style={[styles.themeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
-          <Feather
-            name={mode === "light" ? "moon" : "sun"}
-            size={16}
-            color={colors.primary}
-          />
+          <Feather name={mode === "light" ? "moon" : "sun"} size={16} color={colors.primary} />
         </TouchableOpacity>
       </View>
+
       <View style={styles.brandWrap}>
-        <Image
-          source={{
-            uri: "https://cdn-icons-png.flaticon.com/512/4712/4712035.png",
-          }}
-          style={styles.robot}
-        />
-        <Text style={[styles.brandTitle, { color: colors.text }]}>
-          Join SeraniAI
-        </Text>
-        <Text style={[styles.brandSubtitle, { color: colors.muted }]}>
-          Start your learning journey today
-        </Text>
+        <Image source={{ uri: "https://cdn-icons-png.flaticon.com/512/4712/4712035.png" }} style={styles.robot} />
+        <Text style={[styles.brandTitle, { color: colors.text }]}>Join SeraniAI</Text>
+        <Text style={[styles.brandSubtitle, { color: colors.muted }]}>Start your learning journey today</Text>
       </View>
+
       <View
         style={[
           styles.card,
@@ -151,20 +118,10 @@ export const RegisterScreen = ({ navigation }) => {
           },
         ]}
       >
-        <Text style={[styles.formTitle, { color: colors.text }]}>
-          Create Account
-        </Text>
+        <Text style={[styles.formTitle, { color: colors.text }]}>Create Account</Text>
+
         {!!error && (
-          <Text
-            style={[
-              styles.errorText,
-              {
-                backgroundColor: colors.warningBg,
-                borderColor: colors.warningBorder,
-                color: colors.text,
-              },
-            ]}
-          >
+          <Text style={[styles.errorText, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder, color: colors.text }]}>
             {error}
           </Text>
         )}
@@ -172,14 +129,7 @@ export const RegisterScreen = ({ navigation }) => {
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: colors.text }]}>Full Name</Text>
           <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.inputBg,
-                borderColor: colors.border,
-                color: colors.text,
-              },
-            ]}
+            style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
             placeholder="John Doe"
             value={name}
             onChangeText={setName}
@@ -189,18 +139,9 @@ export const RegisterScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Email Address
-          </Text>
+          <Text style={[styles.label, { color: colors.text }]}>Email Address</Text>
           <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.inputBg,
-                borderColor: colors.border,
-                color: colors.text,
-              },
-            ]}
+            style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
             placeholder="username@gmail.com"
             value={email}
             onChangeText={setEmail}
@@ -210,14 +151,10 @@ export const RegisterScreen = ({ navigation }) => {
             placeholderTextColor={colors.muted}
           />
         </View>
+
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: colors.text }]}>Password</Text>
-          <View
-            style={[
-              styles.passwordContainer,
-              { backgroundColor: colors.inputBg, borderColor: colors.border },
-            ]}
-          >
+          <View style={[styles.passwordContainer, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
             <TextInput
               style={[styles.passwordInput, { color: colors.text }]}
               placeholder="••••••••"
@@ -227,29 +164,15 @@ export const RegisterScreen = ({ navigation }) => {
               editable={!loading}
               placeholderTextColor={colors.muted}
             />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeButton}
-              disabled={loading}
-            >
-              <Feather
-                name={showPassword ? "eye-off" : "eye"}
-                size={18}
-                color={colors.muted}
-              />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton} disabled={loading}>
+              <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={colors.muted} />
             </TouchableOpacity>
           </View>
         </View>
+
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Confirm Password
-          </Text>
-          <View
-            style={[
-              styles.passwordContainer,
-              { backgroundColor: colors.inputBg, borderColor: colors.border },
-            ]}
-          >
+          <Text style={[styles.label, { color: colors.text }]}>Confirm Password</Text>
+          <View style={[styles.passwordContainer, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
             <TextInput
               style={[styles.passwordInput, { color: colors.text }]}
               placeholder="••••••••"
@@ -259,57 +182,32 @@ export const RegisterScreen = ({ navigation }) => {
               editable={!loading}
               placeholderTextColor={colors.muted}
             />
-            <TouchableOpacity
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              style={styles.eyeButton}
-              disabled={loading}
-            >
-              <Feather
-                name={showConfirmPassword ? "eye-off" : "eye"}
-                size={18}
-                color={colors.muted}
-              />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeButton} disabled={loading}>
+              <Feather name={showConfirmPassword ? "eye-off" : "eye"} size={18} color={colors.muted} />
             </TouchableOpacity>
           </View>
         </View>
 
         <TouchableOpacity
-          style={[
-            styles.button,
-            { backgroundColor: colors.primaryStrong },
-            loading && styles.buttonDisabled,
-          ]}
+          style={[styles.button, { backgroundColor: colors.primaryStrong }, loading && styles.buttonDisabled]}
           onPress={handleRegister}
           disabled={loading}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
-          )}
+          {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Sign Up</Text>}
         </TouchableOpacity>
 
         <View style={styles.divider}>
-          <View
-            style={[styles.dividerLine, { backgroundColor: colors.border }]}
-          />
-          <Text style={[styles.dividerText, { color: colors.muted }]}>
-            Or register with
-          </Text>
-          <View
-            style={[styles.dividerLine, { backgroundColor: colors.border }]}
-          />
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.muted }]}>Or register with</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         <View style={styles.socialRow}>
           {socialLogins.map((item) => (
             <TouchableOpacity
               key={item.key}
-              style={[
-                styles.socialButton,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
-              onPress={() => handleSocialLogin(item.url, item.label)}
+              style={[styles.socialButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => handleSocialLogin(item.key, item.label)}
             >
               {item.icon}
             </TouchableOpacity>
@@ -317,13 +215,9 @@ export const RegisterScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.loginContainer}>
-          <Text style={[styles.hasAccount, { color: colors.muted }]}>
-            Already have an account?{" "}
-          </Text>
+          <Text style={[styles.hasAccount, { color: colors.muted }]}>Already have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-            <Text style={[styles.link, { color: colors.primary }]}>
-              Login here
-            </Text>
+            <Text style={[styles.link, { color: colors.primary }]}>Login here</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -333,119 +227,60 @@ export const RegisterScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 20, justifyContent: "center" },
-  scrollView: {
-    flex: 1,
-  },
+  scrollView: { flex: 1 },
   heroCircleLarge: {
-    position: "absolute",
-    top: -80,
-    right: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(59,130,246,0.10)",
+    position: "absolute", top: -80, right: -50,
+    width: 200, height: 200, borderRadius: 100, backgroundColor: "rgba(59,130,246,0.10)",
   },
   heroCircleSmall: {
-    position: "absolute",
-    bottom: 40,
-    left: -45,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(168,85,247,0.10)",
+    position: "absolute", bottom: 40, left: -45,
+    width: 140, height: 140, borderRadius: 70, backgroundColor: "rgba(168,85,247,0.10)",
   },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   topBrand: { fontSize: 16, fontWeight: "900" },
-  themeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  themeButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   brandWrap: { alignItems: "center", marginBottom: 14 },
   robot: { width: 84, height: 84, marginBottom: 6 },
   brandTitle: { fontSize: 28, fontWeight: "bold" },
   brandSubtitle: { fontSize: 12 },
   card: {
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 20,
-    boxShadow: "0px 10px 20px rgba(15, 23, 42, 0.12)",
+    borderWidth: 1, borderRadius: 24, padding: 20,
+    // Step 4 fix — removed boxShadow
     elevation: 8,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
   },
-  formTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 14,
-  },
+  formTitle: { fontSize: 28, fontWeight: "bold", textAlign: "center", marginBottom: 14 },
   errorText: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    textAlign: "center",
-    fontWeight: "600",
-    fontSize: 12,
+    borderRadius: 12, borderWidth: 1, paddingVertical: 10,
+    paddingHorizontal: 12, marginBottom: 12, textAlign: "center", fontWeight: "600", fontSize: 12,
   },
   inputGroup: { marginBottom: 12 },
   label: { marginBottom: 6, fontWeight: "700", fontSize: 13 },
-  input: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingRight: 4,
-  },
+  input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14 },
+  passwordContainer: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 14, paddingRight: 4 },
   passwordInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 12 },
   eyeButton: { width: 40, alignItems: "center", justifyContent: "center" },
-  button: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-    marginTop: 4,
-    marginBottom: 14,
-  },
+  button: { paddingVertical: 14, borderRadius: 14, alignItems: "center", marginTop: 4, marginBottom: 14 },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 16 },
   divider: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { marginHorizontal: 10, fontSize: 12, fontWeight: "700" },
-  socialRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 12,
-    marginBottom: 18,
-  },
+  socialRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 18 },
   socialButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    boxShadow: "0px 4px 8px rgba(15, 23, 42, 0.08)",
+    width: 46, height: 46, borderRadius: 23,
+    alignItems: "center", justifyContent: "center", borderWidth: 1,
+    // Step 4 fix — removed boxShadow
     elevation: 2,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
-  loginContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  loginContainer: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
   hasAccount: {},
   link: { fontWeight: "700" },
 });

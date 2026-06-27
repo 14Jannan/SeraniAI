@@ -10,7 +10,15 @@
       "bundleIdentifier": "com.seraniaiapp.mobile"
     },
     "android": {
-      "package": "com.seraniaiapp.mobile"
+      "package": "com.seraniaiapp.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "seraniaiapp" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       [
