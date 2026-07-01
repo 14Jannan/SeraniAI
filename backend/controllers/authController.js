@@ -49,7 +49,7 @@ const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
   if (rememberMe) {
     res.cookie("rememberMe", "true", {
       sameSite: "Lax",
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   } else {

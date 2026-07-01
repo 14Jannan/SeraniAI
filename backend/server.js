@@ -1,3 +1,8 @@
+["JWT_SECRET", "JWT_REFRESH_SECRET"].forEach(key => {
+  if (!process.env[key]) {
+    throw new Error(`Missing required env var: ${key}`);
+  }
+});
 const express = require("express");
 const path = require("path");
 const cors = require("cors");
