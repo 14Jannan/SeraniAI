@@ -20,6 +20,7 @@ import {
   FiCreditCard,
   FiChevronDown,
 } from 'react-icons/fi'
+import NotificationBell from '../components/NotificationBell'
 
 const UserLayout = () => {
   const { theme, toggleTheme } = useTheme();
@@ -283,6 +284,9 @@ const UserLayout = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-6">
+        <div className="mb-4 flex justify-end">
+          <NotificationBell />
+        </div>
         <Outlet />
       </main>
     </div>

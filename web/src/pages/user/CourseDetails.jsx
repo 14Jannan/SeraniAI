@@ -5,6 +5,55 @@ import { getStoredToken } from "../../utils/authStorage";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 
+const getCourseProgressStorageKey = (courseId) => `course-progress-${courseId}`;
+
+const getStoredCourseProgress = (courseId) => {
+  if (!courseId) {
+    return {
+      completedLessons: [],
+      activeLessonIndex: 0,
+      lessonProgress: {},
+    };
+  }
+
+  try {
+    const raw = localStorage.getItem(getCourseProgressStorageKey(courseId));
+    if (!raw) {
+      return {
+        completedLessons: [],
+        activeLessonIndex: 0,
+        lessonProgress: {},
+      };
+    }
+
+    const parsed = JSON.parse(raw);
+
+    if (Array.isArray(parsed)) {
+      return {
+        completedLessons: parsed,
+        activeLessonIndex: 0,
+        lessonProgress: {},
+      };
+    }
+
+    return {
+      completedLessons: Array.isArray(parsed.completedLessons) ? parsed.completedLessons : [],
+      activeLessonIndex: Number.isInteger(parsed.activeLessonIndex) ? parsed.activeLessonIndex : 0,
+      lessonProgress:
+        parsed.lessonProgress && typeof parsed.lessonProgress === "object"
+          ? parsed.lessonProgress
+          : {},
+    };
+  } catch (error) {
+    console.error("Failed to read saved course progress", error);
+    return {
+      completedLessons: [],
+      activeLessonIndex: 0,
+      lessonProgress: {},
+    };
+  }
+};
+
 export default function CourseDetails() {
   const { courseId } = useParams();
   const navigate = useNavigate();
@@ -13,6 +62,7 @@ export default function CourseDetails() {
   const [lessons, setLessons] = useState([]);
   const [activeLessonIndex, setActiveLessonIndex] = useState(0);
   const [completedLessons, setCompletedLessons] = useState([]);
+  const [lessonProgress, setLessonProgress] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("notes");
@@ -27,27 +77,43 @@ export default function CourseDetails() {
 const courseTitle = location.state?.courseTitle || "Course";
 
   useEffect(() => {
-    const savedProgress = localStorage.getItem(`course-progress-${courseId}`);
-    if (savedProgress) {
-      setCompletedLessons(JSON.parse(savedProgress));
-    }
+    const restoredProgress = getStoredCourseProgress(courseId);
+    setCompletedLessons(restoredProgress.completedLessons);
+    setActiveLessonIndex(restoredProgress.activeLessonIndex || 0);
+    setLessonProgress(restoredProgress.lessonProgress || {});
   }, [courseId]);
 
   useEffect(() => {
-    localStorage.setItem(
-      `course-progress-${courseId}`,
-      JSON.stringify(completedLessons)
-    );
-  }, [completedLessons, courseId]);
+    if (!courseId) return;
+
+    const payload = {
+      completedLessons,
+      activeLessonIndex,
+      lessonProgress,
+      updatedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(getCourseProgressStorageKey(courseId), JSON.stringify(payload));
+  }, [activeLessonIndex, completedLessons, courseId, lessonProgress]);
 
   useEffect(() => {
-    if (location.state?.lessonId && lessons.length > 0) {
-      const index = lessons.findIndex(l => l._id.toString() === location.state.lessonId.toString());
+    if (!lessons.length) return;
+
+    let nextIndex = activeLessonIndex;
+
+    if (location.state?.lessonId) {
+      const index = lessons.findIndex(
+        (lesson) => lesson._id.toString() === location.state.lessonId.toString()
+      );
       if (index !== -1) {
-        setActiveLessonIndex(index);
+        nextIndex = index;
       }
     }
-  }, [location.state?.lessonId, lessons]);
+
+    nextIndex = Math.min(Math.max(nextIndex, 0), lessons.length - 1);
+
+    setActiveLessonIndex((current) => (current === nextIndex ? current : nextIndex));
+  }, [activeLessonIndex, lessons, location.state?.lessonId]);
 
   useEffect(() => {
     setLoading(true);
@@ -268,6 +334,16 @@ const courseTitle = location.state?.courseTitle || "Course";
 
   const activeLesson = lessons[activeLessonIndex];
 
+  const saveLessonProgress = (seconds) => {
+    if (!activeLesson?._id) return;
+
+    const safeSeconds = Math.max(0, Math.floor(seconds || 0));
+    setLessonProgress((previous) => ({
+      ...previous,
+      [activeLesson._id]: safeSeconds,
+    }));
+  };
+
   const progress = useMemo(() => {
     if (!lessons.length) return 0;
     return Math.round((completedLessons.length / lessons.length) * 100);
@@ -459,6 +535,20 @@ const courseTitle = location.state?.courseTitle || "Course";
                   <video
                     ref={videoRef}
                     src={activeLesson.videoUrl || `${API_URL}${activeLesson.videoFile}`}
+                    onLoadedMetadata={() => {
+                      const storedSeconds = lessonProgress[activeLesson._id];
+                      if (!videoRef.current || !Number.isFinite(storedSeconds) || storedSeconds <= 0) return;
+
+                      const maxDuration = Number(videoRef.current.duration);
+                      const resumeAt = Number.isFinite(maxDuration) && maxDuration > 0
+                        ? Math.min(storedSeconds, Math.max(1, Math.floor(maxDuration - 1)))
+                        : storedSeconds;
+
+                      if (resumeAt > 0) {
+                        videoRef.current.currentTime = resumeAt;
+                      }
+                    }}
+                    onTimeUpdate={(event) => saveLessonProgress(event.currentTarget.currentTime)}
                     onEnded={handleVideoEnded}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}

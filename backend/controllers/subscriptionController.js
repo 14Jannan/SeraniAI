@@ -3,6 +3,7 @@ const payHereService = require('../services/payHereService');
 const mongoose = require('mongoose');
 const User = require('../models/userModel');
 const Enterprise = require('../models/enterpriseModel');
+const { notifySubscriptionIssue } = require('../services/notificationService');
 
 /* Normalize plan names to standard format */
 const normalizePlan = (plan) => {
@@ -264,6 +265,21 @@ exports.syncSubscription = async (req, res) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+
+    if (updated?.userId) {
+      const paymentIsActive = String(updated.status).toLowerCase() === 'active';
+      const dedupeKey = `${updated.subscriptionId || updated._id}:${paymentIsActive ? 'active' : 'failed'}`;
+
+      await notifySubscriptionIssue({
+        userId: updated.userId,
+        type: paymentIsActive ? 'payment_success' : 'payment_issue',
+        title: paymentIsActive ? 'Subscription active' : 'Payment failed',
+        message: paymentIsActive
+          ? 'Your subscription is active again.'
+          : 'Your subscription renewal did not go through.',
+        dedupeKey,
+      });
+    }
 
     res.status(200).json({
       message: 'Subscription synced successfully',

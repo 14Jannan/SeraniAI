@@ -18,6 +18,43 @@ import courseApi from "../../api/courseApi";
 
 const progressStorageKey = (courseId) => `course-progress-${courseId}`;
 
+const readStoredProgress = async (courseId) => {
+  if (!courseId) {
+    return { completedLessonIndexes: [], activeLessonIndex: 0 };
+  }
+
+  try {
+    const stored = await AsyncStorage.getItem(progressStorageKey(courseId));
+    if (!stored) {
+      return { completedLessonIndexes: [], activeLessonIndex: 0 };
+    }
+
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      return { completedLessonIndexes: parsed, activeLessonIndex: 0 };
+    }
+
+    return {
+      completedLessonIndexes: Array.isArray(parsed.completedLessonIndexes)
+        ? parsed.completedLessonIndexes
+        : Array.isArray(parsed.completedLessons)
+          ? parsed.completedLessons
+          : [],
+      activeLessonIndex: Number.isInteger(parsed.activeLessonIndex) ? parsed.activeLessonIndex : 0,
+    };
+  } catch (error) {
+    return { completedLessonIndexes: [], activeLessonIndex: 0 };
+  }
+};
+
+const persistProgress = async (courseId, payload) => {
+  if (!courseId) {
+    return;
+  }
+
+  await AsyncStorage.setItem(progressStorageKey(courseId), JSON.stringify(payload));
+};
+
 export const CourseDetailsScreen = ({ route }) => {
   const { colors } = useTheme();
   const { courseId, courseTitle } = route.params || {};
@@ -52,13 +89,12 @@ export const CourseDetailsScreen = ({ route }) => {
 
       const [lessonData, storedProgress] = await Promise.all([
         courseApi.getLessonsByCourse(courseId),
-        AsyncStorage.getItem(progressStorageKey(courseId)),
+        readStoredProgress(courseId),
       ]);
 
-      const parsedProgress = storedProgress ? JSON.parse(storedProgress) : [];
-      setCompletedLessonIndexes(Array.isArray(parsedProgress) ? parsedProgress : []);
+      setCompletedLessonIndexes(storedProgress.completedLessonIndexes || []);
       setLessons(Array.isArray(lessonData) ? lessonData : []);
-      setActiveLessonIndex(0);
+      setActiveLessonIndex(Math.min(Math.max(storedProgress.activeLessonIndex || 0, 0), (lessonData || []).length - 1));
     } catch (loadError) {
       setError(loadError.response?.data?.message || "Failed to load lessons");
     } finally {
@@ -102,12 +138,12 @@ export const CourseDetailsScreen = ({ route }) => {
     };
   }, [activeLesson?._id]);
 
-  const saveProgressToStorage = async (nextIndexes) => {
+  const saveProgressToStorage = async (nextIndexes, nextActiveIndex = activeLessonIndex) => {
     if (!courseId) return;
-    await AsyncStorage.setItem(
-      progressStorageKey(courseId),
-      JSON.stringify(nextIndexes),
-    );
+    await persistProgress(courseId, {
+      completedLessonIndexes: Array.isArray(nextIndexes) ? nextIndexes : completedLessonIndexes,
+      activeLessonIndex: Number.isInteger(nextActiveIndex) ? nextActiveIndex : 0,
+    });
   };
 
   const markLessonCompleted = async (index) => {
@@ -119,7 +155,7 @@ export const CourseDetailsScreen = ({ route }) => {
       setMarkingComplete(true);
       const next = [...completedLessonIndexes, index];
       setCompletedLessonIndexes(next);
-      await saveProgressToStorage(next);
+      await saveProgressToStorage(next, index);
 
       const lesson = lessons[index];
       if (lesson?._id) {
@@ -189,6 +225,18 @@ export const CourseDetailsScreen = ({ route }) => {
     await Linking.openURL(url);
     await markLessonCompleted(activeLessonIndex);
   };
+
+  React.useEffect(() => {
+    if (!courseId) {
+      return;
+    }
+
+    const persistCurrentState = async () => {
+      await saveProgressToStorage(completedLessonIndexes, activeLessonIndex);
+    };
+
+    persistCurrentState();
+  }, [activeLessonIndex, completedLessonIndexes, courseId]);
 
   const progress = React.useMemo(() => {
     if (!lessons.length) return 0;
@@ -268,7 +316,11 @@ export const CourseDetailsScreen = ({ route }) => {
                   borderColor: colors.border,
                 },
               ]}
-              onPress={() => setActiveLessonIndex(index)}
+              onPress={async () => {
+                const nextIndex = index;
+                setActiveLessonIndex(nextIndex);
+                await saveProgressToStorage(completedLessonIndexes, nextIndex);
+              }}
               accessibilityRole="button"
               accessibilityLabel={`Open lesson ${index + 1}`}
             >

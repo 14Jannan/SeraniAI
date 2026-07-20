@@ -622,8 +622,8 @@ const AdminLessons = () => {
       {/* ---------- MODAL ---------- */}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-6 rounded-xl w-[450px]">
+        <div className="fixed inset-0 z-50 overflow-auto bg-black/40 flex items-start sm:items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold mb-4">
               {editingId ? "Edit Lesson" : "Add Lesson"}
             </h2>

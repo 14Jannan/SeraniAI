@@ -1,4 +1,5 @@
 import React from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -20,6 +21,8 @@ const MOOD_TASK_HINTS = {
 };
 
 const normalizeId = (value) => String(value || "").trim();
+
+const taskProgressStorageKey = (dateKey) => `daily-task-progress-${dateKey || "default"}`;
 
 const uniqueIds = (ids) => {
   if (!Array.isArray(ids)) {
@@ -43,6 +46,25 @@ export const TasksScreen = () => {
   const [taskResults, setTaskResults] = React.useState({});
   const [syncing, setSyncing] = React.useState(false);
 
+  const persistTaskProgress = React.useCallback(async (nextCompletedTaskIds, nextTaskResults = taskResults, nextDateKey = dateKey) => {
+    if (!nextDateKey) {
+      return;
+    }
+
+    try {
+      await AsyncStorage.setItem(
+        taskProgressStorageKey(nextDateKey),
+        JSON.stringify({
+          completedTaskIds: uniqueIds(nextCompletedTaskIds),
+          taskResults: nextTaskResults || {},
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+    } catch (error) {
+      // Keep local persistence non-blocking.
+    }
+  }, [dateKey, taskResults]);
+
   const loadData = React.useCallback(async (isRefresh = false) => {
     try {
       setError("");
@@ -57,7 +79,8 @@ export const TasksScreen = () => {
         taskApi.fetchTaskStreak(),
       ]);
 
-      setDateKey(dKey || "");
+      const nextDateKey = dKey || "";
+      setDateKey(nextDateKey);
       const activeTasks = Array.isArray(dailyTasks)
         ? dailyTasks.filter((task) => task?.isActive !== false)
         : [];
@@ -66,11 +89,35 @@ export const TasksScreen = () => {
       const validTaskIdSet = new Set(
         activeTasks.map((task) => normalizeId(task.id || task.taskId)).filter(Boolean),
       );
-      const sanitizedCompleted = uniqueIds(progress?.completedTaskIds).filter((id) =>
+
+      let storedProgress = { completedTaskIds: [], taskResults: {} };
+      try {
+        const rawStored = await AsyncStorage.getItem(taskProgressStorageKey(nextDateKey));
+        if (rawStored) {
+          const parsedStored = JSON.parse(rawStored);
+          storedProgress = {
+            completedTaskIds: uniqueIds(parsedStored?.completedTaskIds),
+            taskResults: parsedStored?.taskResults && typeof parsedStored.taskResults === "object"
+              ? parsedStored.taskResults
+              : {},
+          };
+        }
+      } catch (error) {
+        storedProgress = { completedTaskIds: [], taskResults: {} };
+      }
+
+      const serverCompleted = uniqueIds(progress?.completedTaskIds).filter((id) =>
         validTaskIdSet.has(id),
       );
+      const sanitizedCompleted = serverCompleted.length
+        ? serverCompleted
+        : storedProgress.completedTaskIds.filter((id) => validTaskIdSet.has(id));
       setCompletedTaskIds(sanitizedCompleted);
-      setTaskResults(progress?.taskResults && typeof progress.taskResults === "object" ? progress.taskResults : {});
+      setTaskResults(
+        progress?.taskResults && typeof progress.taskResults === "object"
+          ? progress.taskResults
+          : storedProgress.taskResults || {},
+      );
       setStreakCount(streak?.taskStreakCount || 0);
     } catch (loadError) {
       setError(loadError.response?.data?.message || "Unable to load daily tasks right now.");
@@ -97,6 +144,12 @@ export const TasksScreen = () => {
   const totalCount = Math.max(filteredTasks.length, 1);
   const progress = Math.round((completedCount / totalCount) * 100);
   const xp = completedCount * 10;
+
+  React.useEffect(() => {
+    if (!dateKey) return;
+
+    persistTaskProgress(completedTaskIds, taskResults, dateKey);
+  }, [completedTaskIds, dateKey, persistTaskProgress, taskResults]);
 
   React.useEffect(() => {
     if (!dateKey || !tasks.length) return;
@@ -126,11 +179,14 @@ export const TasksScreen = () => {
       return;
     }
 
-    setCompletedTaskIds((current) =>
-      current.includes(id)
+    setCompletedTaskIds((current) => {
+      const nextValue = current.includes(id)
         ? current.filter((existingId) => existingId !== id)
-        : uniqueIds([...current, id]),
-    );
+        : uniqueIds([...current, id]);
+
+      persistTaskProgress(nextValue, taskResults, dateKey);
+      return nextValue;
+    });
   };
 
   const moodOptions = [

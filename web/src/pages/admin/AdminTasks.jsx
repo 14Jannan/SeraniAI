@@ -54,6 +54,7 @@ export default function AdminTasks() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState("");
   const [formData, setFormData] = useState(emptyForm);
+  const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
   const loadTasks = async () => {
@@ -92,12 +93,14 @@ export default function AdminTasks() {
   const openCreate = () => {
     setEditingTaskId("");
     setFormData(emptyForm);
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
   const openEdit = (task) => {
     setEditingTaskId(task.id);
     setFormData(toForm(task));
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
@@ -105,6 +108,7 @@ export default function AdminTasks() {
     if (saving) return;
     setIsModalOpen(false);
     setEditingTaskId("");
+    setFormErrors({});
   };
 
   const onChange = (event) => {
@@ -113,22 +117,38 @@ export default function AdminTasks() {
       ...current,
       [name]: type === "checkbox" ? checked : value,
     }));
+    if (name === "id" || name === "title" || name === "configText") {
+      setFormErrors((current) => ({ ...current, [name]: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+
+    if (!formData.id.trim()) nextErrors.id = "Task id is required";
+    if (!formData.title.trim()) nextErrors.title = "Task title is required";
+
+    try {
+      JSON.parse(formData.configText || "{}");
+    } catch {
+      nextErrors.configText = "Config must be valid JSON";
+    }
+
+    setFormErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const onSave = async () => {
     if (saving) return;
+
+    if (!validateForm()) return;
 
     try {
       setSaving(true);
       setFeedback("");
       setError("");
 
-      let parsedConfig = {};
-      try {
-        parsedConfig = JSON.parse(formData.configText || "{}");
-      } catch {
-        throw new Error("Config must be valid JSON");
-      }
+      const parsedConfig = JSON.parse(formData.configText || "{}");
 
       const payload = {
         id: formData.id,
@@ -140,10 +160,6 @@ export default function AdminTasks() {
         difficulty: formData.difficulty,
         config: parsedConfig,
       };
-
-      if (!payload.id || !payload.title) {
-        throw new Error("Task id and title are required");
-      }
 
       if (editingTaskId) {
         const updated = await updateTask(editingTaskId, payload);
@@ -313,8 +329,8 @@ export default function AdminTasks() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#0d1a2e]">
+        <div className="fixed inset-0 z-50 overflow-auto bg-black/30 flex items-start sm:items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#0d1a2e] max-h-[90vh] overflow-y-auto">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
                 {editingTaskId ? "Edit Task" : "Create Task"}
@@ -334,6 +350,9 @@ export default function AdminTasks() {
                   disabled={!!editingTaskId}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                 />
+                {formErrors.id ? (
+                  <p className="mt-1 text-xs text-rose-600">{formErrors.id}</p>
+                ) : null}
               </label>
               <label className="text-sm">
                 Title
@@ -343,6 +362,11 @@ export default function AdminTasks() {
                   onChange={onChange}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                 />
+                {formErrors.title ? (
+                  <p className="mt-1 text-xs text-rose-600">
+                    {formErrors.title}
+                  </p>
+                ) : null}
               </label>
               <label className="text-sm">
                 Category
@@ -409,6 +433,11 @@ export default function AdminTasks() {
                 rows={8}
                 className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs dark:border-gray-700 dark:bg-gray-900"
               />
+              {formErrors.configText ? (
+                <p className="mt-1 text-xs text-rose-600">
+                  {formErrors.configText}
+                </p>
+              ) : null}
             </label>
 
             <label className="mt-3 flex items-center gap-2 text-sm">
