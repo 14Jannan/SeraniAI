@@ -266,10 +266,10 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
           className="max-w-2xl w-full text-center"
         >
           <div className="mb-8">
-            <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">
-              Welcome to <span className="text-blue-600">SeraniAI</span>
+            <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
+              Welcome to <span className="text-sky-500">SeraniAI</span>
             </h2>
-            <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">
+            <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs">
               Your personal AI companion for growth and productivity
             </p>
           </div>
@@ -303,11 +303,11 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                   {/* Avatar */}
                   <div className="w-10 h-10 flex-shrink-0 mb-1">
                     {isUser ? (
-                      <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-2xl flex items-center justify-center shadow-lg border border-gray-100 dark:border-gray-700">
-                        <User className="w-5 h-5 text-blue-600" />
+                      <div className="w-10 h-10 bg-white/95 dark:bg-white/5 rounded-2xl flex items-center justify-center shadow-lg border border-slate-100 dark:border-white/10">
+                        <User className="w-5 h-5 text-sky-500" />
                       </div>
                     ) : (
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20">
+                      <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20">
                         <SeraniAILogo size={20} color="#ffffff" />
                       </div>
                     )}
@@ -318,14 +318,14 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                     {/* Bubble */}
                     <div
                       className={`px-6 py-4 rounded-[28px] shadow-sm text-base leading-relaxed break-words relative transition-all duration-300 ${isUser
-                        ? "bg-blue-600 text-white shadow-blue-500/10"
-                        : "bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 shadow-slate-200/60 dark:shadow-slate-950/40"
+                        ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-blue-500/20"
+                        : "bg-slate-50 dark:bg-[#111a2b] text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-white/10 shadow-slate-200/60 dark:shadow-slate-950/40"
                         }`}
                     >
                       {msg.fileUrl && (
                         <div className="mb-4 p-3 bg-white/10 border border-white/20 rounded-2xl flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="p-2.5 bg-blue-500/20 rounded-xl text-white">
+                            <div className="p-2.5 bg-white/15 rounded-xl text-white">
                               <FileText size={18} />
                             </div>
                             <div className="flex flex-col min-w-0">
@@ -352,17 +352,17 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                       {/* Course Suggestions Card */}
                       {msg.courses && msg.courses.length > 0 && (
                         <div className="mt-8 flex flex-col gap-4">
-                           <div className="h-[1px] w-full bg-black/5 dark:bg-white/5" />
+                            <div className="h-[1px] w-full bg-black/5 dark:bg-white/10" />
                           <div className="flex items-center gap-2">
-                             <Sparkles size={14} className="text-blue-400" />
-                             <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Recommendations</p>
+                             <Sparkles size={14} className="text-sky-400" />
+                             <p className="text-[10px] font-black text-sky-400 uppercase tracking-[0.2em]">Recommendations</p>
                           </div>
                           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                             {msg.courses.map((course) => (
                               <motion.div 
                                 key={course.id}
                                 whileHover={{ y: -5 }}
-                                className="min-w-[280px] max-w-[280px] bg-white dark:bg-gray-800 rounded-[32px] overflow-hidden border border-gray-100 dark:border-gray-700 shadow-xl flex flex-col group/card transition-all duration-300"
+                                className="min-w-[280px] max-w-[280px] bg-white dark:bg-[#111a2b] rounded-[32px] overflow-hidden border border-slate-100 dark:border-white/10 shadow-xl flex flex-col group/card transition-all duration-300"
                               >
                                 <div className="relative h-36 overflow-hidden">
                                   {course.thumbnailUrl ? (
@@ -376,7 +376,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                                       <PlayCircle size={48} strokeWidth={1} />
                                     </div>
                                   )}
-                                  <div className="absolute top-4 right-4 px-3 py-1 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg">
+                                  <div className="absolute top-4 right-4 px-3 py-1 bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg">
                                     {course.category}
                                   </div>
                                 </div>
@@ -387,7 +387,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                                   </p>
                                   <button
                                     onClick={() => navigate(`/dashboard/course/${course.id}`)}
-                                    className="mt-4 w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-95"
+                                    className="mt-4 w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-95"
                                   >
                                     Explore Course
                                   </button>
@@ -407,7 +407,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                     >
                       <button
                         onClick={() => handleCopy(msg.content, index)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-sky-500 transition-colors"
                         title="Copy message"
                       >
                         {copiedIndex === index ? (
@@ -419,7 +419,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                       {isUser && onEditMessage && (
                         <button
                           onClick={() => handleEdit(msg.content, index)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-sky-500 transition-colors"
                           title="Edit message"
                         >
                           <Edit size={14} />
@@ -441,19 +441,19 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
             className="mb-8 flex justify-start"
           >
             <div className="flex gap-4 items-end">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <SeraniAILogo size={20} color="#ffffff" />
               </div>
 
-              <div className="px-6 py-4 rounded-[32px] bg-white/80 dark:bg-gray-900/80 rounded-bl-none border border-white dark:border-gray-800 shadow-sm">
+              <div className="px-6 py-4 rounded-[32px] bg-white/80 dark:bg-[#111a2b]/90 rounded-bl-none border border-white dark:border-white/10 shadow-sm">
                 <div className="flex items-center space-x-2">
-                  <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" />
+                  <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-bounce" />
                   <div
-                    className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
+                    className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-bounce"
                     style={{ animationDelay: "0.2s" }}
                   />
                   <div
-                    className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
+                    className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-bounce"
                     style={{ animationDelay: "0.4s" }}
                   />
                 </div>

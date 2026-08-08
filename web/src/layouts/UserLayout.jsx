@@ -260,26 +260,34 @@ const UserLayout = () => {
               </div>
 
               {showProfileMenu && (
-                <div className="absolute inset-x-0 bottom-full mb-3 bg-white rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden text-gray-900 dark:text-white z-20">
+                <div className={`absolute inset-x-0 bottom-full mb-3 rounded-2xl shadow-2xl border overflow-hidden z-20 transition-colors duration-300 ${
+                  isDark
+                    ? 'bg-[#0f172a] border-slate-700 text-white'
+                    : 'bg-white border-gray-200 text-gray-900'
+                }`}>
                   <button
                     onClick={() => {
                       navigate('/dashboard/settings');
                       setShowProfileMenu(false);
                     }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className={`w-full text-left px-4 py-3 transition-colors ${
+                      isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
+                    }`}
                   >
-                    <div className="font-medium">Settings</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Profile & preferences</div>
+                    <div className="font-medium text-inherit">Settings</div>
+                    <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Profile & preferences</div>
                   </button>
                   <button
                     onClick={() => {
                       navigate('/subscription');
                       setShowProfileMenu(false);
                     }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className={`w-full text-left px-4 py-3 transition-colors ${
+                      isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
+                    }`}
                   >
-                    <div className="font-medium">Upgrade to Pro</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Unlock premium features</div>
+                    <div className="font-medium text-inherit">Upgrade to Pro</div>
+                    <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Unlock premium features</div>
                   </button>
                 </div>
               )}

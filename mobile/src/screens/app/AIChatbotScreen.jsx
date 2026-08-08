@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { Feather } from "@expo/vector-icons";
@@ -22,6 +23,7 @@ import * as chatApi from "../../api/chatApi";
 const DRAWER_WIDTH = 280;
 
 export const AIChatbotScreen = () => {
+  const navigation = useNavigation();
   const { colors } = useTheme();
   
   const [messages, setMessages] = useState([]);
@@ -125,7 +127,7 @@ export const AIChatbotScreen = () => {
       }
 
       const res = await chatApi.sendMessage(payload);
-      const { sessionId, reply } = res.data;
+      const { sessionId, reply, courses = [] } = res.data;
 
       // Update activeSessionId if it's a new chat
       if (!activeSessionId) {
@@ -133,7 +135,13 @@ export const AIChatbotScreen = () => {
       }
 
       // Add bot reply to messages list (include timestamp)
-      const botMsg = { id: (Date.now() + 1).toString(), role: "assistant", content: reply, createdAt: new Date().toISOString() };
+      const botMsg = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: reply,
+        courses,
+        createdAt: new Date().toISOString(),
+      };
       setMessages((prev) => [...prev, botMsg]);
 
       // Reload history list so sidebar updates with the correct title
@@ -169,9 +177,51 @@ export const AIChatbotScreen = () => {
     </View>
   );
 
+  const renderFormattedContent = (content, textStyle, boldStyle, italicStyle) => {
+    if (!content) return null;
+
+    const parts = String(content).split(/(\*\*.*?\*\*|\*.*?\*)/g);
+
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <Text key={`${index}-${part}`} style={[textStyle, boldStyle]}>
+            {part.slice(2, -2)}
+          </Text>
+        );
+      }
+
+      if (part.startsWith("*") && part.endsWith("*")) {
+        return (
+          <Text key={`${index}-${part}`} style={[textStyle, italicStyle]}>
+            {part.slice(1, -1)}
+          </Text>
+        );
+      }
+
+      return (
+        <Text key={`${index}-${part}`} style={textStyle}>
+          {part}
+        </Text>
+      );
+    });
+  };
+
   const renderMessageItem = ({ item }) => {
     const isUser = item.role === "user";
     const timeLabel = new Date(item.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const openCourse = (course) => {
+      if (!course?._id && !course?.id) return;
+      navigation.navigate("Courses", {
+        screen: "CourseDetails",
+        params: {
+          courseId: course._id || course.id,
+          courseTitle: course.title || "Course",
+        },
+      });
+    };
+
     return (
       <View
         style={[
@@ -204,9 +254,37 @@ export const AIChatbotScreen = () => {
               { color: isUser ? "#fff" : colors.text },
             ]}
           >
-            {item.content}
+            {renderFormattedContent(
+              item.content,
+              [styles.messageText, { color: isUser ? "#fff" : colors.text }],
+              styles.messageBold,
+              styles.messageItalic,
+            )}
           </Text>
           <Text style={[styles.messageTime, { color: isUser ? 'rgba(255,255,255,0.85)' : colors.muted }]}>{timeLabel}</Text>
+
+          {!isUser && Array.isArray(item.courses) && item.courses.length > 0 && (
+            <View style={styles.courseList}>
+              {item.courses.slice(0, 3).map((course) => {
+                const courseId = course?._id || course?.id;
+                if (!courseId) return null;
+
+                return (
+                  <TouchableOpacity
+                    key={String(courseId)}
+                    style={[styles.courseChip, { backgroundColor: colors.background, borderColor: colors.border }]}
+                    onPress={() => openCourse(course)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.courseChipText, { color: colors.text }]} numberOfLines={1}>
+                      {course.title || "Course"}
+                    </Text>
+                    <Feather name="chevron-right" size={14} color={colors.muted} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
       </View>
     );
@@ -354,9 +432,9 @@ export const AIChatbotScreen = () => {
           </View>
         )}
 
-          <View style={[styles.inputArea, { backgroundColor: colors.surface, borderTopColor: colors.border }]}> 
+          <View style={[styles.inputArea, { backgroundColor: colors.background, borderTopColor: "transparent" }]}> 
           <TextInput
-            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
+            style={[styles.input, { backgroundColor: "rgba(255,255,255,0.92)", color: colors.text }]}
             placeholder="Ask SeraniAI something..."
             placeholderTextColor={colors.muted}
             value={input}
@@ -458,6 +536,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
   },
+  messageBold: {
+    fontWeight: "700",
+  },
+  messageItalic: {
+    fontStyle: "italic",
+  },
   messageTime: {
     fontSize: 11,
     marginTop: 6,
@@ -492,12 +576,32 @@ const styles = StyleSheet.create({
     color: "#64748b",
     fontSize: 14,
   },
+  courseList: {
+    marginTop: 10,
+    gap: 8,
+  },
+  courseChip: {
+    minHeight: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  courseChipText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    marginRight: 10,
+  },
   inputArea: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderTopWidth: 1,
+    borderTopWidth: 0,
   },
   input: {
     flex: 1,

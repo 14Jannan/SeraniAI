@@ -125,75 +125,133 @@ async function getDailyReminders(userId) {
   }
 }
 
-async function getMoodBasedCourseSuggestions(userId) {
-  try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+/**
+ * Determines mood situation from today's journals + optional fallback message text.
+ * Returns:
+ *  { situation: 'negative' | 'positive' | 'none', moods, categories }
+ */
+async function detectMoodSituation(userId, userMessageText = "") {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
 
+  const NEGATIVE_MOODS = ["sad", "depressed", "lonely", "anxious", "nervous", "worried",
+    "stressed", "overwhelmed", "angry", "irritated", "frustrated", "exhausted", "tired"];
+  const POSITIVE_MOODS = ["happy", "excited", "energetic", "content", "grateful", "calm", "motivated", "great", "good"];
+
+  const moodToCategory = {
+    "sad": "Emotional Regulation",
+    "depressed": "Emotional Regulation",
+    "lonely": "Relationships",
+    "anxious": "Anxiety",
+    "nervous": "Anxiety",
+    "worried": "Stress",
+    "stressed": "Stress",
+    "overwhelmed": "Stress",
+    "busy": "Mindfulness",
+    "tired": "Sleep",
+    "exhausted": "Sleep",
+    "sleepy": "Sleep",
+    "happy": "Self-Care",
+    "excited": "Mindfulness",
+    "energetic": "Mindfulness",
+    "angry": "Emotional Regulation",
+    "irritated": "Stress",
+    "frustrated": "Emotional Regulation",
+    "content": "Self-Care",
+    "grateful": "Self-Care",
+    "calm": "Mindfulness",
+    "motivated": "Mindfulness",
+  };
+
+  // Source 1: today's journals
+  let moods = [];
+  try {
     const todayJournals = await Journal.find({
       user: userId,
       createdAt: { $gte: startOfDay }
-    }).select("mood content");
-
-    if (todayJournals.length === 0) return { message: null, courses: [] };
-
-    // Extract moods and map them to categories
-    const moods = todayJournals.map(j => j.mood).filter(m => m);
-    if (moods.length === 0) return { message: null, courses: [] };
-
-    const moodToCategory = {
-      "sad": "Emotional Regulation",
-      "depressed": "Emotional Regulation",
-      "lonely": "Relationships",
-      "anxious": "Anxiety",
-      "nervous": "Anxiety",
-      "worried": "Stress",
-      "stressed": "Stress",
-      "overwhelmed": "Stress",
-      "busy": "Mindfulness",
-      "tired": "Sleep",
-      "exhausted": "Sleep",
-      "sleepy": "Sleep",
-      "happy": "Self-Care",
-      "excited": "Mindfulness",
-      "energetic": "Mindfulness",
-      "angry": "Emotional Regulation",
-      "irritated": "Stress",
-      "frustrated": "Emotional Regulation"
-    };
-
-    let categoriesToSearch = new Set();
-    moods.forEach(m => {
-      const lowerMood = m.toLowerCase();
-      for (const [key, cat] of Object.entries(moodToCategory)) {
-        if (lowerMood.includes(key)) {
-          categoriesToSearch.add(cat);
-        }
-      }
-    });
-
-    if (categoriesToSearch.size === 0) {
-      categoriesToSearch.add(moods[0]);
-    }
-
-    const suggestedCourses = [];
-    for (const cat of categoriesToSearch) {
-      const results = await suggestCourses(cat);
-      suggestedCourses.push(...results);
-      if (suggestedCourses.length >= 3) break;
-    }
-
-    const uniqueCourses = Array.from(new Set(suggestedCourses.map(c => c.id.toString())))
-      .map(id => suggestedCourses.find(c => c.id.toString() === id))
-      .slice(0, 3);
-
-    const moodText = moods.join(", ");
-    const message = `\n\nI noticed you're feeling **${moodText}** today according to your journal. Based on your mood, I've selected some courses that might help you find balance or support:`;
-
-    return { message, courses: uniqueCourses };
+    }).select("mood");
+    moods = todayJournals.map(j => j.mood).filter(m => m && m.trim());
   } catch (err) {
-    console.error("getMoodBasedCourseSuggestions error:", err);
-    return { message: null, courses: [] };
+    console.error("detectMoodSituation journal fetch error:", err);
+  }
+
+  // Source 2: fallback — check first message text for mood keywords
+  if (moods.length === 0 && userMessageText) {
+    const lower = userMessageText.toLowerCase();
+    [...NEGATIVE_MOODS, ...POSITIVE_MOODS].forEach(keyword => {
+      if (lower.includes(keyword)) moods.push(keyword);
+    });
+  }
+
+  if (moods.length === 0) return { situation: "none", moods: [], categories: [] };
+
+  // Determine situation
+  const isNegative = moods.some(m =>
+    NEGATIVE_MOODS.some(neg => m.toLowerCase().includes(neg))
+  );
+  const isPositive = moods.some(m =>
+    POSITIVE_MOODS.some(pos => m.toLowerCase().includes(pos))
+  );
+
+  const categories = new Set();
+  moods.forEach(m => {
+    for (const [key, cat] of Object.entries(moodToCategory)) {
+      if (m.toLowerCase().includes(key)) categories.add(cat);
+    }
+  });
+
+  return {
+    situation: isNegative ? "negative" : isPositive ? "positive" : "none",
+    moods,
+    categories: Array.from(categories),
+  };
+}
+
+/**
+ * Called at the START of every NEW chat session.
+ * Returns { message, courses, wellnessButton } based on detected mood.
+ */
+async function getNewChatMoodSuggestion(userId, userMessageText = "") {
+  try {
+    const { situation, moods, categories } = await detectMoodSituation(userId, userMessageText);
+
+    if (situation === "none") return { message: null, courses: [], wellnessButton: false };
+
+    const moodLabel = moods.slice(0, 2).join(" and ");
+
+    if (situation === "negative") {
+      // Negative mood → suggest wellness tasks button
+      const message = `\n\nI can see you're feeling **${moodLabel}** today. That's completely okay — be gentle with yourself. I've prepared some calming wellness exercises that might help you feel more grounded: [button:Go to Wellness Tasks:/dashboard/tasks]`;
+      return { message, courses: [], wellnessButton: true };
+    }
+
+    if (situation === "positive") {
+      // Positive mood → suggest learning courses
+      const suggestedCourses = [];
+      for (const cat of categories) {
+        const results = await suggestCourses(cat);
+        suggestedCourses.push(...results);
+        if (suggestedCourses.length >= 3) break;
+      }
+      // Fallback: general courses if no category match
+      if (suggestedCourses.length === 0) {
+        const fallback = await suggestCourses("wellness");
+        suggestedCourses.push(...fallback);
+      }
+      const uniqueCourses = Array.from(new Set(suggestedCourses.map(c => c.id.toString())))
+        .map(id => suggestedCourses.find(c => c.id.toString() === id))
+        .slice(0, 3);
+
+      const message = uniqueCourses.length > 0
+        ? `\n\nYou're feeling **${moodLabel}** — what a great energy to start with! Here are some courses that match your vibe:`
+        : null;
+      return { message, courses: uniqueCourses, wellnessButton: false };
+    }
+
+    return { message: null, courses: [], wellnessButton: false };
+  } catch (err) {
+    console.error("getNewChatMoodSuggestion error:", err);
+    return { message: null, courses: [], wellnessButton: false };
   }
 }
 
@@ -322,7 +380,7 @@ const TOOLS = [
 
 async function suggestCourses(query) {
   try {
-    const courses = await Course.find({
+    let courses = await Course.find({
       $or: [
         { title: { $regex: query, $options: "i" } },
         { category: { $regex: query, $options: "i" } },
@@ -331,6 +389,13 @@ async function suggestCourses(query) {
       isPublished: true,
       isDeleted: false
     }).limit(3).lean();
+
+    if (courses.length === 0) {
+      courses = await Course.find({
+        isPublished: true,
+        isDeleted: false
+      }).limit(3).lean();
+    }
 
     const results = [];
     for (const course of courses) {
@@ -493,6 +558,13 @@ exports.sendMessage = async (req, res) => {
       if (chatData && chatData.results && chatData.results.length > 0) {
         const docs = chatData.results.map(r => r.document);
         searchContext += "PAST CONVERSATION MEMORIES:\n" + docs.join("\n") + "\n\n";
+      }
+
+      // 3. Search for available courses
+      const courseData = await chromadb.search(clean, "courses", 5);
+      if (courseData && courseData.results && courseData.results.length > 0) {
+        const docs = courseData.results.map(r => r.document);
+        searchContext += "AVAILABLE COURSES FROM OUR PLATFORM (ONLY suggest these, NEVER invent others):\n" + docs.join("\n") + "\n\n";
       }
     } catch (err) {
       console.error("Vector search error:", err);
@@ -670,22 +742,18 @@ exports.sendMessage = async (req, res) => {
       reply = imageMarkdown ? (cleanedAiContent + "\n\n" + imageMarkdown).trim() : cleanedAiContent;
     }
 
-    // 4) Check for first chat of the day and add reminders/mood suggestions (Skip if file uploaded)
-    const firstChat = await isFirstChatOfDay(userId);
-    if (firstChat && !req.file) {
-      // 4a) Daily Reminders
-      const reminders = await getDailyReminders(userId);
-      if (reminders) {
-        reply += reminders;
+    // 4) On every NEW chat session, check mood and suggest wellness tasks OR courses
+    if (isNewChat && !req.file) {
+      const moodSuggestion = await getNewChatMoodSuggestion(userId, clean);
+
+      if (moodSuggestion.message) {
+        reply += moodSuggestion.message;
       }
 
-      // 4b) Mood-based Course Suggestions
-      const moodSuggestions = await getMoodBasedCourseSuggestions(userId);
-      if (moodSuggestions.message && moodSuggestions.courses.length > 0) {
-        reply += moodSuggestions.message;
+      if (moodSuggestion.courses.length > 0) {
         // Merge suggested courses, avoiding duplicates
         const existingIds = new Set(suggestedCourses.map(c => c.id.toString()));
-        moodSuggestions.courses.forEach(course => {
+        moodSuggestion.courses.forEach(course => {
           if (!existingIds.has(course.id.toString())) {
             suggestedCourses.push(course);
           }

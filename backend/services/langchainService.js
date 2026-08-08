@@ -20,9 +20,8 @@ class ChromaRetriever extends BaseRetriever {
 
   async _getRelevantDocuments(query) {
     try {
-      const results = await this.chromadb.search(query, this.collection, this.nResults, {
-        userId: this.userId.toString(),
-      });
+      const whereFilter = this.collection === "courses" ? null : { userId: this.userId.toString() };
+      const results = await this.chromadb.search(query, this.collection, this.nResults, whereFilter);
 
       if (!results || !results.results) return [];
 
@@ -64,16 +63,23 @@ class LangchainService {
       // 1. Create retrievers for different collections
       const journalRetriever = new ChromaRetriever({ userId, collection: "journals", nResults: 3 });
       const chatRetriever = new ChromaRetriever({ userId, collection: "chat_messages", nResults: 5 });
+      const courseRetriever = new ChromaRetriever({ userId, collection: "courses", nResults: 3 });
 
       // 2. Fetch context manually for now to combine them (LangChain MultiQuery or Ensemble could be used later)
-      const [journalDocs, chatDocs] = await Promise.all([
+      const [journalDocs, chatDocs, courseDocs] = await Promise.all([
         journalRetriever._getRelevantDocuments(question),
         chatRetriever._getRelevantDocuments(question),
+        courseRetriever._getRelevantDocuments(question),
       ]);
 
-      const combinedContext = [...journalDocs, ...chatDocs]
+      let combinedContext = [...journalDocs, ...chatDocs]
         .map((doc) => doc.pageContent)
         .join("\n\n---\n\n");
+
+      const courseContext = courseDocs.map((doc) => doc.pageContent).join("\n\n---\n\n");
+      if (courseContext) {
+        combinedContext += "\n\n--- AVAILABLE COURSES FROM OUR PLATFORM ---\n" + courseContext;
+      }
 
       // 3. Format history for LangChain
       const formattedHistory = history.slice(-10).map((msg) => {
