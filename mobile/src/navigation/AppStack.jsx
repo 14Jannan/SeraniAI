@@ -12,6 +12,7 @@ import { JournalScreen } from "../screens/app/JournalScreen";
 import { AddJournalScreen } from "../screens/app/AddJournalScreen";
 import { CourseDetailsScreen } from "../screens/app/CourseDetailsScreen";
 import { TasksScreen } from "../screens/app/TasksScreen";
+import { EnterpriseManagerScreen } from "../screens/app/EnterpriseManagerScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -73,6 +74,16 @@ const TasksStack = () => (
     }}
   >
     <Stack.Screen name="TasksHome" component={TasksScreen} />
+  </Stack.Navigator>
+);
+
+const EnterpriseStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+    }}
+  >
+    <Stack.Screen name="EnterpriseHome" component={EnterpriseManagerScreen} />
   </Stack.Navigator>
 );
 
@@ -172,6 +183,19 @@ export const AppStack = () => {
           ),
         }}
       />
+      {user?.role === "enterpriseAdmin" && (
+        <Tab.Screen
+          name="Enterprise"
+          component={EnterpriseStack}
+          options={{
+            title: "Enterprise Manager",
+            tabBarLabel: "Enterprise",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="users" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 };
