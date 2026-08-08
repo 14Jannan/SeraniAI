@@ -36,6 +36,11 @@ const subscriptionApi = {
     );
     return response.data;
   },
+
+  async cancelEnterprisePremiumAccess() {
+    const response = await httpClient.post("/auth/enterprise/cancel-premium");
+    return response.data;
+  },
 };
 
 export default subscriptionApi;

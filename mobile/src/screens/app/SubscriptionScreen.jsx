@@ -143,6 +143,40 @@ export const SubscriptionScreen = () => {
     );
   };
 
+  const handleCancelEnterprisePremium = () => {
+    Alert.alert(
+      "Cancel Enterprise Premium Access",
+      "Are you sure you want to cancel enterprise premium access? You will be moved to the Free plan immediately.",
+      [
+        { text: "Keep access", style: "cancel" },
+        {
+          text: "Cancel now",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setBusyPlanId("cancelEnterprise");
+              await subscriptionApi.cancelEnterprisePremiumAccess();
+              await refreshUser?.();
+              await fetchSubscription(true);
+              Alert.alert(
+                "Enterprise access cancelled",
+                "Your account has been moved to the Free plan.",
+              );
+            } catch (cancelError) {
+              setError(
+                cancelError.response?.data?.message ||
+                  cancelError.message ||
+                  "Unable to cancel enterprise premium access.",
+              );
+            } finally {
+              setBusyPlanId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleRetrySubscription = async () => {
     if (!subscription?._id) return;
 
@@ -163,6 +197,22 @@ export const SubscriptionScreen = () => {
   };
 
   const activePlanCode = subscription?.planCode || null;
+
+  /* Determine whether the user must cancel before they can pick a new plan */
+  const isEnterpriseUser = user?.role === "enterpriseUser";
+  const isProPlanUser = user?.role === "(Pro)PlanUser";
+  const isEnterpriseAdmin = user?.role === "enterpriseAdmin";
+  const hasActiveSubscription = subscription?.status === "Active";
+
+  /* Block upgrade when: enterprise user (managed access), or already has an active subscription */
+  const mustCancelBeforeUpgrade =
+    isEnterpriseUser || isProPlanUser || isEnterpriseAdmin || hasActiveSubscription;
+
+  const upgradeBlockMessage = isEnterpriseUser
+    ? "Your premium access is managed by your enterprise. Cancel your enterprise premium access first before choosing another plan."
+    : isProPlanUser || isEnterpriseAdmin
+    ? "You already have an active plan. Cancel your current subscription before upgrading to another plan."
+    : "You already have an active subscription. Cancel your current plan first before upgrading to another plan.";
 
   return (
     <ScrollView
@@ -233,9 +283,40 @@ export const SubscriptionScreen = () => {
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Upgrade options</Text>
+
+      {/* Block banner — shown when user must cancel before selecting a new plan */}
+      {mustCancelBeforeUpgrade ? (
+        <View style={[styles.blockBanner, { backgroundColor: colors.surface, borderColor: "#F59E0B" }]}>
+          <Feather name="lock" size={16} color="#B45309" />
+          <Text style={styles.blockBannerText}>{upgradeBlockMessage}</Text>
+        </View>
+      ) : null}
+
+      {/* Enterprise user — cancel managed access */}
+      {isEnterpriseUser ? (
+        <TouchableOpacity
+          style={[styles.dangerButton, { backgroundColor: "#DC2626" }]}
+          onPress={handleCancelEnterprisePremium}
+          disabled={busyPlanId === "cancelEnterprise"}
+        >
+          {busyPlanId === "cancelEnterprise" ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.dangerButtonText}>Cancel Enterprise Access</Text>
+          )}
+        </TouchableOpacity>
+      ) : null}
+
       {PLANS.map((plan) => {
         const isCurrent = activePlanCode === plan.id;
         const isBusy = busyPlanId === plan.id;
+        /* A plan button is disabled if user must cancel first OR if this is their current plan */
+        const isDisabled = isBusy || isCurrent || mustCancelBeforeUpgrade;
+        const buttonLabel = isCurrent
+          ? "Already active"
+          : mustCancelBeforeUpgrade
+          ? "Cancel current plan first"
+          : `Upgrade to ${plan.title}`;
 
         return (
           <View
@@ -263,7 +344,7 @@ export const SubscriptionScreen = () => {
 
             <Text style={[styles.planDescription, { color: colors.muted }]}>{plan.description}</Text>
 
-            {plan.id === "business" ? (
+            {plan.id === "business" && !mustCancelBeforeUpgrade ? (
               <View style={styles.seatRow}>
                 <Text style={[styles.seatLabel, { color: colors.text }]}>Seats</Text>
                 <TextInput
@@ -287,17 +368,15 @@ export const SubscriptionScreen = () => {
             <TouchableOpacity
               style={[
                 styles.primaryButton,
-                { backgroundColor: isCurrent ? colors.border : plan.accent },
+                { backgroundColor: isDisabled ? colors.border : plan.accent },
               ]}
-              onPress={() => handleCheckout(plan)}
-              disabled={isBusy || isCurrent}
+              onPress={() => !isDisabled && handleCheckout(plan)}
+              disabled={isDisabled}
             >
               {isBusy ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.primaryButtonText}>
-                  {isCurrent ? "Already active" : `Upgrade to ${plan.title}`}
-                </Text>
+                <Text style={styles.primaryButtonText}>{buttonLabel}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -417,6 +496,15 @@ const styles = StyleSheet.create({
   },
   currentBadgeText: { fontSize: 11, fontWeight: "800" },
   planDescription: { fontSize: 13, lineHeight: 19, marginBottom: 14 },
+  blockBanner: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+  },
+  blockBannerText: { color: "#92400E", flex: 1, fontSize: 13, lineHeight: 18 },
   seatRow: { marginBottom: 14 },
   seatLabel: { fontSize: 12, fontWeight: "800", marginBottom: 8 },
   seatInput: {
