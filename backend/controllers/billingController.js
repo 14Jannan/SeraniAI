@@ -568,8 +568,10 @@ exports.confirmPayHereReturn = async (req, res) => {
     await syncUserRoleFromPlanCode({ userId, planCode: fallbackPlanCode });
 
     const [updatedUser, updatedSubscription] = await Promise.all([
-      User.findById(userId).lean(),
-      Subscription.findOne({ userId, paymentId: orderId }).lean(),
+      User.findById(userId)
+        .select("name email role enterpriseId status onboardingStatus preferences")
+        .lean(),
+      Subscription.findOne({ userId, paymentId: orderId }),
     ]);
 
     return res.status(200).json({
