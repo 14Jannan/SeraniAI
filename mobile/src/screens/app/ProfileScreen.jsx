@@ -149,8 +149,11 @@ export const ProfileScreen = ({ navigation }) => {
     setIsDeletingAccount(true);
     setDeleteError("");
     try {
-      const authApi = require("../../api/authApi").default;
-      await authApi.deleteCurrentUser?.();
+      const { default: authApi } = require("../../api/authApi");
+      if (!authApi?.deleteCurrentUser) {
+        throw new Error("deleteCurrentUser API is not available");
+      }
+      await authApi.deleteCurrentUser();
       await logout();
     } catch (err) {
       setDeleteError(
