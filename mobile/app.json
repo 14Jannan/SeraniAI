@@ -10,6 +10,7 @@
       "bundleIdentifier": "com.seraniaiapp.mobile"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "pan",
       "package": "com.seraniaiapp.mobile",
       "intentFilters": [
         {

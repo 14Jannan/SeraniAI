@@ -11,6 +11,7 @@ import {
   Image,
   Platform,
   useWindowDimensions,
+  KeyboardAvoidingView,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
@@ -88,10 +89,17 @@ export const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+    <KeyboardAvoidingView 
+      behavior="padding"
+      enabled={Platform.OS === "ios"}
+      style={{ flex: 1 }}
     >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.heroCircleLarge} />
       <View style={styles.heroCircleSmall} />
 
@@ -228,11 +236,12 @@ export const LoginScreen = ({ navigation }) => {
         </View>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, justifyContent: "center" },
+  container: { flexGrow: 1, padding: 20, paddingTop: 60, paddingBottom: 40 },
   scrollView: { flex: 1 },
   heroCircleLarge: {
     position: "absolute", top: -80, right: -50,

@@ -118,15 +118,14 @@ export const AIChatbotScreen = () => {
     try {
       setLoading(true);
       
-      const payload = {
-        message: cleanText,
-        localDate: new Date().toDateString(),
-      };
+      const formData = new FormData();
+      formData.append("message", cleanText);
+      formData.append("localDate", new Date().toDateString());
       if (activeSessionId) {
-        payload.sessionId = activeSessionId;
+        formData.append("sessionId", activeSessionId);
       }
 
-      const res = await chatApi.sendMessage(payload);
+      const res = await chatApi.sendMessage(formData);
       const { sessionId, reply, courses = [] } = res.data;
 
       // Update activeSessionId if it's a new chat

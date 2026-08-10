@@ -15,7 +15,8 @@ const { generateSystemPrompt } = require("../utils/promptBuilder");
 const ChromaDBService = require("../services/chromaDBService");
 const UserTaskProgress = require("../models/userTaskProgressModel");
 const { Task } = require("../models/taskModel");
-const langchainService = require("../services/langchainService");
+
+
 
 const chromadb = new ChromaDBService();
 
