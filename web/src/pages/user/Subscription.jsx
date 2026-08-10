@@ -303,6 +303,12 @@ export default function Subscription() {
           body: JSON.stringify({ orderId }),
         });
 
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => "");
+          console.error("Payment confirmation failed:", response.status, errorBody);
+          return;
+        }
+
         const data = await response.json().catch(() => null);
         if (data?.user) {
           localStorage.setItem("user", JSON.stringify(data.user));
