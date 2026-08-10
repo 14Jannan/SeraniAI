@@ -9,6 +9,7 @@ const Lesson = require("../models/lessonModel");
 const Enrollment = require("../models/enrollmentModel");
 const Category = require("../models/categoryModel");
 const { deleteCache } = require("../utils/cache");
+const { notifyCourseUpdate, notifyNewCourse } = require("../services/notificationService");
 
 /**
  * Get all categories (both from Category model and existing course categories)
@@ -274,6 +275,13 @@ exports.createCourse = async (req, res) => {
     // Invalidate course cache
     await deleteCache("courses:all");
 
+    if (newCourse.isPublished) {
+      await notifyNewCourse({
+        courseId: newCourse._id,
+        courseTitle: newCourse.title,
+      });
+    }
+
     res.status(201).json(newCourse);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -360,6 +368,12 @@ exports.updateCourse = async (req, res) => {
 
     // Invalidate course cache
     await deleteCache("courses:all");
+
+    await notifyCourseUpdate({
+      courseId: updated._id,
+      courseTitle: updated.title,
+      message: `${updated.title} has new course updates.`,
+    });
 
     // Return the updated course
     res.json(updated);

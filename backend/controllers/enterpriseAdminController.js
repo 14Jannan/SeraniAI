@@ -5,6 +5,7 @@ const EnterpriseInvite = require('../models/enterpriseInviteModel');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const sendVerificationEmail = require('../utils/emailService');
+const { notifyRoleChange } = require('../services/notificationService');
 
 const { sendEnterpriseInviteEmail } = sendVerificationEmail;
 
@@ -287,6 +288,12 @@ exports.deactivateEnterpriseUser = async (req, res) => {
     user.status = 'deactivated';
     await user.save();
 
+    await notifyRoleChange({
+      userId: user._id,
+      title: 'Enterprise access updated',
+      message: 'Your enterprise account was deactivated.',
+    });
+
     res.json({ message: "User deactivated", status: user.status });
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
@@ -324,6 +331,12 @@ exports.deleteEnterpriseUser = async (req, res) => {
     }
     user.status = 'active';
     await user.save();
+
+    await notifyRoleChange({
+      userId: user._id,
+      title: 'Enterprise access removed',
+      message: 'Your enterprise access was removed and your account returned to a standard user role.',
+    });
 
     // Remove from enterprise members
     await Enterprise.findByIdAndUpdate(
