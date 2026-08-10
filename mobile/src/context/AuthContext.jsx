@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import authApi from "../api/authApi";
 import { tokenStorage, userStorage } from "../utils/tokenStorage";
-
+import { clearApiCache } from "../utils/apiCache";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -165,6 +165,7 @@ export const AuthProvider = ({ children }) => {
         // Clear tokens and user regardless of API response
         await tokenStorage.clearTokens();
         await userStorage.clearUser();
+        await clearApiCache();
         dispatch({
           isLoading: false,
           isSignedIn: false,

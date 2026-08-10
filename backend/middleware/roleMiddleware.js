@@ -5,7 +5,7 @@ const authorize = (...roles) => {
       // and send header 'x-dev-admin: true' from your client to bypass role checks locally.
       // WARNING: keep this disabled in production.
       try {
-        if (process.env.DEV_ALLOW_ADMIN_OVERRIDE === 'true' && req.headers['x-dev-admin'] === 'true') {
+        if (process.env.NODE_ENV !== "production" && process.env.DEV_ALLOW_ADMIN_OVERRIDE === 'true' && req.headers['x-dev-admin'] === 'true') {
           req.user = req.user || {};
           req.user.role = 'admin';
         }

@@ -32,6 +32,7 @@ const palette = {
     inputBg: "#F8FAFC",
     warningBg: "#FFFBEB",
     warningBorder: "#FDE68A",
+    buttonText: "#FFFFFF",
   },
   dark: {
     mode: "dark",
@@ -55,6 +56,7 @@ const palette = {
     inputBg: "#0F172A",
     warningBg: "#1E293B",
     warningBorder: "#475569",
+    buttonText: "#0F172A",
   },
 };
 

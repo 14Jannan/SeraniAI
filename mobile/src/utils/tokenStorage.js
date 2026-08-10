@@ -7,13 +7,19 @@ const REFRESH_TOKEN_KEY = "refreshToken";
 const USER_KEY = "user";
 const TOKEN_EXPIRY_KEY = "tokenExpiry";
 
+// 🔥 memory cache (FAST PATH)
+const _mem = {
+  accessToken: null,
+  refreshToken: null,
+  expiry: null,
+};
+
 const storage = {
   async setItem(key, value) {
     if (Platform.OS === "web") {
       await AsyncStorage.setItem(key, value);
       return;
     }
-
     await SecureStore.setItemAsync(key, value);
   },
 
@@ -21,7 +27,6 @@ const storage = {
     if (Platform.OS === "web") {
       return AsyncStorage.getItem(key);
     }
-
     return SecureStore.getItemAsync(key);
   },
 
@@ -30,7 +35,6 @@ const storage = {
       await AsyncStorage.removeItem(key);
       return;
     }
-
     await SecureStore.deleteItemAsync(key);
   },
 };
@@ -40,15 +44,24 @@ export const tokenStorage = {
   async saveToken(accessToken, refreshToken, expiresIn = 900) {
     try {
       await storage.setItem(TOKEN_KEY, accessToken);
+
       if (refreshToken) {
         await storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
       } else {
         await storage.removeItem(REFRESH_TOKEN_KEY);
       }
 
-      // Calculate expiry time (current time + expiresIn seconds)
       const expiryTime = Date.now() + expiresIn * 1000;
-      await AsyncStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
+
+      await AsyncStorage.setItem(
+        TOKEN_EXPIRY_KEY,
+        expiryTime.toString()
+      );
+
+      // 🔥 MEMORY CACHE UPDATE
+      _mem.accessToken = accessToken;
+      _mem.refreshToken = refreshToken || null;
+      _mem.expiry = expiryTime;
 
       return true;
     } catch (error) {
@@ -57,18 +70,33 @@ export const tokenStorage = {
     }
   },
 
-  // Get access token (check if expired)
+  // Get access token (with FAST memory check)
   async getAccessToken() {
     try {
+      // 🔥 FAST PATH (no async storage)
+      if (_mem.accessToken) {
+        if (_mem.expiry && Date.now() >= _mem.expiry) {
+          _mem.accessToken = null;
+          _mem.expiry = null;
+        } else {
+          return _mem.accessToken;
+        }
+      }
+
+      // fallback to storage
       const token = await storage.getItem(TOKEN_KEY);
       if (!token) return null;
 
-      // Check if token is expired
       const expiryTime = await AsyncStorage.getItem(TOKEN_EXPIRY_KEY);
+
       if (expiryTime && Date.now() > parseInt(expiryTime)) {
         await this.clearTokens();
         return null;
       }
+
+      // refill cache
+      _mem.accessToken = token;
+      _mem.expiry = expiryTime ? parseInt(expiryTime) : null;
 
       return token;
     } catch (error) {
@@ -77,22 +105,30 @@ export const tokenStorage = {
     }
   },
 
-  // Get refresh token
   async getRefreshToken() {
     try {
-      return await storage.getItem(REFRESH_TOKEN_KEY);
+      if (_mem.refreshToken) return _mem.refreshToken;
+
+      const token = await storage.getItem(REFRESH_TOKEN_KEY);
+      _mem.refreshToken = token;
+      return token;
     } catch (error) {
       console.error("Error getting refresh token:", error);
       return null;
     }
   },
 
-  // Clear all tokens
   async clearTokens() {
     try {
       await storage.removeItem(TOKEN_KEY);
       await storage.removeItem(REFRESH_TOKEN_KEY);
       await AsyncStorage.removeItem(TOKEN_EXPIRY_KEY);
+
+      // 🔥 CLEAR MEMORY CACHE
+      _mem.accessToken = null;
+      _mem.refreshToken = null;
+      _mem.expiry = null;
+
       return true;
     } catch (error) {
       console.error("Error clearing tokens:", error);
@@ -100,9 +136,12 @@ export const tokenStorage = {
     }
   },
 
-  // Check if token exists
   async hasToken() {
     try {
+      if (_mem.accessToken && _mem.expiry && Date.now() < _mem.expiry) {
+        return true;
+      }
+
       const token = await storage.getItem(TOKEN_KEY);
       return token !== null;
     } catch (error) {

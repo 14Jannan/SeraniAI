@@ -109,7 +109,8 @@ httpClient.interceptors.response.use(
           { withCredentials: true },
         );
 
-        const { accessToken, newRefreshToken } = response.data;
+        const accessToken = response.data.token || response.data.accessToken;
+        const newRefreshToken = response.data.refreshToken || null;
 
         // Save new tokens
         await tokenStorage.saveToken(
