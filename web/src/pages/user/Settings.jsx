@@ -94,6 +94,14 @@ const Settings = () => {
       return;
     }
 
+    const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setSaveMessage('Image is too large. Please choose an image under 2MB.');
+      setTimeout(() => setSaveMessage(''), 3000);
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       setFormData((prev) => ({
