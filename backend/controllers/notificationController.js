@@ -3,8 +3,8 @@ const {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
-  clearNotification,
-  clearAllNotifications,
+  clearNotification: clearNotificationService,
+  clearAllNotifications: clearAllNotificationsService,
 } = require('../services/notificationService');
 
 exports.getNotifications = async (req, res) => {
@@ -37,5 +37,27 @@ exports.markAllAsRead = async (req, res) => {
     return res.status(200).json({ message: 'Notifications marked as read' });
   } catch (error) {
     return res.status(500).json({ message: 'Error updating notifications', error: error.message });
+  }
+};
+
+exports.clearNotification = async (req, res) => {
+  try {
+    const notification = await clearNotificationService(req.user._id, req.params.id);
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    return res.status(200).json({ message: 'Notification cleared', notification });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error clearing notification', error: error.message });
+  }
+};
+
+exports.clearAllNotifications = async (req, res) => {
+  try {
+    await clearAllNotificationsService(req.user._id);
+    return res.status(200).json({ message: 'All notifications cleared' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error clearing notifications', error: error.message });
   }
 };
