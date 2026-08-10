@@ -84,6 +84,13 @@ const authApi = {
     const response = await httpClient.get("/auth/me");
     return response.data;
   },
+
+  // Delete current user account
+  async deleteCurrentUser() {
+    const response = await httpClient.delete("/auth/me");
+    return response.data;
+  },
+
 };
 
 export default authApi;

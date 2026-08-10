@@ -26,7 +26,7 @@ const UserLayout = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState({ name: 'User' });
+  const [user, setUser] = useState(() => getStoredUser() || { name: 'User' });
   const [subscription, setSubscription] = useState(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef(null);
@@ -45,8 +45,14 @@ const UserLayout = () => {
   };
 
   useEffect(() => {
-    const userData = getStoredUser();
-    if (userData) setUser(userData);
+    const handleUserUpdated = (event) => {
+      if (event?.detail) {
+        setUser((prev) => ({ ...prev, ...event.detail }));
+      }
+    };
+
+    window.addEventListener('serani:user-updated', handleUserUpdated);
+    return () => window.removeEventListener('serani:user-updated', handleUserUpdated);
   }, []);
 
   useEffect(() => {
@@ -59,9 +65,16 @@ const UserLayout = () => {
 
         if (userResponse.status === 'fulfilled' && userResponse.value?.data) {
           const freshUser = userResponse.value.data;
-          setUser(freshUser);
+          const storedUser = getStoredUser() || {};
+          const mergedUser = {
+            ...storedUser,
+            ...freshUser,
+            profileImage: storedUser.profileImage || freshUser.profileImage || '',
+          };
+
+          setUser(mergedUser);
           saveAuthSession({
-            user: freshUser,
+            user: mergedUser,
             rememberMe: getAuthStorageMode() === 'localStorage',
           });
         }
@@ -221,9 +234,17 @@ const UserLayout = () => {
               <div className="flex items-center gap-3 mb-3">
                 <button
                   onClick={() => setShowProfileMenu((prev) => !prev)}
-                  className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center font-bold text-white border-2 border-white/20 transition hover:bg-blue-400"
+                  className="w-12 h-12 rounded-full bg-blue-500 overflow-hidden flex items-center justify-center font-bold text-white border-2 border-white/20 transition hover:bg-blue-400"
                 >
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  {user?.profileImage ? (
+                    <img
+                      src={user.profileImage}
+                      alt={`${user.name || 'User'} profile`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    user.name ? user.name.charAt(0).toUpperCase() : 'U'
+                  )}
                 </button>
 
                 <div className="flex-1 min-w-0 text-white">
@@ -240,26 +261,34 @@ const UserLayout = () => {
               </div>
 
               {showProfileMenu && (
-                <div className="absolute inset-x-0 bottom-full mb-3 bg-white rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden text-gray-900 dark:text-white z-20">
+                <div className={`absolute inset-x-0 bottom-full mb-3 rounded-2xl shadow-2xl border overflow-hidden z-20 transition-colors duration-300 ${
+                  isDark
+                    ? 'bg-[#0f172a] border-slate-700 text-white'
+                    : 'bg-white border-gray-200 text-gray-900'
+                }`}>
                   <button
                     onClick={() => {
                       navigate('/dashboard/settings');
                       setShowProfileMenu(false);
                     }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className={`w-full text-left px-4 py-3 transition-colors ${
+                      isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
+                    }`}
                   >
-                    <div className="font-medium">Settings</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Profile & preferences</div>
+                    <div className="font-medium text-inherit">Settings</div>
+                    <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Profile & preferences</div>
                   </button>
                   <button
                     onClick={() => {
                       navigate('/subscription');
                       setShowProfileMenu(false);
                     }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className={`w-full text-left px-4 py-3 transition-colors ${
+                      isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
+                    }`}
                   >
-                    <div className="font-medium">Upgrade to Pro</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Unlock premium features</div>
+                    <div className="font-medium text-inherit">Upgrade to Pro</div>
+                    <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Unlock premium features</div>
                   </button>
                 </div>
               )}

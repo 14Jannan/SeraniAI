@@ -273,6 +273,23 @@ export const AuthProvider = ({ children }) => {
         throw err;
       }
     }, []),
+
+    // Update user locally (name, profileImage) — no backend call needed
+    updateUser: useCallback(async (updates) => {
+      try {
+        const current = await userStorage.getUser() || {};
+        const updated = { ...current, ...updates };
+        await userStorage.saveUser(updated);
+        dispatch((prev) => ({
+          ...prev,
+          user: { ...(prev.user || {}), ...updates },
+        }));
+        return updated;
+      } catch (err) {
+        console.error("Error updating user locally:", err);
+        throw err;
+      }
+    }, []),
   };
 
   return (

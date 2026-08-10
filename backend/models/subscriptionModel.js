@@ -111,7 +111,28 @@ const subscriptionSchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+subscriptionSchema.virtual('transactionHistory').get(function () {
+  const amount = Number.isFinite(Number(this.amount)) ? Number(this.amount) : 0;
+  const statusLabel =
+    this.payHereStatus === 'ACTIVE' || this.status === 'Active'
+      ? 'Paid'
+      : this.status || 'Pending';
+
+  return [
+    {
+      date: this.lastCharged || this.createdAt || new Date(),
+      amount,
+      status: statusLabel,
+      description: `${this.plan || 'Subscription'} charge`,
+    },
+  ];
+});
 
 module.exports = mongoose.model('Subscription', subscriptionSchema);

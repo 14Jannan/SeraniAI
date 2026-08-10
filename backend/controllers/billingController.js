@@ -567,7 +567,16 @@ exports.confirmPayHereReturn = async (req, res) => {
 
     await syncUserRoleFromPlanCode({ userId, planCode: fallbackPlanCode });
 
-    return res.status(200).json({ message: "Subscription payment confirmed" });
+    const [updatedUser, updatedSubscription] = await Promise.all([
+      User.findById(userId).lean(),
+      Subscription.findOne({ userId, paymentId: orderId }).lean(),
+    ]);
+
+    return res.status(200).json({
+      message: "Subscription payment confirmed",
+      user: updatedUser,
+      subscription: updatedSubscription,
+    });
   } catch (error) {
     return res.status(500).json({ message: "Payment confirmation failed" });
   }

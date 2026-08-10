@@ -295,7 +295,7 @@ export default function Subscription() {
 
     const confirmPayment = async () => {
       try {
-        await fetch(`${API_URL}/api/billing/payhere/confirm-return`, {
+        const response = await fetch(`${API_URL}/api/billing/payhere/confirm-return`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -303,6 +303,14 @@ export default function Subscription() {
           },
           body: JSON.stringify({ orderId }),
         });
+
+        const data = await response.json().catch(() => null);
+        if (data?.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+          window.dispatchEvent(
+            new CustomEvent("serani:user-updated", { detail: data.user })
+          );
+        }
       } finally {
         localStorage.removeItem("payhere_pending_order_id");
         clearQuery();

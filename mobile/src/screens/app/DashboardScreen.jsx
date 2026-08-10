@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Alert,
   View,
   Text,
   StyleSheet,
@@ -14,14 +13,10 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
 export const DashboardScreen = ({ navigation }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
-
-  const handleLogout = async () => {
-    await logout();
-  };
 
   return (
     <ScrollView
@@ -54,7 +49,10 @@ export const DashboardScreen = ({ navigation }) => {
               onPress={() => toggleTheme(mode === "light" ? "dark" : "light")}
               style={[
                 styles.themeButton,
-                { backgroundColor: colors.surface, borderColor: colors.border },
+                {
+                  backgroundColor: mode === "dark" ? "#FFFFFF" : colors.surface,
+                  borderColor: colors.border,
+                },
               ]}
             >
               <Feather
@@ -111,6 +109,12 @@ export const DashboardScreen = ({ navigation }) => {
             ),
             onPress: () => navigation.navigate('AIChatbot'),
           },
+          {
+            label: "Journal",
+            description: "Write your thoughts & reflections",
+            icon: <Feather name="edit-3" size={20} color="#A78BFA" />,
+            onPress: () => navigation.navigate('Journal'),
+          },
         ].map((item) => (
           <TouchableOpacity
             key={item.label}
@@ -139,12 +143,6 @@ export const DashboardScreen = ({ navigation }) => {
 
       </View>
 
-      <TouchableOpacity
-        style={[styles.logoutButton, { backgroundColor: "#DC2626" }]}
-        onPress={handleLogout}
-      >
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -211,12 +209,4 @@ const styles = StyleSheet.create({
   cardTextWrap: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 2 },
   cardDescription: { fontSize: 13 },
-  logoutButton: {
-    marginHorizontal: 20,
-    marginBottom: 30,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  logoutButtonText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 16 },
 });

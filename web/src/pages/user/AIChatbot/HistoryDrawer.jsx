@@ -52,7 +52,7 @@ function HistoryDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100]"
           />
 
           {/* Drawer Panel */}
@@ -61,12 +61,12 @@ function HistoryDrawer({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed top-4 bottom-4 right-4 w-[320px] bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-[40px] shadow-2xl border border-white/50 dark:border-gray-700/50 flex flex-col z-[101] overflow-hidden"
+            className="fixed top-4 bottom-4 right-4 w-[320px] bg-white/90 dark:bg-[#0b1322]/95 backdrop-blur-xl rounded-[40px] shadow-2xl border border-white/50 dark:border-white/10 flex flex-col z-[101] overflow-hidden"
           >
             {/* Header */}
             <div className="p-8 pb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/40 rounded-xl text-blue-600">
+                <div className="p-2.5 bg-sky-50 dark:bg-sky-500/10 rounded-xl text-sky-600 dark:text-sky-400">
                   <History size={20} />
                 </div>
                 <div>
@@ -82,14 +82,28 @@ function HistoryDrawer({
               </button>
             </div>
 
+            {/* New Chat Button */}
+            <div className="px-8 pb-4">
+              <button
+                onClick={() => {
+                  onNewChat();
+                  onClose();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-4 text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-500/10 rounded-2xl hover:bg-sky-100 dark:hover:bg-sky-500/15 transition-colors capitalize tracking-wide"
+              >
+                <Plus size={16} />
+                <span>New Conversation</span>
+              </button>
+            </div>
+
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide">
               {conversations.length === 0 ? (
                 <div className="text-center py-20">
-                  <div className="bg-gray-50 dark:bg-gray-800/50 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100 dark:border-gray-800">
-                    <AlertCircle size={20} className="text-gray-300" />
+                  <div className="bg-slate-50 dark:bg-white/5 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100 dark:border-white/10">
+                    <AlertCircle size={20} className="text-slate-300 dark:text-slate-600" />
                   </div>
-                  <p className="text-gray-400 dark:text-gray-600 text-xs font-bold uppercase tracking-widest whitespace-nowrap">No history yet</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap">No history yet</p>
                 </div>
               ) : (
                 conversations.map((chat) => (
@@ -104,8 +118,8 @@ function HistoryDrawer({
                     }}
                     className={`group flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all duration-300 border ${
                       activeSessionId === chat._id
-                        ? "bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-900 shadow-xl shadow-blue-500/5 text-blue-600 dark:text-blue-400"
-                        : "bg-transparent border-transparent hover:bg-white dark:hover:bg-white/5 hover:border-gray-100 dark:hover:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        ? "bg-white dark:bg-white/5 border-sky-200 dark:border-sky-500/20 shadow-xl shadow-sky-500/5 text-sky-600 dark:text-sky-400"
+                        : "bg-transparent border-transparent hover:bg-white dark:hover:bg-white/5 hover:border-slate-100 dark:hover:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >
                     <span className="truncate text-xs font-bold leading-none tracking-tight">
@@ -129,7 +143,7 @@ function HistoryDrawer({
                {conversations.length > 0 && !showClearConfirm && (
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="w-full flex items-center justify-center gap-2 py-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-gray-800/50 rounded-2xl transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-red-500 bg-slate-50 dark:bg-white/5 rounded-2xl transition-all"
                 >
                   <Trash2 size={12} />
                   <span>Clear All</span>
@@ -146,7 +160,7 @@ function HistoryDrawer({
                   </button>
                   <button
                     onClick={() => setShowClearConfirm(false)}
-                    className="w-full bg-gray-100 dark:bg-gray-800 text-gray-500 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest"
+                    className="w-full bg-slate-100 dark:bg-white/10 text-slate-500 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest"
                   >
                     Cancel
                   </button>
