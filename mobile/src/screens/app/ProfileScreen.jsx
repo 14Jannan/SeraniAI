@@ -41,6 +41,13 @@ export const ProfileScreen = ({ navigation }) => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Logout modal
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Enterprise web-only notice modal
+  const [showEnterpriseNoticeModal, setShowEnterpriseNoticeModal] = useState(false);
+
   // Avatar animation
   const avatarScale = useRef(new Animated.Value(1)).current;
 
@@ -139,10 +146,19 @@ export const ProfileScreen = ({ navigation }) => {
   };
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Logout", style: "destructive", onPress: () => logout() },
-    ]);
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -316,6 +332,28 @@ export const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
+          {/* ── Enterprise Workspace (Enterprise Admin Feature) ── */}
+          {user?.role === "enterpriseAdmin" && (
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.secHdr}>
+                <View style={[styles.secIcon, { backgroundColor: "#EEF2FF" }]}>
+                  <Feather name="users" size={17} color="#4F46E5" />
+                </View>
+                <Text style={[styles.secTitle, { color: colors.text }]}>Enterprise Workspace</Text>
+              </View>
+              <Text style={[styles.enterpriseDesc, { color: colors.muted }]}>
+                Manage your organization workspace and corporate member seats.
+              </Text>
+              <TouchableOpacity
+                style={[styles.enterpriseBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setShowEnterpriseNoticeModal(true)}
+              >
+                <Feather name="user-plus" size={16} color="#fff" />
+                <Text style={styles.enterpriseBtnTxt}>Add Enterprise Users</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* ── Billing ── */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.secHdr}>
@@ -413,6 +451,66 @@ export const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
         </Modal>
+
+        {/* ── Logout Modal ── */}
+        <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => setShowLogoutModal(false)}>
+          <View style={styles.overlay}>
+            <View style={[styles.modalBox, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Confirm Logout</Text>
+              <Text style={[styles.modalBody, { color: colors.muted }]}>
+                Are you sure you want to log out of Serani AI?
+              </Text>
+              <View style={styles.modalBtns}>
+                <TouchableOpacity
+                  style={[styles.cancelBtn, { backgroundColor: colors.inputBg }]}
+                  onPress={() => setShowLogoutModal(false)}
+                  disabled={isLoggingOut}
+                >
+                  <Text style={[styles.cancelTxt, { color: colors.text }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.confirmDeleteBtn, { backgroundColor: "#DC2626", opacity: isLoggingOut ? 0.6 : 1 }]}
+                  onPress={confirmLogout}
+                  disabled={isLoggingOut}
+                >
+                  {isLoggingOut ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.confirmDeleteTxt}>Logout</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── Enterprise Invite Web Only Modal ── */}
+        <Modal
+          visible={showEnterpriseNoticeModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowEnterpriseNoticeModal(false)}
+        >
+          <View style={styles.overlay}>
+            <View style={[styles.modalBox, { backgroundColor: colors.surface }]}>
+              <View style={[styles.webNoticeIconCircle, { backgroundColor: "#EEF2FF" }]}>
+                <Feather name="monitor" size={32} color={colors.primary} />
+              </View>
+              <Text style={[styles.modalTitle, { color: colors.text, textAlign: "center" }]}>
+                Web Feature Only
+              </Text>
+              <Text style={[styles.modalBody, { color: colors.muted, textAlign: "center", marginTop: 6 }]}>
+                Adding and inviting new enterprise users is only allowed on the web portal. Please log in via a desktop web browser to manage your team members and invite seats.
+              </Text>
+              <TouchableOpacity
+                style={[styles.confirmDeleteBtn, { backgroundColor: colors.primary, marginTop: 12 }]}
+                onPress={() => setShowEnterpriseNoticeModal(false)}
+              >
+                <Text style={styles.confirmDeleteTxt}>Got it</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -489,6 +587,12 @@ const styles = StyleSheet.create({
   dangerTitle: { fontSize: 17, fontWeight: "bold", color: "#DC2626", marginBottom: 14 },
   logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, backgroundColor: "#DC2626", borderRadius: 10 },
   logoutTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },
+
+  /* Enterprise */
+  enterpriseDesc: { fontSize: 13, lineHeight: 18, marginBottom: 14 },
+  enterpriseBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 10 },
+  enterpriseBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  webNoticeIconCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 16 },
 
   /* Modal */
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24 },

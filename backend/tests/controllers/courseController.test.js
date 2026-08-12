@@ -1,31 +1,32 @@
-jest.mock("../../models/enrollmentModel");
-jest.mock("../../models/courseModel");
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const courseController = require("../../controllers/courseController");
 const Enrollment = require("../../models/enrollmentModel");
 const Course = require("../../models/courseModel");
+const courseController = require("../../controllers/courseController");
+
+const USER_ID = "507f191e810c19729de860e1";
+const COURSE_ID = "507f191e810c19729de860e2";
+const ENROLL_ID = "507f191e810c19729de860e3";
 
 const mockRes = () => {
   const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
+  res.status = vi.fn().mockReturnValue(res);
+  res.json = vi.fn().mockReturnValue(res);
   return res;
 };
 
 describe("courseController", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    Course.findOne = jest.fn();
-    Enrollment.findOne = jest.fn();
-    Enrollment.create = jest.fn();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns 404 when course is not published or not found", async () => {
-    Course.findOne.mockReturnValue({
-      select: jest.fn().mockResolvedValue(null),
+    vi.spyOn(Course, "findOne").mockReturnValue({
+      select: vi.fn().mockResolvedValue(null),
     });
 
-    const req = { params: { courseId: "c1" }, user: { _id: "u1" } };
+    const req = { params: { courseId: COURSE_ID }, user: { _id: USER_ID } };
     const res = mockRes();
 
     await courseController.enrollInCourse(req, res);
@@ -35,12 +36,12 @@ describe("courseController", () => {
   });
 
   it("returns 400 when already enrolled", async () => {
-    Course.findOne.mockReturnValue({
-      select: jest.fn().mockResolvedValue({ _id: "c1" }),
+    vi.spyOn(Course, "findOne").mockReturnValue({
+      select: vi.fn().mockResolvedValue({ _id: COURSE_ID }),
     });
-    Enrollment.findOne.mockResolvedValue({ _id: "e1" });
+    vi.spyOn(Enrollment, "findOne").mockResolvedValue({ _id: ENROLL_ID });
 
-    const req = { params: { courseId: "c1" }, user: { _id: "u1" } };
+    const req = { params: { courseId: COURSE_ID }, user: { _id: USER_ID } };
     const res = mockRes();
 
     await courseController.enrollInCourse(req, res);
@@ -50,18 +51,18 @@ describe("courseController", () => {
   });
 
   it("creates enrollment and returns 201", async () => {
-    Course.findOne.mockReturnValue({
-      select: jest.fn().mockResolvedValue({ _id: "c1" }),
+    vi.spyOn(Course, "findOne").mockReturnValue({
+      select: vi.fn().mockResolvedValue({ _id: COURSE_ID }),
     });
-    Enrollment.findOne.mockResolvedValue(null);
-    Enrollment.create.mockResolvedValue({ _id: "e2", userId: "u1", courseId: "c1" });
+    vi.spyOn(Enrollment, "findOne").mockResolvedValue(null);
+    vi.spyOn(Enrollment, "create").mockResolvedValue({ _id: ENROLL_ID, userId: USER_ID, courseId: COURSE_ID });
 
-    const req = { params: { courseId: "c1" }, user: { _id: "u1" } };
+    const req = { params: { courseId: COURSE_ID }, user: { _id: USER_ID } };
     const res = mockRes();
 
     await courseController.enrollInCourse(req, res);
 
-    expect(Enrollment.create).toHaveBeenCalledWith({ userId: "u1", courseId: "c1" });
+    expect(Enrollment.create).toHaveBeenCalledWith({ userId: USER_ID, courseId: COURSE_ID });
     expect(res.status).toHaveBeenCalledWith(201);
   });
 });

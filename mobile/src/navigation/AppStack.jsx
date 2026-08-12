@@ -13,6 +13,7 @@ import { AddJournalScreen } from "../screens/app/AddJournalScreen";
 import { CourseDetailsScreen } from "../screens/app/CourseDetailsScreen";
 import { TasksScreen } from "../screens/app/TasksScreen";
 import { ProfileScreen } from "../screens/app/ProfileScreen";
+import { AdminAccessScreen } from "../screens/app/AdminAccessScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -147,21 +148,12 @@ const TabNavigator = () => {
 // ── Root Stack ────────────────────────────────────────────
 
 export const AppStack = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
-  React.useEffect(() => {
-    const allowedRoles = [
-      "user",
-      "enterpriseUser",
-      "enterpriseAdmin",
-      "enterprise",
-      "(Pro)PlanUser",
-      "admin",
-    ];
-    if (user?.role && !allowedRoles.includes(user.role)) {
-      logout();
-    }
-  }, [logout, user?.role]);
+  // If user is a System Admin, direct them to web app notice
+  if (user?.role === "admin") {
+    return <AdminAccessScreen />;
+  }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>

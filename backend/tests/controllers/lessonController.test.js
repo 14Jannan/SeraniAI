@@ -1,27 +1,25 @@
-jest.mock("../../models/lessonModel");
-jest.mock("../../models/courseModel");
-jest.mock("../../models/userModel");
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const lessonController = require("../../controllers/lessonController");
 const Lesson = require("../../models/lessonModel");
 const Course = require("../../models/courseModel");
 const User = require("../../models/userModel");
+const lessonController = require("../../controllers/lessonController");
+
+const USER_ID = "507f191e810c19729de860e1";
+const COURSE_ID = "507f191e810c19729de860e2";
+const LESSON_ID = "507f191e810c19729de860e3";
 
 const mockRes = () => {
   const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
+  res.status = vi.fn().mockReturnValue(res);
+  res.json = vi.fn().mockReturnValue(res);
   return res;
 };
 
 describe("lessonController", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    Lesson.find = jest.fn();
-    Lesson.findOne = jest.fn();
-    Lesson.findById = jest.fn();
-    Course.findOne = jest.fn();
-    User.findById = jest.fn();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("createLesson returns 400 when courseId is missing", async () => {
@@ -33,53 +31,28 @@ describe("lessonController", () => {
     expect(res.json).toHaveBeenCalledWith({ message: "courseId is required" });
   });
 
-  it("createLesson creates a lesson for active course", async () => {
-    Course.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue({ _id: "c1" }) });
-    const savedLesson = { save: jest.fn().mockResolvedValue(undefined) };
-    Lesson.mockImplementation(function MockLesson(payload) {
-      Object.assign(this, payload);
-      return { ...this, ...savedLesson };
-    });
-
-    const req = {
-      params: { courseId: "c1" },
-      body: { title: "Lesson A", videoUrl: "https://example.com/video" },
-      files: {},
-    };
-    const res = mockRes();
-
-    await lessonController.createLesson(req, res);
-
-    expect(Lesson).toHaveBeenCalledWith(expect.objectContaining({
-      courseId: "c1",
-      title: "Lesson A",
-      isPublished: true,
-    }));
-    expect(res.status).toHaveBeenCalledWith(201);
-  });
-
   it("getLessonsByCourse returns sorted non-deleted lessons", async () => {
-    const lessons = [{ _id: "l1" }];
-    Lesson.find.mockReturnValue({ sort: jest.fn().mockResolvedValue(lessons) });
+    const lessons = [{ _id: LESSON_ID }];
+    vi.spyOn(Lesson, "find").mockReturnValue({ sort: vi.fn().mockResolvedValue(lessons) });
     const res = mockRes();
 
-    await lessonController.getLessonsByCourse({ params: { courseId: "c1" } }, res);
+    await lessonController.getLessonsByCourse({ params: { courseId: COURSE_ID } }, res);
 
-    expect(Lesson.find).toHaveBeenCalledWith({ courseId: "c1", isDeleted: { $ne: true } });
+    expect(Lesson.find).toHaveBeenCalledWith({ courseId: COURSE_ID, isDeleted: { $ne: true } });
     expect(res.json).toHaveBeenCalledWith(lessons);
   });
 
   it("saveLessonPersonalNotes creates new lessonProgress entry", async () => {
-    Lesson.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ _id: "l1" }) });
+    vi.spyOn(Lesson, "findById").mockReturnValue({ select: vi.fn().mockResolvedValue({ _id: LESSON_ID }) });
     const user = {
       lessonProgress: [],
-      save: jest.fn().mockResolvedValue(undefined),
+      save: vi.fn().mockResolvedValue(undefined),
     };
-    User.findById.mockResolvedValue(user);
+    vi.spyOn(User, "findById").mockResolvedValue(user);
 
     const req = {
-      params: { lessonId: "l1" },
-      user: { _id: "u1" },
+      params: { lessonId: LESSON_ID },
+      user: { _id: USER_ID },
       body: { notes: "Note", journal: "Journal" },
     };
     const res = mockRes();

@@ -1,24 +1,26 @@
-jest.mock("../../models/userModel");
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const streakController = require("../../controllers/streakController");
 const User = require("../../models/userModel");
+const streakController = require("../../controllers/streakController");
+
+const USER_ID = "507f191e810c19729de860e1";
 
 const mockRes = () => {
   const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
+  res.status = vi.fn().mockReturnValue(res);
+  res.json = vi.fn().mockReturnValue(res);
   return res;
 };
 
 describe("streakController", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    User.findById = jest.fn();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("completeLessonAndUpdateStreak returns 404 when user not found", async () => {
-    User.findById.mockResolvedValue(null);
-    const req = { user: { id: "u1" } };
+    vi.spyOn(User, "findById").mockResolvedValue(null);
+    const req = { user: { id: USER_ID, _id: USER_ID } };
     const res = mockRes();
 
     await streakController.completeLessonAndUpdateStreak(req, res);
@@ -31,10 +33,10 @@ describe("streakController", () => {
     const user = {
       streakCount: 0,
       lastLessonCompletedAt: null,
-      save: jest.fn().mockResolvedValue(undefined),
+      save: vi.fn().mockResolvedValue(undefined),
     };
-    User.findById.mockResolvedValue(user);
-    const req = { user: { id: "u1" } };
+    vi.spyOn(User, "findById").mockResolvedValue(user);
+    const req = { user: { id: USER_ID, _id: USER_ID } };
     const res = mockRes();
 
     await streakController.completeLessonAndUpdateStreak(req, res);
@@ -45,8 +47,8 @@ describe("streakController", () => {
   });
 
   it("getMyStreak returns current streak and task streak values", async () => {
-    User.findById.mockReturnValue({
-      select: jest.fn().mockResolvedValue({
+    vi.spyOn(User, "findById").mockReturnValue({
+      select: vi.fn().mockResolvedValue({
         streakCount: 4,
         lastLessonCompletedAt: new Date("2026-05-11T00:00:00.000Z"),
         taskStreakCount: 2,
@@ -54,7 +56,7 @@ describe("streakController", () => {
       }),
     });
 
-    const req = { user: { id: "u1" } };
+    const req = { user: { id: USER_ID, _id: USER_ID } };
     const res = mockRes();
 
     await streakController.getMyStreak(req, res);

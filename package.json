@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "@langchain/core": "^1.2.0",
-    "@langchain/openai": "^1.5.1",
-    "helmet": "^8.1.0",
-    "langchain": "^1.5.0"
-  }
-}
