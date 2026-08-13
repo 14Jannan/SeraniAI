@@ -1,6 +1,7 @@
 import httpClient from './httpClient';
+import { API_BASE_URL } from '../config/api';
 
-const API_URL = 'http://localhost:7001/api/notifications';
+const API_URL = `${API_BASE_URL}/api/notifications`;
 
 export const getNotifications = () => httpClient.get(API_URL);
 

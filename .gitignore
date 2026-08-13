@@ -21,6 +21,19 @@ build/
 coverage/
 web/dist/
 web/dist-ssr/
+web/.vite/
+
+# User-uploaded content (served from backend/uploads at runtime; should
+# never be committed - these are real user files, not source code)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Python (chroma_service)
+chroma_service/venv/
+chroma_service/__pycache__/
+**/__pycache__/
+*.pyc
+chroma_service/chroma_db/
 
 # Logs
 logs/

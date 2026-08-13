@@ -48,6 +48,10 @@ const allowedOrigins = new Set(
 );
 
 const isLocalDevOrigin = (origin) => {
+  // Never treat "it's localhost" as trustworthy in production - that check
+  // only makes sense while developing against a local dev server.
+  if (process.env.NODE_ENV === "production") return false;
+
   try {
     const parsed = new URL(origin);
     return (
@@ -110,6 +114,31 @@ app.use("/api/enterprise-admin", enterpriseAdminRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/chroma", chromaRoutes);
 app.use("/api/notifications", notificationRoutes);
+
+// 404 handler for unmatched API routes
+app.use((req, res) => {
+  res.status(404).json({ message: "Not found" });
+});
+
+// Global error handler - catches anything that reaches next(err), including
+// CORS rejections, multer fileFilter errors, and unhandled sync throws in
+// route handlers. Without this, Express falls back to its default HTML
+// error page (and leaks stack traces outside development).
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const isCorsError = typeof err?.message === "string" && err.message.startsWith("CORS blocked origin");
+  if (isCorsError) {
+    return res.status(403).json({ message: "Not allowed by CORS" });
+  }
+
+  console.error("Unhandled error:", err);
+
+  if (process.env.NODE_ENV === "production") {
+    return res.status(err.status || 500).json({ message: "Server error" });
+  }
+
+  return res.status(err.status || 500).json({ message: err.message || "Server error" });
+});
 
 // Start the server
 const PORT = process.env.PORT || 7001;

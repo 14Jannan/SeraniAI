@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { Play } from "lucide-react";
 import { motion } from "framer-motion";
+import { API_BASE_URL } from "../config/api";
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 const CourseCard = ({ course, horizontal }) => {
 

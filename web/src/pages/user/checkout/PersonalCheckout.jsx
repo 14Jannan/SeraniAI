@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getStoredToken } from "../../../utils/authStorage";
+import { API_BASE_URL } from "../../../config/api";
 
 /* API configuration */
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 /* Personal subscription plan definitions */
 const PERSONAL_PLANS = {

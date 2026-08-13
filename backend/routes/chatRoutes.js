@@ -10,13 +10,33 @@ const storage = multer.diskStorage({
     cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
+
+// Only what the AI chat can actually make use of: text extraction supports
+// PDF/plain-text (see extractTextFromFile), and images are shown inline in
+// the conversation. Anything else (executables, HTML, archives, etc.) is
+// rejected outright rather than being stored and served back statically.
+const ALLOWED_CHAT_MIME_TYPES = new Set([
+  "application/pdf",
+  "text/plain",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
 const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_CHAT_MIME_TYPES.has(file.mimetype)) {
+      return cb(new Error("Unsupported file type"), false);
+    }
+    return cb(null, true);
+  },
 });
 
 const {

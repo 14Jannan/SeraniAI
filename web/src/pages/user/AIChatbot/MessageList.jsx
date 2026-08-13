@@ -3,6 +3,7 @@ import SeraniAILogo from "./SeraniAILogo";
 import { User, Copy, Check, Edit, FileText, Download, PlayCircle, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_BASE_URL } from "../../../config/api";
 
 function MessageList({ messages = [], loading = false, onEditMessage = null }) {
   const bottomRef = useRef(null);
@@ -338,7 +339,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                             </div>
                           </div>
                           <a
-                            href={`http://localhost:7001${msg.fileUrl}`}
+                            href={`${API_BASE_URL}${msg.fileUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
@@ -367,7 +368,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                                 <div className="relative h-36 overflow-hidden">
                                   {course.thumbnailUrl ? (
                                     <img 
-                                      src={course.thumbnailUrl.startsWith('http') ? course.thumbnailUrl : `http://localhost:7001${course.thumbnailUrl}`} 
+                                      src={course.thumbnailUrl.startsWith('http') ? course.thumbnailUrl : `${API_BASE_URL}${course.thumbnailUrl}`}
                                       alt={course.title}
                                       className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-700"
                                     />

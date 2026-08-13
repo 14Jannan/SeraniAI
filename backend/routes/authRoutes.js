@@ -3,6 +3,7 @@ const router = express.Router();
 const passport = require("passport");
 const { protect } = require("../middleware/authMiddleware");
 const validateRequest = require("../middleware/validateRequest");
+const rateLimit = require("../middleware/rateLimit");
 
 const {
   registerSchema,
@@ -37,21 +38,45 @@ const {
 // 🔐 LOCAL AUTH ROUTES
 // =============================
 
+// Brute-force protection: these endpoints accept a secret (password or OTP)
+// that can otherwise be guessed via unlimited automated attempts. Keyed by
+// IP + email so one abusive client can't lock out every other user sharing
+// the same NAT/IP.
+const emailKey = (prefix) => (req) =>
+  `${prefix}:${req.ip}:${String(req.body?.email || "").toLowerCase()}`;
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: "Too many login attempts. Please try again in a few minutes.",
+  keyGenerator: emailKey("login"),
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  message: "Too many attempts. Please try again in a few minutes.",
+  keyGenerator: emailKey("otp"),
+});
+
 router.post("/register", validateRequest(registerSchema), registerUser);
-router.post("/login", validateRequest(loginSchema), loginUser);
+router.post("/login", loginLimiter, validateRequest(loginSchema), loginUser);
 router.post(
   "/forgot-password",
+  otpLimiter,
   validateRequest(forgotPasswordSchema),
   forgotPassword,
 );
 router.post(
   "/reset-password",
+  otpLimiter,
   validateRequest(resetPasswordSchema),
   resetPassword,
 );
-router.post("/verify", validateRequest(verifyEmailSchema), verifyEmail);
+router.post("/verify", otpLimiter, validateRequest(verifyEmailSchema), verifyEmail);
 router.post(
   "/resend-otp",
+  otpLimiter,
   validateRequest(resendVerificationOtpSchema),
   resendVerificationOtp,
 );

@@ -1,7 +1,8 @@
 import httpClient from "./httpClient";
+import { API_BASE_URL } from "../config/api";
 
 // Point to your Backend URL
-const API_URL = "http://localhost:7001/api/auth";
+const API_URL = `${API_BASE_URL}/api/auth`;
 
 export const register = async (userData) => {
   const response = await httpClient.post(`${API_URL}/register`, userData);

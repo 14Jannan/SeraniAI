@@ -4,9 +4,10 @@ import Modal from "../../components/Modal";
 import { cancelSubscription, getUserSubscription } from "../../api/subscriptionApi";
 import { cancelEnterprisePremiumAccess } from "../../api/authApi";
 import { getStoredToken, getStoredUser, saveAuthSession, getAuthStorageMode } from "../../utils/authStorage";
+import { API_BASE_URL } from "../../config/api";
 
 /* API configuration */
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 /* Personal subscription plans array */
 const PERSONAL_PLANS = [
@@ -293,23 +294,39 @@ export default function Subscription() {
       return;
     }
 
+    // Activation only happens server-side once PayHere's signed webhook
+    // (handlePayHereNotify) lands - this endpoint is read-only and just
+    // reports current status. Poll briefly since the webhook usually arrives
+    // within a second or two of the browser redirect.
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
     const confirmPayment = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/billing/payhere/confirm-return`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ orderId }),
-        });
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          const response = await fetch(`${API_URL}/api/billing/payhere/confirm-return`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ orderId }),
+          });
 
-        const data = await response.json().catch(() => null);
-        if (data?.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-          window.dispatchEvent(
-            new CustomEvent("serani:user-updated", { detail: data.user })
-          );
+          const data = await response.json().catch(() => null);
+
+          if (response.ok && data?.user) {
+            localStorage.setItem("user", JSON.stringify(data.user));
+            window.dispatchEvent(
+              new CustomEvent("serani:user-updated", { detail: data.user })
+            );
+            break;
+          }
+
+          if (response.status !== 202) {
+            break;
+          }
+
+          await sleep(1500);
         }
       } finally {
         localStorage.removeItem("payhere_pending_order_id");

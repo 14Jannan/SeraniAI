@@ -486,18 +486,13 @@ exports.handlePayHereReturnRedirect = async (req, res) => {
       return res.status(404).send("Subscription order not found");
     }
 
-    if (subscription.status !== "Active") {
-      subscription.status = "Active";
-      await subscription.save();
-
-      const planCode = PLAN_DETAILS[subscription.planCode]
-        ? subscription.planCode
-        : getPlanCodeFromLabel(subscription.plan);
-      if (planCode) {
-        await syncUserRoleFromPlanCode({ userId: subscription.userId, planCode });
-      }
-    }
-
+    // SECURITY: This is a public, unauthenticated redirect the browser hits
+    // after PayHere sends the shopper back. It must NEVER activate the
+    // subscription or grant a plan upgrade itself - that would let anyone
+    // "pay" for a plan by simply visiting this URL with a known order_id.
+    // Activation only ever happens in handlePayHereNotify, which verifies
+    // PayHere's md5 signature server-to-server. We only reflect whatever
+    // status the webhook has (or hasn't) already set.
     const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
     const clientReturnUrl =
       subscription.returnUrl ||
@@ -505,11 +500,16 @@ exports.handlePayHereReturnRedirect = async (req, res) => {
       `${frontendBase}/subscription?payment=success`;
 
     const targetUrlStr = appendQueryParams(clientReturnUrl, {
-      payment: "success",
+      payment: subscription.status === "Active" ? "success" : "pending",
       order_id: orderId,
     });
 
     const isMobileScheme = /^(seraniaiapp|exp|serani):\/\//i.test(clientReturnUrl);
+    const isConfirmedActive = subscription.status === "Active";
+    const heading = isConfirmedActive ? "Payment Successful!" : "Payment Processing";
+    const message = isConfirmedActive
+      ? "Your subscription is now active. Returning to SeraniAI app..."
+      : "We're confirming your payment with PayHere. This can take a few seconds - returning to SeraniAI app...";
 
     if (isMobileScheme) {
       return res.status(200).set("Content-Type", "text/html").send(`<!doctype html>
@@ -517,7 +517,7 @@ exports.handlePayHereReturnRedirect = async (req, res) => {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Payment Successful - SeraniAI</title>
+    <title>${escapeHtml(heading)} - SeraniAI</title>
     <style>
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px 16px; text-align: center; background: #f8fafc; color: #0f172a; }
       .card { max-width: 400px; margin: 40px auto; background: #ffffff; border-radius: 24px; padding: 32px 24px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08); }
@@ -530,8 +530,8 @@ exports.handlePayHereReturnRedirect = async (req, res) => {
   <body>
     <div class="card">
       <div class="icon">✓</div>
-      <h1>Payment Successful!</h1>
-      <p>Your subscription is now active. Returning to SeraniAI app...</p>
+      <h1>${escapeHtml(heading)}</h1>
+      <p>${escapeHtml(message)}</p>
       <a id="return-btn" href="${escapeHtml(targetUrlStr)}" class="btn">Open SeraniAI App</a>
     </div>
     <script>
@@ -697,6 +697,14 @@ exports.handlePayHereNotify = async (req, res) => {
   }
 };
 
+// @desc    Poll the current state of a pending PayHere order for the logged-in
+//          user. This endpoint is READ-ONLY with respect to subscription
+//          activation - it must never itself flip a subscription to Active
+//          or grant a role upgrade. Doing so would let an authenticated user
+//          unlock any plan just by calling this endpoint with an order_id
+//          they created, without ever actually paying. The only place that
+//          is allowed to activate a subscription is handlePayHereNotify,
+//          which verifies PayHere's signed server-to-server webhook.
 exports.confirmPayHereReturn = async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -713,35 +721,29 @@ exports.confirmPayHereReturn = async (req, res) => {
     const subscription = await Subscription.findOne({
       userId,
       paymentId: orderId,
-    });
+    }).lean();
 
     if (!subscription) {
       return res.status(404).json({ message: "Pending subscription not found" });
     }
 
     if (subscription.status !== "Active") {
-      subscription.status = "Active";
-      await subscription.save();
+      // Payment has not been confirmed by PayHere's webhook yet. Report the
+      // pending state so the client can keep polling instead of granting
+      // access early.
+      return res.status(202).json({
+        message: "Payment is still being confirmed by PayHere",
+        subscription,
+        pending: true,
+      });
     }
 
-    const fallbackPlanCode = PLAN_DETAILS[subscription.planCode]
-      ? subscription.planCode
-      : getPlanCodeFromLabel(subscription.plan);
-    if (!fallbackPlanCode) {
-      return res.status(400).json({ message: "Unable to determine subscription plan" });
-    }
-
-    await syncUserRoleFromPlanCode({ userId, planCode: fallbackPlanCode });
-
-    const [updatedUser, updatedSubscription] = await Promise.all([
-      User.findById(userId).lean(),
-      Subscription.findOne({ userId, paymentId: orderId }).lean(),
-    ]);
+    const updatedUser = await User.findById(userId).lean();
 
     return res.status(200).json({
       message: "Subscription payment confirmed",
       user: updatedUser,
-      subscription: updatedSubscription,
+      subscription,
     });
   } catch (error) {
     return res.status(500).json({ message: "Payment confirmation failed" });

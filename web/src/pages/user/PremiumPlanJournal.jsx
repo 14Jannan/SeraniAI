@@ -23,9 +23,10 @@ import { jsPDF } from "jspdf";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
 import { getStoredToken } from "../../utils/authStorage";
+import { API_BASE_URL } from "../../config/api";
 
 // API configuration for journal and summary endpoints.
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 const SUMMARY_URL = `${API_URL}/api/journals/stats/summary`;
 
 // Mood display styling: background and text colors for each mood category.

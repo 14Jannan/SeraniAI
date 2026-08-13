@@ -38,7 +38,10 @@ const generateAuthTokens = (user) => {
 const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
   const cookieOptions = {
     httpOnly: true,
-    secure: false,
+    // Only send the cookie over HTTPS in production. In local/dev
+    // environments the app is served over plain HTTP, so requiring
+    // `secure` there would silently drop the cookie.
+    secure: process.env.NODE_ENV === "production",
     sameSite: "Lax",
   };
 
@@ -130,11 +133,6 @@ exports.verifyEmail = async (req, res) => {
     const receivedOtp = String(otp).trim();
     const storedOtp = String(user.otp).trim();
 
-    console.log("DEBUG OTP Verification:");
-    console.log("Received OTP:", receivedOtp, "Type:", typeof receivedOtp);
-    console.log("Stored OTP:", storedOtp, "Type:", typeof storedOtp);
-    console.log("Match:", storedOtp === receivedOtp);
-
     if (storedOtp !== receivedOtp) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
@@ -148,13 +146,18 @@ exports.verifyEmail = async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
-    // Issue short-lived access token + long-lived refresh cookie
+    // Issue short-lived access token + long-lived refresh cookie. The
+    // refresh token is ALSO returned in the JSON body (not just the
+    // httpOnly cookie) so native clients (Expo/React Native), which don't
+    // reliably persist cross-origin cookies the way a browser does, can
+    // store it themselves and use it to refresh later.
     const { accessToken, refreshToken } = generateAuthTokens(user);
     setRefreshCookie(res, refreshToken);
 
     res.status(200).json({
       message: "Email verified successfully",
       token: accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -235,11 +238,14 @@ exports.loginUser = async (req, res) => {
         .json({ message: "Account not verified. Please verify your email." });
     }
 
+    // Return the refresh token in the body as well as the httpOnly cookie -
+    // see the comment in verifyEmail for why (mobile clients need it).
     const { accessToken, refreshToken } = generateAuthTokens(user);
     setRefreshCookie(res, refreshToken, Boolean(rememberMe));
 
     res.json({
       token: accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -330,8 +336,12 @@ exports.resetPassword = async (req, res) => {
 // @desc    Refresh Access Token
 // @route   POST /api/auth/refresh
 exports.refreshAccessToken = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
-  const rememberMe = req.cookies.rememberMe === "true";
+  // Prefer the httpOnly cookie (web), but fall back to a refresh token sent
+  // in the request body. Native mobile clients don't reliably persist
+  // cross-origin cookies the way browsers do, so they store the refresh
+  // token themselves (see loginUser/verifyEmail) and send it explicitly.
+  const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+  const rememberMe = req.cookies?.rememberMe === "true";
 
   if (!refreshToken) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -350,7 +360,7 @@ exports.refreshAccessToken = async (req, res) => {
       generateAuthTokens(user);
     setRefreshCookie(res, newRefreshToken, rememberMe);
 
-    res.json({ token: accessToken });
+    res.json({ token: accessToken, refreshToken: newRefreshToken });
   } catch (error) {
     res.status(403).json({ message: "Invalid or expired refresh token" });
   }

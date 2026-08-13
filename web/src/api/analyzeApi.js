@@ -1,5 +1,6 @@
 import httpClient from "./httpClient";
+import { API_BASE_URL } from "../config/api";
 
-const API_URL = "http://localhost:7001/api/chat";
+const API_URL = `${API_BASE_URL}/api/chat`;
 
 export const fetchAnalysis = () => httpClient.get(`${API_URL}/analyze`);

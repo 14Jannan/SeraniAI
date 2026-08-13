@@ -1,7 +1,8 @@
 import httpClient from "./httpClient";
+import { API_BASE_URL } from "../config/api";
 
 /* API configuration for subscription endpoints */
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 const SUBSCRIPTIONS_API_URL = `${API_URL}/api/subscriptions`;
 
 /* Fetch all subscriptions (admin only) */

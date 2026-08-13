@@ -1,7 +1,8 @@
 import type { TaskData, TaskProgress } from "../components/tasks/taskTypes";
 import { getStoredToken } from "../utils/authStorage";
+import { API_BASE_URL } from "../config/api";
 
-const API_ROOT = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const API_ROOT = API_BASE_URL;
 const API_BASE = `${API_ROOT}/api/tasks`;
 
 function authHeaders() {

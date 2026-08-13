@@ -16,11 +16,29 @@ const subscriptionApi = {
     return response.data;
   },
 
-  async confirmReturn(orderId) {
-    const response = await httpClient.post("/billing/payhere/confirm-return", {
-      orderId,
-    });
-    return response.data;
+  // Activation only happens server-side once PayHere's signed webhook lands;
+  // this endpoint is read-only and just reports current status. Poll briefly
+  // (the webhook usually arrives within a second or two of app return) so we
+  // don't tell the user "complete" before the plan is actually active.
+  async confirmReturn(orderId, { attempts = 5, delayMs = 1500 } = {}) {
+    let lastData = null;
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const response = await httpClient.post("/billing/payhere/confirm-return", {
+        orderId,
+      });
+      lastData = response.data;
+
+      if (!lastData?.pending) {
+        return lastData;
+      }
+
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    return lastData;
   },
 
   async cancelSubscription(subscriptionId) {

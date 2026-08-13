@@ -5,8 +5,9 @@ import {
   getStoredToken,
   saveAuthSession,
 } from "../utils/authStorage";
+import { API_BASE_URL } from "../config/api";
 
-const BASE_URL = "http://localhost:7001";
+const BASE_URL = API_BASE_URL;
 const REFRESH_URL = `${BASE_URL}/api/auth/refresh`;
 
 const httpClient = axios.create({

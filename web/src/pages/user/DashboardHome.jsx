@@ -27,8 +27,9 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { getStoredToken } from "../../utils/authStorage";
+import { API_BASE_URL } from "../../config/api";
 
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 const DashboardHome = () => {
   const [data, setData] = useState(null);

@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { FcGoogle } from 'react-icons/fc';
 import { FaGithub, FaFacebook } from 'react-icons/fa';
 import { FiEye, FiEyeOff } from 'react-icons/fi'; // Import Eye icons
+import { API_BASE_URL } from '../config/api';
 
 const Register = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -146,13 +147,13 @@ const Register = () => {
           <div className="mt-8 text-center">
             <p className="text-slate-500 dark:text-slate-400 text-xs uppercase font-bold mb-4">Or register with</p>
             <div className="flex justify-center gap-4">
-              <a href="http://localhost:7001/api/auth/google" className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300">
+              <a href={`${API_BASE_URL}/api/auth/google`} className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300">
                 <FcGoogle size={24} />
               </a>
-              <a href="http://localhost:7001/api/auth/github" className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300">
+              <a href={`${API_BASE_URL}/api/auth/github`} className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300">
                 <FaGithub size={24} className="text-black" />
               </a>
-              <a href="http://localhost:7001/api/auth/facebook" className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300">
+              <a href={`${API_BASE_URL}/api/auth/facebook`} className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300">
                 <FaFacebook size={24} className="text-blue-600" />
               </a>
             </div>

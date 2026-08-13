@@ -84,6 +84,7 @@ describe("Login Page", () => {
       expect(login).toHaveBeenCalledWith({
         email: "user@test.com",
         password: "Password1!",
+        rememberMe: false,
       });
       expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
     });

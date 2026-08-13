@@ -389,7 +389,10 @@ describe("authController", () => {
       });
       expect(res.clearCookie).toHaveBeenCalledWith("rememberMe");
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ token: "access-token" }),
+        expect.objectContaining({
+          token: "access-token",
+          refreshToken: "refresh-token",
+        }),
       );
     });
 
@@ -554,11 +557,36 @@ describe("authController", () => {
 
       await refreshAccessToken({ cookies: { refreshToken: "ok" } }, res);
 
-      expect(res.json).toHaveBeenCalledWith({ token: "new-access-token" });
+      expect(res.json).toHaveBeenCalledWith({
+        token: "new-access-token",
+        refreshToken: "new-refresh-token",
+      });
       expect(res.cookie).toHaveBeenCalledWith(
         "refreshToken",
         "new-refresh-token",
         { httpOnly: true, sameSite: "Lax", secure: false },
+      );
+    });
+
+    it("falls back to a refresh token in the request body when no cookie is present (mobile clients)", async () => {
+      vi.spyOn(jwt, "verify").mockReturnValue({ id: "u1" });
+      vi.spyOn(User, "findById").mockResolvedValue({ _id: "u1", role: "user" });
+      vi.spyOn(jwt, "sign")
+        .mockReturnValueOnce("new-access-token")
+        .mockReturnValueOnce("new-refresh-token");
+      const res = mockRes();
+
+      await refreshAccessToken(
+        { cookies: {}, body: { refreshToken: "body-token" } },
+        res,
+      );
+
+      expect(jwt.verify).toHaveBeenCalledWith(
+        "body-token",
+        process.env.JWT_REFRESH_SECRET,
+      );
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "new-access-token" }),
       );
     });
 
@@ -589,7 +617,10 @@ describe("authController", () => {
         "true",
         expect.objectContaining({ sameSite: "Lax", secure: false }),
       );
-      expect(res.json).toHaveBeenCalledWith({ token: "new-access-token" });
+      expect(res.json).toHaveBeenCalledWith({
+        token: "new-access-token",
+        refreshToken: "new-refresh-token",
+      });
     });
   });
 

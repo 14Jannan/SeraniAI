@@ -6,6 +6,7 @@ import { FaGithub, FaFacebook } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi"; // Import Eye icons
 import { useTheme } from "../context/ThemeContext";
 import { getAuthDestination, saveAuthSession } from "../utils/authStorage";
+import { API_BASE_URL } from "../config/api";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -155,19 +156,19 @@ const Login = () => {
 
             <div className="flex justify-center gap-4 mt-4">
               <a
-                href="http://localhost:7001/api/auth/google"
+                href={`${API_BASE_URL}/api/auth/google`}
                 className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300 border border-slate-100 dark:border-slate-600"
               >
                 <FcGoogle size={24} />
               </a>
               <a
-                href="http://localhost:7001/api/auth/github"
+                href={`${API_BASE_URL}/api/auth/github`}
                 className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300 border border-slate-100 dark:border-slate-600"
               >
                 <FaGithub size={24} className="text-black" />
               </a>
               <a
-                href="http://localhost:7001/api/auth/facebook"
+                href={`${API_BASE_URL}/api/auth/facebook`}
                 className="p-3 rounded-full bg-white shadow-md hover:scale-110 transition duration-300 border border-slate-100 dark:border-slate-600"
               >
                 <FaFacebook size={24} className="text-blue-600" />

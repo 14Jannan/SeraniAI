@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { getStoredToken } from '../utils/authStorage';
+import { API_BASE_URL } from '../config/api';
 
 /* API configuration for enterprise admin endpoints */
-const API_URL = 'http://localhost:7001';
+const API_URL = API_BASE_URL;
 const ENTERPRISE_ADMIN_API_URL = `${API_URL}/api/enterprise-admin`;
 
 /* Helper function to construct authorization headers from stored JWT token */
