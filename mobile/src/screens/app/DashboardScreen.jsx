@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -16,57 +17,98 @@ export const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isWide = width >= 768;
+
+  const getRoleBadgeLabel = (role) => {
+    if (!role) return "FREE USER";
+    if (role === "(Pro)PlanUser") return "PREMIUM USER";
+    if (role === "enterpriseAdmin") return "ENTERPRISE ADMIN";
+    if (role === "admin") return "SYSTEM ADMIN";
+    return role.toUpperCase();
+  };
 
   return (
     <ScrollView
       style={styles.scrollView}
       contentContainerStyle={[
         styles.container,
-        { backgroundColor: colors.background, paddingBottom: 24 },
+        { backgroundColor: colors.background, paddingBottom: Math.max(24, insets.bottom + 20) },
       ]}
     >
       <View style={[styles.hero, { backgroundColor: colors.primaryStrong }]}>
         <View style={styles.heroRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>
-              Welcome, {user?.name || "User"}!
+          {/* Left: Avatar with Professional Border */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Profile")}
+            activeOpacity={0.8}
+            style={styles.avatarWrap}
+          >
+            <View style={styles.avatarBorder}>
+              {user?.avatar || user?.profilePicture ? (
+                <Image
+                  source={{ uri: user.avatar || user.profilePicture }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Feather name="user" size={24} color="#FFFFFF" />
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Center: Greeting & Role Badge */}
+          <TouchableOpacity
+            style={styles.greetingWrap}
+            onPress={() => navigation.navigate("Profile")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.greeting} numberOfLines={1}>
+              Welcome back, {user?.name || "User"}!
             </Text>
-            <Text style={[styles.email, { color: colors.muted }]}>
-              {user?.email}
-            </Text>
-            <Text
-              style={[
-                styles.role,
-                { backgroundColor: colors.chipBg, color: colors.chipText },
-              ]}
-            >
-              Role: {user?.role || "user"}
-            </Text>
-          </View>
-          <View style={{ alignItems: "center", gap: 10 }}>
+            {user?.email ? (
+              <Text style={styles.email} numberOfLines={1}>
+                {user?.email}
+              </Text>
+            ) : null}
+            <View style={styles.pillBadge}>
+              <Text style={styles.pillBadgeText}>
+                {getRoleBadgeLabel(user?.role)}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Right: Theme Toggle & AI Assistant Icon */}
+          <View style={styles.rightActions}>
             <TouchableOpacity
               onPress={() => toggleTheme(mode === "light" ? "dark" : "light")}
               style={[
                 styles.themeButton,
                 {
-                  backgroundColor: mode === "dark" ? "#FFFFFF" : colors.surface,
-                  borderColor: colors.border,
+                  backgroundColor: mode === "dark" ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.9)",
+                  borderColor: "rgba(255, 255, 255, 0.3)",
                 },
               ]}
+              activeOpacity={0.8}
             >
               <Feather
                 name={mode === "light" ? "moon" : "sun"}
                 size={16}
-                color={colors.primary}
+                color={mode === "light" ? colors.primary : "#FACC15"}
               />
             </TouchableOpacity>
-            <Image
-              source={{
-                uri: "https://cdn-icons-png.flaticon.com/512/4712/4712035.png",
-              }}
-              style={styles.robot}
-            />
+            <TouchableOpacity
+              onPress={() => navigation.navigate("AIChatbot")}
+              activeOpacity={0.8}
+            >
+              <Image
+                source={{
+                  uri: "https://cdn-icons-png.flaticon.com/512/4712/4712035.png",
+                }}
+                style={styles.robot}
+              />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -78,24 +120,10 @@ export const DashboardScreen = ({ navigation }) => {
 
         {[
           {
-            label: "My Courses",
-            description: "Continue learning",
-            icon: <Feather name="book-open" size={20} color={colors.primary} />,
-            onPress: () => navigation.navigate("Courses"),
-          },
-          {
-            label: "Subscription",
-            description: "Review plan and billing",
-            icon: <Feather name="credit-card" size={20} color={colors.accent} />,
-            onPress: () => navigation.navigate("Subscription"),
-          },
-          {
-            label: "Daily Tasks",
-            description: "Manage your task progress",
-            icon: (
-              <Feather name="check-square" size={20} color={colors.accentAlt} />
-            ),
-            onPress: () => navigation.navigate("Tasks"),
+            label: "Journal",
+            description: "Write your thoughts & reflections",
+            icon: <Feather name="edit-3" size={20} color="#A78BFA" />,
+            onPress: () => navigation.navigate('Journal'),
           },
           {
             label: "AI Chatbot",
@@ -110,10 +138,24 @@ export const DashboardScreen = ({ navigation }) => {
             onPress: () => navigation.navigate('AIChatbot'),
           },
           {
-            label: "Journal",
-            description: "Write your thoughts & reflections",
-            icon: <Feather name="edit-3" size={20} color="#A78BFA" />,
-            onPress: () => navigation.navigate('Journal'),
+            label: "My Courses",
+            description: "Continue learning",
+            icon: <Feather name="book-open" size={20} color={colors.primary} />,
+            onPress: () => navigation.navigate("Courses"),
+          },
+          {
+            label: "Daily Tasks",
+            description: "Manage your task progress",
+            icon: (
+              <Feather name="check-square" size={20} color={colors.accentAlt} />
+            ),
+            onPress: () => navigation.navigate("Tasks"),
+          },
+          {
+            label: "Subscription",
+            description: "Review plan and billing",
+            icon: <Feather name="credit-card" size={20} color={colors.accent} />,
+            onPress: () => navigation.navigate("Subscription"),
           },
         ].map((item) => (
           <TouchableOpacity
@@ -151,41 +193,93 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1 },
   scrollView: { flex: 1 },
   hero: {
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 48,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   heroRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
   },
-  robot: { width: 72, height: 72 },
-  themeButton: {
-    width: 40,
-    height: 40,
+  avatarWrap: {
+    marginRight: 2,
+  },
+  avatarBorder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.7)",
+    padding: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  avatarImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  avatarPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  greetingWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  greeting: {
+    fontSize: 19,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 2,
+  },
+  email: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.75)",
+    marginBottom: 6,
+  },
+  pillBadge: {
+    backgroundColor: "#0F172A",
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 20,
+    alignSelf: "flex-start",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pillBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10.5,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  rightActions: {
+    alignItems: "center",
+    gap: 8,
+  },
+  themeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  greeting: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 5,
-  },
-  email: { fontSize: 14, marginBottom: 10 },
-  role: {
-    fontSize: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    alignSelf: "flex-start",
-  },
+  robot: { width: 54, height: 54 },
   content: { paddingTop: 20, paddingBottom: 8 },
   sectionTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 14 },
   card: {

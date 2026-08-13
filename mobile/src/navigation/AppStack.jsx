@@ -104,6 +104,7 @@ const TabNavigator = () => {
         component={DashboardStack}
         options={{
           tabBarLabel: "Home",
+          tabBarStyle: { display: "none" },
           tabBarIcon: ({ color, size }) => (
             <Feather name="home" size={size} color={color} />
           ),
