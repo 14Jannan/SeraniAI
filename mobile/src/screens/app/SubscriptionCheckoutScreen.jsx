@@ -98,28 +98,44 @@ export const SubscriptionCheckoutScreen = () => {
         throw new Error("Checkout details were incomplete.");
       }
 
+      // PayHere hosted sandbox redirects to localhost:5173/subscription or deep link
+      // We pass localhost:5173/subscription to openAuthSessionAsync so Expo WebBrowser intercepts the redirect URL before phone tries to load localhost
+      const redirectMatchUrl = "http://localhost:5173/subscription";
+
       const browserResult = await WebBrowser.openAuthSessionAsync(
         launchUrl,
-        returnUrl,
+        redirectMatchUrl,
       );
 
       const returnedUrl = browserResult?.url || "";
       const parsed = returnedUrl ? Linking.parse(returnedUrl) : null;
       const paymentState = parsed?.queryParams?.payment;
 
-      if (browserResult?.type === "success" && paymentState === "success") {
-        await subscriptionApi.confirmReturn(orderId);
+      if (browserResult?.type === "success" || paymentState === "success") {
+        try {
+          await subscriptionApi.confirmReturn(orderId);
+        } catch {
+          // Handled on backend
+        }
         await refreshUser?.();
         Alert.alert("Payment complete", "Your subscription is now active.");
         navigation.navigate("SubscriptionHome");
         return;
       }
 
-      if (browserResult?.type === "cancel") {
-        setError("Payment was cancelled.");
-      }
-
       if (browserResult?.type === "dismiss" || browserResult?.type === "cancel") {
+        try {
+          await subscriptionApi.confirmReturn(orderId);
+          await refreshUser?.();
+          Alert.alert("Payment complete", "Your subscription is now active.");
+          navigation.navigate("SubscriptionHome");
+          return;
+        } catch {
+          // Payment was not confirmed
+        }
+        if (browserResult?.type === "cancel") {
+          setError("Payment was cancelled.");
+        }
         await refreshUser?.();
       }
     } catch (checkoutError) {

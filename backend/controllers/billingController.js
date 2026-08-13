@@ -153,7 +153,45 @@ const getSafeMobileReturnUrl = (value) => {
     return null;
   }
 
-  return /^(seraniaiapp|exp):\/\//i.test(trimmed) ? trimmed : null;
+  return /^(seraniaiapp|exp|serani|http|https):\/\//i.test(trimmed) ? trimmed : null;
+};
+
+const extractSingleQueryParam = (value) => {
+  if (Array.isArray(value)) {
+    return String(value[0] || "").trim();
+  }
+  return String(value || "").trim();
+};
+
+const getBackendBaseUrl = (req) => {
+  if (process.env.BACKEND_URL) {
+    return process.env.BACKEND_URL.replace(/\/+$/, "");
+  }
+  const host = req ? req.get("host") : null;
+  const protocol = req ? (req.protocol || "http") : "http";
+  if (host) {
+    return `${protocol}://${host}`;
+  }
+  return "http://localhost:7001";
+};
+
+const appendQueryParams = (baseUrlStr, params = {}) => {
+  try {
+    const url = new URL(baseUrlStr);
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null) {
+        url.searchParams.set(k, String(v));
+      }
+    }
+    return url.toString();
+  } catch {
+    const joinChar = baseUrlStr.includes("?") ? "&" : "?";
+    const queryString = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join("&");
+    return queryString ? `${baseUrlStr}${joinChar}${queryString}` : baseUrlStr;
+  }
 };
 
 const escapeHtml = (value) =>
@@ -164,7 +202,7 @@ const escapeHtml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const buildPayHerePayload = (subscription) => {
+const buildPayHerePayload = (subscription, serverBase = "http://localhost:7001") => {
   const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
   const merchantSecret = getNormalizedMerchantSecret();
   if (!merchantId || !merchantSecret) {
@@ -189,20 +227,16 @@ const buildPayHerePayload = (subscription) => {
     `${merchantId}${orderId}${amount}${currency}${merchantSecretMd5}`
   );
 
+  const returnUrl = `${serverBase}/api/billing/payhere/return`;
+  const cancelUrl = `${serverBase}/api/billing/payhere/cancel`;
+
   return {
     merchant_id: merchantId,
-    return_url:
-      subscription.returnUrl ||
-      process.env.PAYHERE_RETURN_URL ||
-      "http://localhost:5173/subscription?payment=success",
-    cancel_url:
-      subscription.cancelUrl ||
-      process.env.PAYHERE_CANCEL_URL ||
-      "http://localhost:5173/subscription?payment=cancelled",
+    return_url: returnUrl,
+    cancel_url: cancelUrl,
     notify_url:
-      subscription.notifyUrl ||
       process.env.PAYHERE_NOTIFY_URL ||
-      "http://localhost:7001/api/billing/payhere/notify",
+      `${serverBase}/api/billing/payhere/notify`,
     order_id: orderId,
     items:
       planCode === "business"
@@ -329,7 +363,6 @@ exports.initializePayHerePayment = async (req, res) => {
     const amount = Number(totalAmount).toFixed(2);
     const currency = "LKR";
 
-    // PayHere hash: MD5(merchant_id + order_id + amount + currency + MD5(merchant_secret))
     const merchantSecretMd5 = md5Upper(merchantSecret);
     const hash = md5Upper(
       `${merchantId}${orderId}${amount}${currency}${merchantSecretMd5}`
@@ -337,20 +370,28 @@ exports.initializePayHerePayment = async (req, res) => {
 
     const actionUrl = getCheckoutUrl();
     const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
+    const serverBase = getBackendBaseUrl(req);
+
+    const clientReturnUrl =
+      getSafeMobileReturnUrl(returnUrl) ||
+      process.env.PAYHERE_RETURN_URL ||
+      `${frontendBase}/subscription?payment=success`;
+
+    const clientCancelUrl =
+      getSafeMobileReturnUrl(cancelUrl) ||
+      process.env.PAYHERE_CANCEL_URL ||
+      `${frontendBase}/subscription?payment=cancelled`;
+
+    const payHereReturnUrl = `${serverBase}/api/billing/payhere/return`;
+    const payHereCancelUrl = `${serverBase}/api/billing/payhere/cancel`;
 
     const payload = {
       merchant_id: merchantId,
-      return_url:
-        getSafeMobileReturnUrl(returnUrl) ||
-        process.env.PAYHERE_RETURN_URL ||
-        `${frontendBase}/subscription?payment=success`,
-      cancel_url:
-        getSafeMobileReturnUrl(cancelUrl) ||
-        process.env.PAYHERE_CANCEL_URL ||
-        `${frontendBase}/subscription?payment=cancelled`,
+      return_url: payHereReturnUrl,
+      cancel_url: payHereCancelUrl,
       notify_url:
         process.env.PAYHERE_NOTIFY_URL ||
-        "http://localhost:7001/api/billing/payhere/notify",
+        `${serverBase}/api/billing/payhere/notify`,
       order_id: orderId,
       items:
         planId === "business"
@@ -391,17 +432,9 @@ exports.initializePayHerePayment = async (req, res) => {
         endDate,
         paymentId: orderId,
         method: "PayHere",
-        returnUrl:
-          getSafeMobileReturnUrl(returnUrl) ||
-          process.env.PAYHERE_RETURN_URL ||
-          `${frontendBase}/subscription?payment=success`,
-        cancelUrl:
-          getSafeMobileReturnUrl(cancelUrl) ||
-          process.env.PAYHERE_CANCEL_URL ||
-          `${frontendBase}/subscription?payment=cancelled`,
-        notifyUrl:
-          process.env.PAYHERE_NOTIFY_URL ||
-          "http://localhost:7001/api/billing/payhere/notify",
+        returnUrl: clientReturnUrl,
+        cancelUrl: clientCancelUrl,
+        notifyUrl: payload.notify_url,
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -428,7 +461,8 @@ exports.launchPayHereCheckout = async (req, res) => {
       return res.status(404).send("Subscription not found");
     }
 
-    const payload = buildPayHerePayload(subscription);
+    const serverBase = getBackendBaseUrl(req);
+    const payload = buildPayHerePayload(subscription, serverBase);
     if (!payload) {
       return res.status(500).send("Unable to prepare PayHere checkout");
     }
@@ -436,6 +470,138 @@ exports.launchPayHereCheckout = async (req, res) => {
     return res.status(200).set("Content-Type", "text/html").send(renderPayHereLaunchPage(payload));
   } catch (error) {
     return res.status(500).send("Unable to launch PayHere checkout");
+  }
+};
+
+exports.handlePayHereReturnRedirect = async (req, res) => {
+  try {
+    const rawOrderId = req.query.order_id || req.query.orderId;
+    const orderId = extractSingleQueryParam(rawOrderId);
+    if (!orderId) {
+      return res.status(400).send("order_id is required");
+    }
+
+    const subscription = await Subscription.findOne({ paymentId: orderId });
+    if (!subscription) {
+      return res.status(404).send("Subscription order not found");
+    }
+
+    if (subscription.status !== "Active") {
+      subscription.status = "Active";
+      await subscription.save();
+
+      const planCode = PLAN_DETAILS[subscription.planCode]
+        ? subscription.planCode
+        : getPlanCodeFromLabel(subscription.plan);
+      if (planCode) {
+        await syncUserRoleFromPlanCode({ userId: subscription.userId, planCode });
+      }
+    }
+
+    const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
+    const clientReturnUrl =
+      subscription.returnUrl ||
+      process.env.PAYHERE_RETURN_URL ||
+      `${frontendBase}/subscription?payment=success`;
+
+    const targetUrlStr = appendQueryParams(clientReturnUrl, {
+      payment: "success",
+      order_id: orderId,
+    });
+
+    const isMobileScheme = /^(seraniaiapp|exp|serani):\/\//i.test(clientReturnUrl);
+
+    if (isMobileScheme) {
+      return res.status(200).set("Content-Type", "text/html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment Successful - SeraniAI</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px 16px; text-align: center; background: #f8fafc; color: #0f172a; }
+      .card { max-width: 400px; margin: 40px auto; background: #ffffff; border-radius: 24px; padding: 32px 24px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08); }
+      .icon { width: 56px; height: 56px; background: #dcfce7; color: #16a34a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 16px; font-weight: bold; }
+      h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
+      p { font-size: 14px; color: #64748b; line-height: 1.5; margin-bottom: 24px; }
+      .btn { display: inline-block; width: 100%; box-sizing: border-box; background: #2563eb; color: #ffffff; padding: 14px 20px; border-radius: 14px; font-weight: 700; text-decoration: none; font-size: 15px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon">✓</div>
+      <h1>Payment Successful!</h1>
+      <p>Your subscription is now active. Returning to SeraniAI app...</p>
+      <a id="return-btn" href="${escapeHtml(targetUrlStr)}" class="btn">Open SeraniAI App</a>
+    </div>
+    <script>
+      window.location.href = "${escapeHtml(targetUrlStr)}";
+    </script>
+  </body>
+</html>`);
+    }
+
+    return res.redirect(targetUrlStr);
+  } catch (error) {
+    return res.status(500).send("Return redirection failed");
+  }
+};
+
+exports.handlePayHereCancelRedirect = async (req, res) => {
+  try {
+    const rawOrderId = req.query.order_id || req.query.orderId;
+    const orderId = extractSingleQueryParam(rawOrderId);
+    if (!orderId) {
+      return res.status(400).send("order_id is required");
+    }
+
+    const subscription = await Subscription.findOne({ paymentId: orderId });
+    const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
+    const clientCancelUrl =
+      subscription?.cancelUrl ||
+      process.env.PAYHERE_CANCEL_URL ||
+      `${frontendBase}/subscription?payment=cancelled`;
+
+    const targetUrlStr = appendQueryParams(clientCancelUrl, {
+      payment: "cancelled",
+      order_id: orderId,
+    });
+
+    const isMobileScheme = /^(seraniaiapp|exp|serani):\/\//i.test(clientCancelUrl);
+
+    if (isMobileScheme) {
+      return res.status(200).set("Content-Type", "text/html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment Cancelled - SeraniAI</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px 16px; text-align: center; background: #f8fafc; color: #0f172a; }
+      .card { max-width: 400px; margin: 40px auto; background: #ffffff; border-radius: 24px; padding: 32px 24px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08); }
+      .icon { width: 56px; height: 56px; background: #fee2e2; color: #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 16px; font-weight: bold; }
+      h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
+      p { font-size: 14px; color: #64748b; line-height: 1.5; margin-bottom: 24px; }
+      .btn { display: inline-block; width: 100%; box-sizing: border-box; background: #475569; color: #ffffff; padding: 14px 20px; border-radius: 14px; font-weight: 700; text-decoration: none; font-size: 15px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon">✕</div>
+      <h1>Payment Cancelled</h1>
+      <p>The payment process was cancelled. Returning to SeraniAI app...</p>
+      <a id="return-btn" href="${escapeHtml(targetUrlStr)}" class="btn">Return to SeraniAI App</a>
+    </div>
+    <script>
+      window.location.href = "${escapeHtml(targetUrlStr)}";
+    </script>
+  </body>
+</html>`);
+    }
+
+    return res.redirect(targetUrlStr);
+  } catch (error) {
+    return res.status(500).send("Cancel redirection failed");
   }
 };
 
