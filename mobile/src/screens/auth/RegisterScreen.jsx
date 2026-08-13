@@ -11,9 +11,11 @@ import {
   Image,
   Platform,
   useWindowDimensions,
+  KeyboardAvoidingView,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { getApiBaseUrl } from "../../api/baseUrl";
@@ -31,6 +33,7 @@ export const RegisterScreen = ({ navigation }) => {
   const { register, oauthLogin, error } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isWide = width >= 768;
 
   const apiUrl = getApiBaseUrl();
@@ -83,10 +86,19 @@ export const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
     >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: colors.background, paddingTop: insets.top + 24 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.heroCircleLarge} />
       <View style={styles.heroCircleSmall} />
 
@@ -221,12 +233,13 @@ export const RegisterScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, justifyContent: "center" },
+  container: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   scrollView: { flex: 1 },
   heroCircleLarge: {
     position: "absolute", top: -80, right: -50,

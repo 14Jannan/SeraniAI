@@ -9,11 +9,13 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 
 export const LandingScreen = ({ navigation }) => {
   const { colors, mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
   const isWide = width >= 768;
   const isMedium = width >= 520;
@@ -55,7 +57,7 @@ export const LandingScreen = ({ navigation }) => {
       style={styles.scrollView}
       contentContainerStyle={[
         styles.container,
-        { backgroundColor: colors.background },
+        { backgroundColor: colors.background, paddingTop: insets.top + 16 },
       ]}
       showsVerticalScrollIndicator={false}
     >
@@ -281,7 +283,6 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingTop: 16,
     paddingBottom: 32,
   },
   scrollView: { flex: 1 },

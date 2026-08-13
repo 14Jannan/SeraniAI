@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { getApiBaseUrl } from "../../api/baseUrl";
@@ -29,6 +30,7 @@ export const LoginScreen = ({ navigation }) => {
   const { login, oauthLogin, error } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isWide = width >= 768;
 
   const apiUrl = getApiBaseUrl();
@@ -89,14 +91,16 @@ export const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior="padding"
-      enabled={Platform.OS === "ios"}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: colors.background, paddingTop: insets.top + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -241,7 +245,7 @@ export const LoginScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, paddingTop: 60, paddingBottom: 40 },
+  container: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   scrollView: { flex: 1 },
   heroCircleLarge: {
     position: "absolute", top: -80, right: -50,
