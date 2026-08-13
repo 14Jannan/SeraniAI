@@ -3,7 +3,9 @@
     "name": "SeraniAI",
     "slug": "seraniaiapp",
     "version": "1.0.0",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "scheme": "seraniaiapp",
     "ios": {
       "supportsTablet": true,
@@ -29,7 +31,8 @@
           "isUserDefinedKeychainSynchronizationEnabled": false
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

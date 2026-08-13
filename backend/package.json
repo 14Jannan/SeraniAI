@@ -18,7 +18,7 @@
   "type": "commonjs",
   "dependencies": {
     "@langchain/core": "^1.2.0",
-    "@langchain/openai": "^1.5.1",
+    "@langchain/openai": "^1.5.3",
     "axios": "^1.15.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
