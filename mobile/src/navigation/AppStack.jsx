@@ -71,19 +71,10 @@ const EnterpriseStack = () => (
   </Stack.Navigator>
 );
 
-const EnterpriseStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-    }}
-  >
-    <Stack.Screen name="EnterpriseHome" component={EnterpriseManagerScreen} />
-  </Stack.Navigator>
-);
-
 // ── Bottom Tab Navigator (NO Plan tab) ────────────────────
 
 const TabNavigator = () => {
+  const { user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(12, insets.bottom + 8);
