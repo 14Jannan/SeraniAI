@@ -10,6 +10,8 @@ import { SubscriptionScreen } from "../screens/app/SubscriptionScreen";
 import { SubscriptionCheckoutScreen } from "../screens/app/SubscriptionCheckoutScreen";
 import { JournalScreen } from "../screens/app/JournalScreen";
 import { AddJournalScreen } from "../screens/app/AddJournalScreen";
+import { JournalInsightsScreen } from "../screens/app/JournalInsightsScreen";
+import { JournalMoodPieScreen } from "../screens/app/JournalMoodPieScreen";
 import { CourseDetailsScreen } from "../screens/app/CourseDetailsScreen";
 import { TasksScreen } from "../screens/app/TasksScreen";
 import { useAuth } from "../context/AuthContext";
@@ -63,6 +65,8 @@ const JournalStack = () => (
   >
     <Stack.Screen name="JournalHome" component={JournalScreen} />
     <Stack.Screen name="JournalEditor" component={AddJournalScreen} />
+    <Stack.Screen name="JournalInsights" component={JournalInsightsScreen} />
+    <Stack.Screen name="JournalMoodPie" component={JournalMoodPieScreen} />
   </Stack.Navigator>
 );
 
