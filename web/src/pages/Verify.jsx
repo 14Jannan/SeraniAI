@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { verifyOtp, resendOtp } from "../api/authApi";
 import { useTheme } from "../context/ThemeContext";
+import notify from "../utils/notifications";
 
 const Verify = () => {
   const [otp, setOtp] = useState("");
@@ -24,14 +25,17 @@ const Verify = () => {
     try {
       await verifyOtp({ email, otp });
 
-      alert("Verification Successful!");
+      notify.success("Verification Successful", "Your email has been verified. You can now log in.");
       navigate("/login");
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid OTP");
+      const errMsg = err.response?.data?.message || "Invalid OTP code. Please check and try again.";
+      setError(errMsg);
+      notify.error("Verification Failed", errMsg);
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleResend = async () => {
     if (!email) {

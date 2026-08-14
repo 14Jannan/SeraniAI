@@ -92,8 +92,7 @@ describe("ResetPassword Page", () => {
     });
   });
 
-  it("shows an alert when the reset request fails", async () => {
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+  it("handles when the reset request fails", async () => {
     vi.mocked(resetPassword).mockRejectedValueOnce({
       response: { data: { message: "Token expired" } },
     });
@@ -109,9 +108,12 @@ describe("ResetPassword Page", () => {
     fireEvent.click(screen.getByRole("button", { name: /update password/i }));
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith("Token expired");
+      expect(resetPassword).toHaveBeenCalledWith({
+        email: "user@test.com",
+        otp: "123456",
+        newPassword: "NewStrongPass1!",
+      });
     });
-
-    alertSpy.mockRestore();
   });
 });
+

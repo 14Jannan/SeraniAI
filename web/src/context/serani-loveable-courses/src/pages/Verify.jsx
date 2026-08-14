@@ -26,8 +26,8 @@ const Verify = () => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      alert('Verification Successful!');
       navigate('/dashboard'); // Go straight to dashboard
+
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
     } finally {

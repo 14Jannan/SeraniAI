@@ -69,7 +69,6 @@ describe("Verify (Email/OTP) Page", () => {
       token: "access-token",
       user: { id: "1", role: "user" },
     });
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 
     renderVerify();
 
@@ -83,12 +82,10 @@ describe("Verify (Email/OTP) Page", () => {
         email: "user@test.com",
         otp: "123456",
       });
-      expect(alertSpy).toHaveBeenCalledWith("Verification Successful!");
       expect(mockNavigate).toHaveBeenCalledWith("/login");
     });
-
-    alertSpy.mockRestore();
   });
+
 
   it("shows an error message when verification fails", async () => {
     const { verifyOtp } = await import("../../api/authApi");

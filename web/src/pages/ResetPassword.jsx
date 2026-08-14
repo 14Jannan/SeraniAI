@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resetPassword } from '../api/authApi';
+import notify from '../utils/notifications';
 
 const ResetPassword = () => {
     const location = useLocation();
@@ -16,14 +17,16 @@ const ResetPassword = () => {
         setLoading(true);
         try {
             await resetPassword({ email, otp, newPassword });
-            alert("Password changed successfully!");
+            notify.success("Password Updated", "Your password has been changed successfully. You can now log in.");
             navigate('/login');
         } catch (err) {
-            alert(err.response?.data?.message || "Reset failed");
+            const errorMsg = err.response?.data?.message || "Password reset failed. Please verify your OTP code and try again.";
+            notify.error("Reset Failed", errorMsg);
         } finally {
             setLoading(false);
         }
     };
+
 
     return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-blue-50 dark:bg-gray-950 transition-colors">

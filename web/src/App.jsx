@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 // Public Pages
 const Landing = lazy(() => import("./pages/Landing"));
@@ -52,6 +53,18 @@ import PlanFeatureGate from "./components/PlanFeatureGate";
 function App() {
   return (
     <Router>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 5000,
+          style: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+            maxWidth: "420px",
+          },
+        }}
+      />
       <Suspense
         fallback={
           <div className="flex items-center justify-center h-screen">

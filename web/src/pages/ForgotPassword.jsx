@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { forgotPassword } from "../api/authApi";
+import notify from "../utils/notifications";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -12,14 +13,17 @@ const ForgotPassword = () => {
     setLoading(true);
     try {
       await forgotPassword({ email });
+      notify.info("Reset Code Sent", `A 6-digit verification code was sent to ${email}`);
       // Move to reset page and pass email along
       navigate("/reset-password", { state: { email } });
     } catch (err) {
-      alert(err.response?.data?.message || "Error sending OTP");
+      const errMsg = err.response?.data?.message || "Unable to send reset code. Please check your email address and try again.";
+      notify.error("Request Failed", errMsg);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-blue-50 dark:bg-gray-950 transition-colors">

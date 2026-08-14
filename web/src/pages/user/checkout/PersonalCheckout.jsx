@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getStoredToken } from "../../../utils/authStorage";
+import notify from "../../../utils/notifications";
 
 /* API configuration */
 const API_URL = "http://localhost:7001";
@@ -55,7 +56,9 @@ export default function PersonalCheckout() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data?.error || "Payment initialization failed");
+        const errorMsg = data?.error || "Payment initialization failed. Please try again.";
+        setError(errorMsg);
+        notify.error("Payment Initialization Failed", errorMsg);
         setLoading(false);
         return;
       }
@@ -83,10 +86,13 @@ export default function PersonalCheckout() {
       form.submit();
     } catch (err) {
       console.error(err);
-      setError("Something went wrong while starting payment");
+      const errMsg = "Unable to connect to payment gateway. Please check your connection and try again.";
+      setError(errMsg);
+      notify.error("Payment Gateway Error", errMsg);
       setLoading(false);
     }
   };
+
 
   /* Show error message if plan is invalid */
   if (!plan) {

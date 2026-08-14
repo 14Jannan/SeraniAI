@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../components/Modal";
 import { cancelSubscription, getUserSubscription } from "../../api/subscriptionApi";
 import { cancelEnterprisePremiumAccess } from "../../api/authApi";
 import { getStoredToken, getStoredUser, saveAuthSession, getAuthStorageMode } from "../../utils/authStorage";
+import notify from "../../utils/notifications";
 
 /* API configuration */
 const API_URL = "http://localhost:7001";
@@ -241,6 +242,8 @@ export default function Subscription() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState(null);
+  const [showEnterpriseCancelModal, setShowEnterpriseCancelModal] = useState(false);
+  const [enterpriseCancelLoading, setEnterpriseCancelLoading] = useState(false);
   /* Current user role and upgrade error handling */
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [upgradeBlockError, setUpgradeBlockError] = useState(null);
@@ -261,14 +264,18 @@ export default function Subscription() {
     return "mx-auto max-w-4xl grid-cols-1 md:grid-cols-2";
   }, [mode, plans.length]);
 
+  /* Payment redirect processing guard to avoid duplicate calls in dev mode */
+  const paymentProcessedRef = useRef(false);
+
   /* Handle payment success/cancellation callback from PayHere redirect */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentState = params.get("payment");
 
-    if (!paymentState) {
+    if (!paymentState || paymentProcessedRef.current) {
       return;
     }
+    paymentProcessedRef.current = true;
 
     const clearQuery = () => {
       window.history.replaceState({}, "", "/subscription");
@@ -277,6 +284,7 @@ export default function Subscription() {
     if (paymentState === "cancelled") {
       localStorage.removeItem("payhere_pending_order_id");
       clearQuery();
+      notify.paymentCancelled();
       return;
     }
 
@@ -287,9 +295,10 @@ export default function Subscription() {
 
     const token = getStoredToken();
     const orderId = localStorage.getItem("payhere_pending_order_id");
+    localStorage.removeItem("payhere_pending_order_id");
+    clearQuery();
 
     if (!token || !orderId) {
-      clearQuery();
       return;
     }
 
@@ -311,9 +320,11 @@ export default function Subscription() {
             new CustomEvent("serani:user-updated", { detail: data.user })
           );
         }
+        notify.paymentSuccess({ planName: data?.user?.plan || "Pro" });
+      } catch (err) {
+        console.error("Payment confirmation error:", err);
+        notify.error("Payment Confirmation", "Your payment was received. If your plan does not update immediately, please refresh in a moment.");
       } finally {
-        localStorage.removeItem("payhere_pending_order_id");
-        clearQuery();
         navigate("/dashboard");
       }
     };
@@ -321,8 +332,8 @@ export default function Subscription() {
     confirmPayment();
   }, [navigate]);
 
+
   /* Fetch current user role and subscription on mount */
-  // Fetch current subscription
   useEffect(() => {
     try {
       const storedUser = getStoredUser();
@@ -349,6 +360,7 @@ export default function Subscription() {
   const handleUpgrade = (plan) => {
     if (mustCancelBeforeUpgrade) {
       setUpgradeBlockError(upgradeBlockMessage);
+      notify.upgradeBlocked({ isEnterprise: currentUserRole === "enterpriseUser" });
       return;
     }
 
@@ -372,49 +384,77 @@ export default function Subscription() {
 
       await cancelSubscription(currentSubscription._id);
       
-      // Show success message
-      alert("Subscription cancelled successfully. Your access will continue until the end of your billing period.");
-      
-      // Close modal and refresh the page so plan/status UI is fully re-fetched.
+      // Close modal
       setShowCancelModal(false);
-      setCurrentSubscription(null);
-      window.location.reload();
+
+      // Display professional user-friendly toast
+      const planDisplayName = currentSubscription.plan === "Personal" 
+        ? "Pro" 
+        : currentSubscription.plan === "Business" 
+        ? "Business" 
+        : "Subscription";
+
+      notify.subscriptionCancelled({
+        planName: planDisplayName,
+        endDate: currentSubscription.nextChargeDate || currentSubscription.endDate,
+      });
+
+      // Update current subscription status locally and refetch
+      setCurrentSubscription((prev) => (prev ? { ...prev, status: "Cancelled" } : null));
+
+      try {
+        const res = await getUserSubscription();
+        if (res.data) {
+          setCurrentSubscription(res.data);
+        }
+      } catch (e) {
+        console.warn("Could not refetch updated subscription:", e);
+      }
     } catch (error) {
       console.error("Failed to cancel subscription:", error);
       const errorMsg = error.response?.data?.message || "Failed to cancel subscription. Please try again.";
       setCancelError(errorMsg);
+      notify.error("Cancellation Failed", errorMsg);
     } finally {
       setCancelLoading(false);
     }
   };
 
-  const handleCancelEnterprisePremium = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel enterprise premium access? You will be moved to the Free plan immediately."
-    );
+  const handleCancelEnterprisePremium = () => {
+    setShowEnterpriseCancelModal(true);
+  };
 
-    if (!confirmed) {
-      return;
-    }
-
+  const confirmCancelEnterprisePremium = async () => {
     try {
+      setEnterpriseCancelLoading(true);
       const response = await cancelEnterprisePremiumAccess();
       if (response.data?.user) {
         saveAuthSession({
           token: getStoredToken(),
           user: response.data.user,
-          rememberMe: getAuthStorageMode() === "localStorage"
+          rememberMe: getAuthStorageMode() === "localStorage",
         });
       }
-      alert(response.data?.message || "Enterprise premium access cancelled.");
-      window.location.reload();
+      setShowEnterpriseCancelModal(false);
+      setCurrentUserRole("user");
+      setUpgradeBlockError(null);
+      notify.enterpriseAccessCancelled();
+      
+      // Refresh subscription state
+      try {
+        const res = await getUserSubscription();
+        setCurrentSubscription(res.data || null);
+      } catch (e) {
+        setCurrentSubscription(null);
+      }
     } catch (error) {
-      alert(
-        error.response?.data?.message ||
-          "Failed to cancel enterprise premium access."
-      );
+      const msg = error.response?.data?.message || "Failed to cancel enterprise premium access. Please try again.";
+      notify.error("Cancellation Failed", msg);
+    } finally {
+      setEnterpriseCancelLoading(false);
     }
   };
+
 
   const hasActiveSubscription = currentSubscription?.status === "Active";
   const mustCancelBeforeUpgrade =
@@ -643,6 +683,42 @@ export default function Subscription() {
           </div>
         </div>
       </Modal>
+
+      {/* Enterprise Cancel Confirmation Modal */}
+      <Modal
+        isOpen={showEnterpriseCancelModal}
+        onClose={() => setShowEnterpriseCancelModal(false)}
+        title="Cancel Enterprise Premium Access"
+      >
+        <div className="space-y-4">
+          <p className="text-neutral-700 text-sm">
+            Are you sure you want to cancel your enterprise-provided premium access?
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-sm text-amber-800">
+              <strong>Note:</strong> You will immediately revert to the Free plan and lose enterprise workspace features.
+            </p>
+          </div>
+
+          <div className="flex gap-3 justify-end pt-4">
+            <button
+              onClick={() => setShowEnterpriseCancelModal(false)}
+              className="px-4 py-2 rounded-lg border border-neutral-200 text-neutral-700 font-medium hover:bg-neutral-50 transition"
+              disabled={enterpriseCancelLoading}
+            >
+              Keep Access
+            </button>
+            <button
+              onClick={confirmCancelEnterprisePremium}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition disabled:opacity-50"
+              disabled={enterpriseCancelLoading}
+            >
+              {enterpriseCancelLoading ? "Cancelling..." : "Cancel Premium"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }
+

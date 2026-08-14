@@ -27,6 +27,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { getStoredToken } from "../../utils/authStorage";
+import notify from "../../utils/notifications";
 
 const API_URL = "http://localhost:7001";
 
@@ -187,9 +188,10 @@ const DashboardHome = () => {
       const result = await response.json();
       setWeeklyReport(result.report);
       setShowReportModal(true);
+      notify.success("Report Generated", "Your weekly progress report is ready for viewing.");
     } catch (err) {
       console.error("Report generation error:", err);
-      alert("Failed to generate report. Please try again later.");
+      notify.error("Report Generation Failed", "Failed to generate weekly report. Please try again later.");
     } finally {
       setIsGeneratingReport(false);
     }
@@ -266,14 +268,14 @@ const DashboardHome = () => {
         throw new Error('Failed to save journal entry');
       }
 
-      const result = await response.json();
       setJournalContent("");
       setShowJournalModal(false);
-      // Optionally refresh dashboard stats
+      notify.success("Journal Saved", "Your quick reflection has been recorded.");
+      // Refresh dashboard stats
       window.location.reload();
     } catch (err) {
       console.error("Journal save error:", err);
-      alert("Failed to save journal entry. Please try again later.");
+      notify.error("Save Failed", "Failed to save journal entry. Please try again later.");
     } finally {
       setIsSavingJournal(false);
     }
@@ -311,18 +313,19 @@ const DashboardHome = () => {
         throw new Error('Failed to save mood');
       }
 
-      const result = await response.json();
       setSelectedMood(null);
       setShowWellnessModal(false);
-      // Optionally refresh dashboard stats
+      notify.success("Mood Logged", `Logged your mood as ${moodString}.`);
+      // Refresh dashboard stats
       window.location.reload();
     } catch (err) {
       console.error("Mood save error:", err);
-      alert("Failed to save mood. Please try again later.");
+      notify.error("Mood Error", "Failed to save mood. Please try again later.");
     } finally {
       setIsSavingMood(false);
     }
   };
+
 
   // Quick Actions removed in favor of Recommendations
 

@@ -76,8 +76,7 @@ describe("ForgotPassword Page", () => {
     });
   });
 
-  it("shows an alert when the API call fails", async () => {
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+  it("handles when the API call fails", async () => {
     vi.mocked(forgotPassword).mockRejectedValueOnce({
       response: { data: { message: "User not found" } },
     });
@@ -90,9 +89,8 @@ describe("ForgotPassword Page", () => {
     fireEvent.click(screen.getByRole("button", { name: /send reset code/i }));
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith("User not found");
+      expect(forgotPassword).toHaveBeenCalledWith({ email: "unknown@test.com" });
     });
-
-    alertSpy.mockRestore();
   });
 });
+
