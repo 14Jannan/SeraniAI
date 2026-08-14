@@ -38,9 +38,12 @@ const AdminSubscriptions = () => {
 
   /* Handle subscription deletion with confirmation */
   const handleDelete = async (subscriptionId) => {
-    const ok = window.confirm(
-      "Delete this subscription? The user will be downgraded to Free."
-    );
+    const subToDelete = subscriptions.find((sub) => sub._id === subscriptionId);
+    const confirmMessage =
+      subToDelete?.status === "Active"
+        ? "Delete this active subscription? If no other active subscription exists, the user will be downgraded to Free."
+        : "Delete this subscription record?";
+    const ok = window.confirm(confirmMessage);
     if (!ok) return;
 
     try {

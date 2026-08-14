@@ -145,7 +145,7 @@ exports.updateSubscriptionStatus = async (req, res) => {
   }
 };
 
-/* Delete subscription and downgrade user to free plan */
+/* Delete subscription record without modifying active subscriptions */
 exports.deleteSubscription = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -159,53 +159,96 @@ exports.deleteSubscription = async (req, res) => {
     }
 
     const userId = subscription.userId;
-    const isBusinessPlanDeletion =
-      subscription.plan === 'Business' || subscription.planCode === 'business';
-    let enterpriseId = null;
 
-    if (userId && isBusinessPlanDeletion) {
-      const ownerUser = await User.findById(userId).select('enterpriseId');
-      enterpriseId = ownerUser?.enterpriseId || null;
-    }
-
+    // Delete only the specified subscription record
     await Subscription.findByIdAndDelete(req.params.id);
 
     if (userId) {
-      // Ensure the affected user is treated as a free user after deletion.
-      await Subscription.updateMany(
-        { userId, status: 'Active' },
-        { $set: { status: 'Cancelled' } }
-      );
-
-      // Keep user profile role in sync with free plan state.
-      await User.findByIdAndUpdate(
+      // Check if the user still has any remaining active subscriptions
+      const remainingActiveSubscription = await Subscription.findOne({
         userId,
-        {
-          $set: {
-            role: 'user',
-            enterpriseId: null,
-          },
-        },
-        { new: true }
-      );
+        status: 'Active',
+      }).sort({ createdAt: -1 });
 
-      // If a Business owner is downgraded, all enterprise members must also downgrade.
-      if (enterpriseId) {
-        await User.updateMany(
-          { enterpriseId },
-          {
-            $set: {
-              role: 'user',
-              enterpriseId: null,
-            },
+      const user = await User.findById(userId);
+
+      if (remainingActiveSubscription) {
+        // User still has an active subscription; ensure role matches their active subscription
+        if (user && user.role !== 'admin') {
+          const plan = remainingActiveSubscription.plan;
+          const planCode = remainingActiveSubscription.planCode;
+          const isBusiness = plan === 'Business' || planCode === 'business';
+
+          if (isBusiness) {
+            user.role = 'enterpriseAdmin';
+            let enterprise = await Enterprise.findOne({ ownerId: user._id });
+            if (!enterprise) {
+              enterprise = await Enterprise.create({
+                name: `${user.name || 'Business'} Workspace`,
+                ownerId: user._id,
+                members: [user._id],
+              });
+            } else if (!enterprise.members.some((m) => m.equals(user._id))) {
+              enterprise.members.push(user._id);
+              enterprise.updatedAt = new Date();
+              await enterprise.save();
+            }
+            user.enterpriseId = enterprise._id;
+          } else {
+            user.role = '(Pro)PlanUser';
+            const ownerEnterprise = await Enterprise.findOne({ ownerId: user._id });
+            if (ownerEnterprise) {
+              await User.updateMany(
+                { enterpriseId: ownerEnterprise._id },
+                {
+                  $set: {
+                    role: 'user',
+                    enterpriseId: null,
+                  },
+                }
+              );
+              await Enterprise.findByIdAndDelete(ownerEnterprise._id);
+            }
+            user.enterpriseId = null;
           }
-        );
+          await user.save();
+        }
 
-        await Enterprise.findByIdAndDelete(enterpriseId);
+        return res.status(200).json({
+          message: 'Subscription deleted successfully. User active subscription retained.',
+        });
+      } else {
+        // User has no remaining active subscriptions; downgrade if non-admin
+        if (user && user.role !== 'admin') {
+          const ownerEnterprise = await Enterprise.findOne({ ownerId: user._id });
+          const enterpriseIdToClean = user.enterpriseId || ownerEnterprise?._id;
+
+          if (enterpriseIdToClean) {
+            await User.updateMany(
+              { enterpriseId: enterpriseIdToClean },
+              {
+                $set: {
+                  role: 'user',
+                  enterpriseId: null,
+                },
+              }
+            );
+
+            await Enterprise.findByIdAndDelete(enterpriseIdToClean);
+          }
+
+          user.role = 'user';
+          user.enterpriseId = null;
+          await user.save();
+        }
+
+        return res.status(200).json({
+          message: 'Subscription deleted. User has no remaining active subscriptions.',
+        });
       }
     }
 
-    return res.status(200).json({ message: 'Subscription deleted. User downgraded to Free.' });
+    return res.status(200).json({ message: 'Subscription deleted successfully.' });
   } catch (error) {
     return res.status(500).json({ message: 'Error deleting subscription', error });
   }
