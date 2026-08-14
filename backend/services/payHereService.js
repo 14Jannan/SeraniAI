@@ -103,6 +103,43 @@ class PayHereService {
   }
 
   /**
+   * Look up a one-time payment by the order_id passed to the Checkout API,
+   * via PayHere's Retrieval API (server-to-server, OAuth-authenticated).
+   * https://support.payhere.lk/api-&-mobile-sdk/retrieval-api
+   *
+   * This lets the backend independently confirm a payment actually
+   * happened instead of relying solely on either (a) the browser return
+   * redirect, which is not proof of payment, or (b) the notify webhook,
+   * which requires PAYHERE_NOTIFY_URL to be a publicly reachable URL -
+   * something that isn't available when developing locally without a
+   * tunnel like ngrok.
+   *
+   * @returns {Promise<Array>} Array of payment records for this order_id
+   *   (usually 0 or 1 entries). Each has { payment_id, order_id, status,
+   *   currency, amount }; status is "RECEIVED" for a successful payment.
+   */
+  async getPaymentByOrderId(orderId) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.get(`${this.baseUrl}/payment/search`, {
+        headers,
+        params: { order_id: orderId },
+      });
+
+      if (response.data.status !== 1) {
+        // status 0 with "no payments found" is a normal, expected outcome
+        // right after checkout - not an error condition.
+        return [];
+      }
+
+      return response.data.data || [];
+    } catch (error) {
+      console.error(`Error looking up payment for order ${orderId}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Retry a failed subscription
    */
   async retrySubscription(subscriptionId) {

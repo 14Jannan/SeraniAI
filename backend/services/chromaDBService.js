@@ -12,6 +12,9 @@ class ChromaDBService {
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,
+      headers: process.env.CHROMA_SERVICE_API_KEY
+        ? { "X-Internal-Api-Key": process.env.CHROMA_SERVICE_API_KEY }
+        : {},
     });
   }
 

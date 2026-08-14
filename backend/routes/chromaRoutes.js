@@ -56,7 +56,12 @@ router.post("/journal/search", protect, async (req, res) => {
       return res.status(400).json({ error: "Query required" });
     }
 
-    const results = await chromadb.search(query, "journals", nResults);
+    // SECURITY: journals are private per-user - always scope the search to
+    // the authenticated caller so one user can never retrieve another
+    // user's journal entries by semantic similarity.
+    const results = await chromadb.search(query, "journals", nResults, {
+      userId: req.user.id,
+    });
     res.json(results);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -145,7 +150,11 @@ router.post("/chat/search", protect, async (req, res) => {
       return res.status(400).json({ error: "Query required" });
     }
 
-    const results = await chromadb.search(query, "chat_messages", nResults);
+    // SECURITY: chat history is private per-user - scope the search so one
+    // user can never retrieve another user's chat messages.
+    const results = await chromadb.search(query, "chat_messages", nResults, {
+      userId: req.user.id,
+    });
     res.json(results);
   } catch (error) {
     res.status(500).json({ error: error.message });

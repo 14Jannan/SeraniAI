@@ -10,6 +10,10 @@ web/node_modules/
 backend/.env
 mobile/.env
 web/.env
+chroma_service/.env
+# ...but keep the committed templates that document required vars.
+!.env.example
+!**/.env.example
 
 # Expo / React Native
 mobile/.expo/
@@ -21,6 +25,24 @@ build/
 coverage/
 web/dist/
 web/dist-ssr/
+web/.vite/
+
+# User-uploaded files (course thumbnails/videos, chat attachments) - never
+# belong in source control.
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Ad-hoc debug scripts and generated output that shouldn't be committed.
+backend/scratch/
+backend/testRedis.js
+backend/extracted_text.txt
+backend/rasterization_text.txt
+backend/test-results.txt
+
+# Chroma's local persistent vector store.
+chroma_service/chroma_db/
+chroma_service/__pycache__/
+chroma_service/.venv/
 
 # Logs
 logs/

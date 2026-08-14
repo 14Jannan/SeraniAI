@@ -1,8 +1,9 @@
 // File: src/api/adminApi.js
 
 import httpClient from "./httpClient";
+import { API_BASE_URL } from "../utils/apiBaseUrl";
 
-const ADMIN_API_URL = "http://localhost:7001/api/admin";
+const ADMIN_API_URL = `${API_BASE_URL}/api/admin`;
 
 export const getUsers = () => {
   return httpClient.get(`${ADMIN_API_URL}/users`);

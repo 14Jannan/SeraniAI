@@ -7,8 +7,9 @@ import { MdHealthAndSafety } from "react-icons/md";
 import { BsEmojiFrown } from "react-icons/bs";
 import { MdAllInclusive } from "react-icons/md";
 import { FaLeaf } from "react-icons/fa";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 export default function Courses() {
 

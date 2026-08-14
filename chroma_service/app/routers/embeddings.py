@@ -1,12 +1,18 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from app.schemas import (
     EmbeddingRequest, BulkEmbeddingRequest, SearchRequest,
     SimilaritySearchRequest, DeleteRequest, EmbeddingResponse,
     SearchResponse, HealthResponse
 )
 from app.services.chroma_service import chroma_service
+from app.security import require_internal_api_key
 
 router = APIRouter(prefix="/api", tags=["embeddings"])
+
+# Everything below is gated behind the shared internal API key EXCEPT
+# /health, which is left open for container/load-balancer health probes
+# that don't carry the secret.
+protected = Depends(require_internal_api_key)
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -16,7 +22,7 @@ async def health_check():
         "version": "1.0.0"
     }
 
-@router.post("/embed", response_model=EmbeddingResponse)
+@router.post("/embed", response_model=EmbeddingResponse, dependencies=[protected])
 async def embed_text(request: EmbeddingRequest):
     """Add a single embedding to ChromaDB"""
     try:
@@ -33,7 +39,7 @@ async def embed_text(request: EmbeddingRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/embed-batch")
+@router.post("/embed-batch", dependencies=[protected])
 async def embed_batch(request: BulkEmbeddingRequest):
     """Add multiple embeddings to ChromaDB"""
     try:
@@ -51,7 +57,7 @@ async def embed_batch(request: BulkEmbeddingRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/search", response_model=SearchResponse)
+@router.post("/search", response_model=SearchResponse, dependencies=[protected])
 async def search(request: SearchRequest):
     """Search for similar documents"""
     try:
@@ -68,7 +74,7 @@ async def search(request: SearchRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/delete")
+@router.post("/delete", dependencies=[protected])
 async def delete_embeddings(request: DeleteRequest):
     """Delete embeddings from ChromaDB"""
     try:
@@ -83,7 +89,7 @@ async def delete_embeddings(request: DeleteRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/collection-count/{collection_name}")
+@router.get("/collection-count/{collection_name}", dependencies=[protected])
 async def get_collection_count(collection_name: str):
     """Get the number of documents in a collection"""
     try:
@@ -92,7 +98,7 @@ async def get_collection_count(collection_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/clear/{collection_name}")
+@router.post("/clear/{collection_name}", dependencies=[protected])
 async def clear_collection(collection_name: str):
     """Clear all documents from a collection"""
     try:

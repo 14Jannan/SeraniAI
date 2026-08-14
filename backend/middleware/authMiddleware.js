@@ -9,7 +9,6 @@ const protect = async (req, res, next) => {
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
-    console.log("Auth header found:", req.headers.authorization.substring(0, 25) + "...");
     try {
       // Get token from header
       token = req.headers.authorization.split(" ")[1];

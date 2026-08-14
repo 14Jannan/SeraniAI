@@ -25,11 +25,11 @@ import {
   PieChart
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { jsPDF } from 'jspdf';
 import { getStoredToken } from "../../utils/authStorage";
 import notify from "../../utils/notifications";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 const DashboardHome = () => {
   const [data, setData] = useState(null);
@@ -91,9 +91,13 @@ const DashboardHome = () => {
     fetchStats();
   }, []);
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     if (!weeklyReport) return;
 
+    // Loaded on demand - jsPDF (and its optional html2canvas dependency)
+    // is ~250kB and only ever needed when the user actually clicks
+    // "download report", not on every dashboard page load.
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     const margin = 20;
     const pageWidth = doc.internal.pageSize.getWidth();

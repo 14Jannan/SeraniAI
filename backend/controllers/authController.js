@@ -36,10 +36,16 @@ const generateAuthTokens = (user) => {
 };
 
 const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
+  // In production the web/mobile clients are served from a different origin
+  // than the API, so the refresh/rememberMe cookies must be sent with
+  // SameSite=None + Secure to survive a cross-site request. In local
+  // development (and in tests) NODE_ENV is not "production", so this keeps
+  // the original Lax/insecure behavior unchanged.
+  const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
     httpOnly: true,
-    secure: false,
-    sameSite: "Lax",
+    secure: isProduction,
+    sameSite: isProduction ? "None" : "Lax",
   };
 
   // When rememberMe is true, persist the cookie for 7 days. Otherwise, omit
@@ -52,8 +58,8 @@ const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
 
   if (rememberMe) {
     res.cookie("rememberMe", "true", {
-      sameSite: "Lax",
-      secure: process.env.NODE_ENV === "production",
+      sameSite: isProduction ? "None" : "Lax",
+      secure: isProduction,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   } else {
@@ -66,7 +72,11 @@ const setRefreshCookie = (res, refreshToken, rememberMe = false) => {
 // @route   POST /api/auth/register
 exports.registerUser = async (req, res) => {
   // 1. Get confirmPassword from the request body
-  const { name, email, password, confirmPassword, role } = req.body;
+  // NOTE: `role` is intentionally never read from the request body. Self
+  // registration must always create a plain "user" account; elevated roles
+  // (admin/enterpriseAdmin/etc.) are only ever granted via the admin panel,
+  // enterprise invites, or a completed subscription upgrade.
+  const { name, email, password, confirmPassword } = req.body;
   const normalizedEmail = String(email || "").trim();
 
   try {
@@ -97,7 +107,7 @@ exports.registerUser = async (req, res) => {
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      role: role || "user",
+      role: "user",
       otp,
       otpExpires,
     });
@@ -129,11 +139,6 @@ exports.verifyEmail = async (req, res) => {
     // Check if OTP matches and is not expired
     const receivedOtp = String(otp).trim();
     const storedOtp = String(user.otp).trim();
-
-    console.log("DEBUG OTP Verification:");
-    console.log("Received OTP:", receivedOtp, "Type:", typeof receivedOtp);
-    console.log("Stored OTP:", storedOtp, "Type:", typeof storedOtp);
-    console.log("Match:", storedOtp === receivedOtp);
 
     if (storedOtp !== receivedOtp) {
       return res.status(400).json({ message: "Invalid OTP" });

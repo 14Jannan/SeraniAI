@@ -5,9 +5,30 @@ import { cancelSubscription, getUserSubscription } from "../../api/subscriptionA
 import { cancelEnterprisePremiumAccess } from "../../api/authApi";
 import { getStoredToken, getStoredUser, saveAuthSession, getAuthStorageMode } from "../../utils/authStorage";
 import notify from "../../utils/notifications";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
 /* API configuration */
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
+
+/**
+ * Decide (and fire) the right toast for a PayHere payment-confirmation
+ * response. Extracted as a standalone, importable function so this branch -
+ * "don't tell the user their plan is active until the notify webhook
+ * actually confirmed it" - can be unit tested without rendering the whole
+ * page.
+ */
+export const notifyPaymentConfirmationResult = (data) => {
+  if (data?.pending) {
+    notify.info(
+      "Confirming Your Payment",
+      "Your payment was received and is being confirmed. Your plan will update automatically within a moment - no action needed.",
+      { id: "payment-pending", duration: 6000 }
+    );
+    return;
+  }
+
+  notify.paymentSuccess({ planName: data?.user?.plan || "Pro" });
+};
 
 /* Personal subscription plans array */
 const PERSONAL_PLANS = [
@@ -320,7 +341,8 @@ export default function Subscription() {
             new CustomEvent("serani:user-updated", { detail: data.user })
           );
         }
-        notify.paymentSuccess({ planName: data?.user?.plan || "Pro" });
+
+        notifyPaymentConfirmationResult(data);
       } catch (err) {
         console.error("Payment confirmation error:", err);
         notify.error("Payment Confirmation", "Your payment was received. If your plan does not update immediately, please refresh in a moment.");

@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const axios = require("axios");
 const ChromaDBService = require("../../services/chromaDBService");
 
 describe("ChromaDBService unit tests", () => {
@@ -67,5 +68,41 @@ describe("ChromaDBService unit tests", () => {
   it("throws error when API fails", async () => {
     mockClient.get.mockRejectedValue(new Error("Network Error"));
     await expect(service.health()).rejects.toThrow("ChromaDB health check failed: Network Error");
+  });
+
+  describe("internal service authentication", () => {
+    const ORIGINAL_KEY = process.env.CHROMA_SERVICE_API_KEY;
+
+    afterEach(() => {
+      if (ORIGINAL_KEY === undefined) {
+        delete process.env.CHROMA_SERVICE_API_KEY;
+      } else {
+        process.env.CHROMA_SERVICE_API_KEY = ORIGINAL_KEY;
+      }
+    });
+
+    it("attaches the X-Internal-Api-Key header when CHROMA_SERVICE_API_KEY is set", () => {
+      process.env.CHROMA_SERVICE_API_KEY = "shared-secret";
+      const createSpy = vi.spyOn(axios, "create");
+
+      new ChromaDBService("http://localhost:5000");
+
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: { "X-Internal-Api-Key": "shared-secret" },
+        }),
+      );
+    });
+
+    it("omits the auth header when CHROMA_SERVICE_API_KEY is unset (local dev)", () => {
+      delete process.env.CHROMA_SERVICE_API_KEY;
+      const createSpy = vi.spyOn(axios, "create");
+
+      new ChromaDBService("http://localhost:5000");
+
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ headers: {} }),
+      );
+    });
   });
 });

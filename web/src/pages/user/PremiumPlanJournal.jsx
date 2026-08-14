@@ -19,13 +19,13 @@ import {
   Flame,
   Smile,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
 import { getStoredToken } from "../../utils/authStorage";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
 // API configuration for journal and summary endpoints.
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 const SUMMARY_URL = `${API_URL}/api/journals/stats/summary`;
 
 // Mood display styling: background and text colors for each mood category.
@@ -122,7 +122,10 @@ const getMoodClass = (mood) => {
 };
 
 // Utility: Generate a PDF file from journal entry and trigger browser download.
-const downloadJournalPdf = (entry) => {
+// jsPDF is loaded on demand (only when a download is actually requested)
+// rather than bundled into the initial page load.
+const downloadJournalPdf = async (entry) => {
+  const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF();
   const marginLeft = 14;
   const topMargin = 18;

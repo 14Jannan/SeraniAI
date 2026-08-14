@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Subscription = require("../models/subscriptionModel");
 const User = require("../models/userModel");
 const Enterprise = require("../models/enterpriseModel");
+const payHereService = require("../services/payHereService");
 
 /* Plan configuration with pricing and role mapping */
 const PLAN_DETAILS = {
@@ -161,6 +162,24 @@ const extractSingleQueryParam = (value) => {
     return String(value[0] || "").trim();
   }
   return String(value || "").trim();
+};
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* Amounts arrive from PayHere as formatted strings (e.g. "4000.00"). Compare
+ * with a small epsilon instead of strict equality to tolerate rounding. */
+const amountsMatch = (a, b) => Math.abs(Number(a) - Number(b)) < 0.01;
+
+/* Compute what we actually expect to be charged for a given plan/seat
+ * combination, mirroring the pricing used when the payment was initialized. */
+const getExpectedAmount = (planCode, seats) => {
+  const plan = PLAN_DETAILS[planCode];
+  if (!plan) return null;
+  if (planCode === "business") {
+    const seatCount = Math.max(MIN_BUSINESS_SEATS, Number(seats) || MIN_BUSINESS_SEATS);
+    return plan.amount * seatCount;
+  }
+  return plan.amount;
 };
 
 const getBackendBaseUrl = (req) => {
@@ -486,17 +505,13 @@ exports.handlePayHereReturnRedirect = async (req, res) => {
       return res.status(404).send("Subscription order not found");
     }
 
-    if (subscription.status !== "Active") {
-      subscription.status = "Active";
-      await subscription.save();
-
-      const planCode = PLAN_DETAILS[subscription.planCode]
-        ? subscription.planCode
-        : getPlanCodeFromLabel(subscription.plan);
-      if (planCode) {
-        await syncUserRoleFromPlanCode({ userId: subscription.userId, planCode });
-      }
-    }
+    // SECURITY: This is a public, unauthenticated GET endpoint reached via the
+    // user's browser redirect from PayHere - it is not proof of payment (the
+    // order_id is guessable and this route can be hit directly). Activation
+    // only ever happens in handlePayHereNotify, which validates PayHere's
+    // server-to-server md5 signature. This handler just sends the browser
+    // back to the app; confirmPayHereReturn reports the real (webhook-driven)
+    // status once the client lands back on the return URL.
 
     const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
     const clientReturnUrl =
@@ -665,6 +680,16 @@ exports.handlePayHereNotify = async (req, res) => {
     }
 
     const { planCode, plan, seats } = parsedPlanPayload;
+
+    // SECURITY: Never trust the notified amount blindly - recompute what this
+    // plan/seat combination should cost and reject anything that doesn't
+    // match, so a tampered notification can't activate a plan for less (or
+    // nothing).
+    const expectedAmount = getExpectedAmount(planCode, seats);
+    if (expectedAmount === null || !amountsMatch(parsedAmount, expectedAmount)) {
+      return res.status(400).send("amount mismatch");
+    }
+
     const { startDate, endDate } = getMonthRange();
     const paymentCandidates = [String(payment_id || "").trim(), String(order_id || "").trim()].filter(Boolean);
 
@@ -697,6 +722,79 @@ exports.handlePayHereNotify = async (req, res) => {
   }
 };
 
+/* Number of times to re-check for activation, and the delay between checks.
+ * Two independent things can activate a subscription while this endpoint
+ * is polling: the notify webhook landing (fast DB re-read), or our own
+ * PayHere Retrieval API lookup below finding a RECEIVED payment. Kept
+ * short so the request doesn't hang. */
+const CONFIRM_RETURN_POLL_ATTEMPTS = 3;
+const CONFIRM_RETURN_POLL_DELAY_MS = 700;
+
+/**
+ * Independently verify (and, if confirmed, activate) a pending subscription
+ * by asking PayHere directly whether the order was actually paid.
+ *
+ * SECURITY: this never trusts the browser return redirect. It calls
+ * PayHere's Retrieval API (server-to-server, OAuth-authenticated) for the
+ * order_id, and only activates when PayHere itself reports a "RECEIVED"
+ * payment whose amount/currency match what this order was created for.
+ * This exists alongside (not instead of) the signature-verified notify
+ * webhook in handlePayHereNotify - notify is still the primary, fastest
+ * path when reachable; this is what makes confirmation also work when
+ * PAYHERE_NOTIFY_URL isn't publicly reachable (e.g. local development
+ * without a tunnel), since this endpoint is called directly by the
+ * authenticated client instead of waiting on an inbound webhook.
+ */
+const verifySubscriptionAgainstPayHere = async (subscription) => {
+  if (subscription.status === "Active") {
+    return subscription;
+  }
+
+  let payments;
+  try {
+    payments = await payHereService.getPaymentByOrderId(subscription.paymentId);
+  } catch (error) {
+    console.error("PayHere payment verification failed:", error.message);
+    return subscription;
+  }
+
+  const received = (payments || []).find(
+    (p) =>
+      String(p.order_id) === subscription.paymentId &&
+      String(p.status || "").toUpperCase() === "RECEIVED"
+  );
+
+  if (!received) {
+    return subscription;
+  }
+
+  if (
+    !amountsMatch(received.amount, subscription.amount) ||
+    String(received.currency || "").toUpperCase() !== String(subscription.currency || "").toUpperCase()
+  ) {
+    console.error(
+      `PayHere payment amount/currency mismatch for order ${subscription.paymentId}: expected ${subscription.amount} ${subscription.currency}, got ${received.amount} ${received.currency}`
+    );
+    return subscription;
+  }
+
+  subscription.status = "Active";
+  subscription.payHereStatus = "ACTIVE";
+  if (received.payment_id) {
+    subscription.paymentId = subscription.paymentId || String(received.payment_id);
+  }
+  await subscription.save();
+
+  const planCode = PLAN_DETAILS[subscription.planCode]
+    ? subscription.planCode
+    : getPlanCodeFromLabel(subscription.plan);
+  if (planCode) {
+    await syncUserRoleFromPlanCode({ userId: subscription.userId, planCode });
+  }
+
+  return subscription;
+};
+
 exports.confirmPayHereReturn = async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -710,7 +808,7 @@ exports.confirmPayHereReturn = async (req, res) => {
       return res.status(400).json({ message: "orderId is required" });
     }
 
-    const subscription = await Subscription.findOne({
+    let subscription = await Subscription.findOne({
       userId,
       paymentId: orderId,
     });
@@ -719,31 +817,120 @@ exports.confirmPayHereReturn = async (req, res) => {
       return res.status(404).json({ message: "Pending subscription not found" });
     }
 
+    for (let attempt = 0; attempt < CONFIRM_RETURN_POLL_ATTEMPTS; attempt += 1) {
+      if (subscription.status === "Active") break;
+
+      // Fast path: has the signature-verified notify webhook already
+      // landed since our last read?
+      subscription = await Subscription.findOne({ userId, paymentId: orderId });
+      if (!subscription) {
+        return res.status(404).json({ message: "Pending subscription not found" });
+      }
+      if (subscription.status === "Active") break;
+
+      // Otherwise, ask PayHere directly - this is what lets confirmation
+      // complete even when the notify webhook can't reach us.
+      subscription = await verifySubscriptionAgainstPayHere(subscription);
+      if (subscription.status === "Active") break;
+
+      if (attempt < CONFIRM_RETURN_POLL_ATTEMPTS - 1) {
+        await wait(CONFIRM_RETURN_POLL_DELAY_MS);
+      }
+    }
+
     if (subscription.status !== "Active") {
-      subscription.status = "Active";
-      await subscription.save();
+      return res.status(202).json({
+        message:
+          "Payment received and is being confirmed. Your plan will update shortly.",
+        pending: true,
+        subscription,
+      });
     }
 
-    const fallbackPlanCode = PLAN_DETAILS[subscription.planCode]
-      ? subscription.planCode
-      : getPlanCodeFromLabel(subscription.plan);
-    if (!fallbackPlanCode) {
-      return res.status(400).json({ message: "Unable to determine subscription plan" });
-    }
-
-    await syncUserRoleFromPlanCode({ userId, planCode: fallbackPlanCode });
-
-    const [updatedUser, updatedSubscription] = await Promise.all([
-      User.findById(userId).lean(),
-      Subscription.findOne({ userId, paymentId: orderId }).lean(),
-    ]);
+    const updatedUser = await User.findById(userId).lean();
 
     return res.status(200).json({
       message: "Subscription payment confirmed",
       user: updatedUser,
-      subscription: updatedSubscription,
+      subscription,
     });
   } catch (error) {
     return res.status(500).json({ message: "Payment confirmation failed" });
+  }
+};
+
+// Exported so ad-hoc reconciliation tooling (and tests) can reuse the exact
+// same PayHere-verified activation logic instead of duplicating it.
+exports.verifySubscriptionAgainstPayHere = verifySubscriptionAgainstPayHere;
+
+/**
+ * @desc    Admin-only manual override: activate a subscription without
+ *          going through PayHere verification at all.
+ * @route   POST /api/subscriptions/:id/force-activate
+ * @access  Private (admin)
+ *
+ * SECURITY: This intentionally bypasses PayHere entirely, so it must never
+ * be reachable by anyone but an admin (enforced by the `authorize("admin")`
+ * middleware on its route, same trust level as the existing subscription
+ * Delete action) - unlike every other activation path in this file, this
+ * one takes the caller's word for it. It exists as an escape hatch for
+ * when PayHere's API is genuinely unreachable/misconfigured (e.g. a
+ * sandbox app pending PayHere's own domain approval) and an admin has
+ * independently confirmed the payment, not as a replacement for the
+ * verified paths above.
+ */
+exports.forceActivateSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid subscription id" });
+    }
+
+    const subscription = await Subscription.findById(id);
+    if (!subscription) {
+      return res.status(404).json({ message: "Subscription not found" });
+    }
+
+    if (subscription.status === "Active") {
+      return res.status(200).json({
+        message: "Subscription is already active",
+        data: subscription,
+      });
+    }
+
+    const planCode = PLAN_DETAILS[subscription.planCode]
+      ? subscription.planCode
+      : getPlanCodeFromLabel(subscription.plan);
+
+    if (!planCode) {
+      return res.status(400).json({ message: "Unable to determine subscription plan" });
+    }
+
+    subscription.status = "Active";
+    subscription.payHereStatus = "ACTIVE";
+    await subscription.save();
+
+    await syncUserRoleFromPlanCode({ userId: subscription.userId, planCode });
+
+    // Basic audit trail - who force-activated what, since this bypasses
+    // normal payment verification.
+    console.warn(
+      `[ADMIN OVERRIDE] Subscription ${subscription._id} (order ${subscription.paymentId}) force-activated by admin ${req.user?._id} (${req.user?.email})`
+    );
+
+    const [updatedUser, updatedSubscription] = await Promise.all([
+      User.findById(subscription.userId).lean(),
+      Subscription.findById(id).lean(),
+    ]);
+
+    return res.status(200).json({
+      message: "Subscription force-activated",
+      data: updatedSubscription,
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Force activate error:", error.message);
+    return res.status(500).json({ message: "Failed to force-activate subscription" });
   }
 };

@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { getStoredToken } from "../../utils/authStorage";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 const getCourseProgressStorageKey = (courseId) => `course-progress-${courseId}`;
 

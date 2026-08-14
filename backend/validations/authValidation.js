@@ -24,7 +24,6 @@ const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   confirmPassword: passwordSchema,
-  role: z.string().trim().optional(),
 });
 
 const loginSchema = z.object({

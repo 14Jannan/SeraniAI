@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { getUsers } from "../api/adminApi";
 import { fetchAllTasks } from "../api/tasksApi";
 import httpClient from "../api/httpClient";
+import { API_BASE_URL } from "../utils/apiBaseUrl";
 
-const ADMIN_API_URL = "http://localhost:7001/api/admin";
+const ADMIN_API_URL = `${API_BASE_URL}/api/admin`;
 
 // ── Users ──────────────────────────────────────────────
 export const useFetchUSers = () => {

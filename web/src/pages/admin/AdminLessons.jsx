@@ -10,6 +10,7 @@ import {
   FiStar,
 } from "react-icons/fi";
 import ConfirmModal from "../../components/ConfirmModal";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
 const CLOUDINARY_UPLOAD_PRESET =
@@ -19,7 +20,7 @@ const CLOUDINARY_FOLDERS = {
   lessonVideo: "seraniai/lessons/videos",
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const API_BASE = API_BASE_URL;
 
 function getAuthHeaders() {
   // Lesson mutations are admin-protected; attach bearer token for write operations.

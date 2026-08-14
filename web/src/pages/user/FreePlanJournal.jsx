@@ -10,9 +10,10 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import AddJournal from "./AddJournal";
 import { getStoredToken } from "../../utils/authStorage";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
 // API endpoint for journal operations.
-const API_URL = "http://localhost:7001";
+const API_URL = API_BASE_URL;
 
 // Utility function: Convert Date object to ISO-like local date string (YYYY-MM-DD).
 const getLocalDateString = (date = new Date()) => {

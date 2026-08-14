@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStoredToken } from "../../utils/authStorage";
 import ConfirmModal from "../../components/ConfirmModal";
+import { API_BASE_URL } from "../../utils/apiBaseUrl";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
+const API_BASE = API_BASE_URL;
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
 const CLOUDINARY_UPLOAD_PRESET =
   import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";

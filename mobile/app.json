@@ -9,11 +9,13 @@
     "scheme": "seraniaiapp",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.seraniaiapp.mobile"
+      "bundleIdentifier": "com.seraniaiapp.mobile",
+      "buildNumber": "1"
     },
     "android": {
       "softwareKeyboardLayoutMode": "pan",
       "package": "com.seraniaiapp.mobile",
+      "versionCode": 1,
       "intentFilters": [
         {
           "action": "VIEW",

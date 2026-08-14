@@ -1,6 +1,4 @@
 const mongoose = require("mongoose"); // imports mongoose library
-const dns = require("dns");
-dns.setServers(["8.8.8.8", "8.8.4.4"]); // use google dns for relaiable dns resolution( fixes mongodb connection issues)
 
 const dbConnect = async () => {
   try {
@@ -16,8 +14,19 @@ const dbConnect = async () => {
       `Database Connected : ${connect.connection.host}, ${connect.connection.name}`,
     );
   } catch (err) {
-    // if connection fails
-    console.log("Database connection failed:", err.message);
+    // Fail fast on the initial connection: booting anyway and silently
+    // serving every request as a 500 is worse than not booting at all, and
+    // makes the failure much harder to notice. Let the process manager
+    // (Docker/PM2/systemd) restart us once the DB is reachable again.
+    console.error("Database connection failed:", err.message);
+    process.exit(1);
   }
 };
+
+// Surface connection drops that happen after the initial connect (network
+// blip, Atlas maintenance, etc.) instead of only ever logging the first one.
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB connection error:", err.message);
+});
+
 module.exports = dbConnect;

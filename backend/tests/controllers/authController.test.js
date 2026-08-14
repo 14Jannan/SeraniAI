@@ -132,6 +132,36 @@ describe("authController", () => {
       );
     });
 
+    it("SECURITY: ignores a role sent in the request body and always creates a plain 'user' account", async () => {
+      vi.spyOn(User, "findOne").mockResolvedValue(null);
+      vi.spyOn(bcrypt, "genSalt").mockResolvedValue("salt");
+      vi.spyOn(bcrypt, "hash").mockResolvedValue("hashed-password");
+      vi.spyOn(otpGenerator, "generate").mockReturnValue("123456");
+      const createSpy = vi.spyOn(User, "create").mockResolvedValue({
+        _id: "u2",
+        email: "eve@test.com",
+      });
+
+      const res = mockRes();
+      await registerUser(
+        {
+          body: {
+            name: "Eve",
+            email: "eve@test.com",
+            password: "pass",
+            confirmPassword: "pass",
+            role: "admin", // attacker-supplied - must be ignored
+          },
+        },
+        res,
+      );
+
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "user" }),
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
     it("hashes password and creates user before email failure returns 500", async () => {
       vi.spyOn(User, "findOne").mockResolvedValue(null);
       vi.spyOn(bcrypt, "genSalt").mockResolvedValue("salt");
@@ -426,6 +456,38 @@ describe("authController", () => {
         "true",
         expect.objectContaining({ sameSite: "Lax", secure: false }),
       );
+    });
+
+    it("PRODUCTION: uses SameSite=None + Secure cookies so auth survives a cross-origin frontend/API split", async () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+
+      try {
+        vi.spyOn(User, "findOne").mockResolvedValue(verifiedUser);
+        vi.spyOn(bcrypt, "compare").mockResolvedValue(true);
+        vi.spyOn(jwt, "sign")
+          .mockReturnValueOnce("access-token")
+          .mockReturnValueOnce("refresh-token");
+        const res = mockRes();
+
+        await loginUser(
+          { body: { email: "bob@test.com", password: "pass", rememberMe: true } },
+          res,
+        );
+
+        expect(res.cookie).toHaveBeenCalledWith(
+          "refreshToken",
+          "refresh-token",
+          expect.objectContaining({ secure: true, sameSite: "None" }),
+        );
+        expect(res.cookie).toHaveBeenCalledWith(
+          "rememberMe",
+          "true",
+          expect.objectContaining({ secure: true, sameSite: "None" }),
+        );
+      } finally {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
     });
   });
 
