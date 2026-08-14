@@ -235,6 +235,11 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   dbConnect();
 
+  // Background safety net: periodically re-verify subscriptions stuck in
+  // "Pending" against PayHere directly, for cases the notify webhook and the
+  // checkout-return poll can both miss (see billingController for details).
+  require("./controllers/billingController").startPendingSubscriptionReconciliation();
+
   const PORT = process.env.PORT || 7001;
   const server = app.listen(PORT, () => {
     console.log(`Server is running at ${PORT}`);

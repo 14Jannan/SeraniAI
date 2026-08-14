@@ -44,6 +44,21 @@ const getNormalizedMerchantSecret = () =>
     process.env.PAYHERE_SECRET_FORMAT || "plain"
   );
 
+/* Mobile checkouts are launched from a page our own backend server-renders
+ * and auto-submits (see buildPayHerePayload/launchPayHereCheckout) - unlike
+ * the web app, which builds and submits the form client-side directly from
+ * the frontend origin. PayHere validates the checkout hash against the
+ * secret registered for whichever domain the form was actually submitted
+ * from, so the backend's own domain needs its own registered secret,
+ * separate from the web/frontend domain's. Falls back to the default
+ * secret so nothing changes until PAYHERE_MOBILE_MERCHANT_SECRET is set. */
+const getNormalizedMobileMerchantSecret = () => {
+  const raw = String(process.env.PAYHERE_MOBILE_MERCHANT_SECRET || "").trim();
+  if (!raw) return getNormalizedMerchantSecret();
+
+  return normalizeSecret(raw, process.env.PAYHERE_SECRET_FORMAT || "plain");
+};
+
 /* Determine PayHere checkout URL based on environment (sandbox vs production) */
 const getCheckoutUrl = () => {
   const env = String(process.env.PAYHERE_ENV || "sandbox").trim().toLowerCase();
@@ -223,7 +238,12 @@ const escapeHtml = (value) =>
 
 const buildPayHerePayload = (subscription, serverBase = "http://localhost:7001") => {
   const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
-  const merchantSecret = getNormalizedMerchantSecret();
+  // This function is exclusively reached via launchPayHereCheckout - the
+  // server-rendered page the mobile app opens, which submits from our own
+  // backend's domain - so it must sign with the mobile/backend-domain
+  // secret, not the web/frontend-domain one used by the web app's direct
+  // client-side form submission.
+  const merchantSecret = getNormalizedMobileMerchantSecret();
   if (!merchantId || !merchantSecret) {
     return null;
   }
@@ -646,13 +666,25 @@ exports.handlePayHereNotify = async (req, res) => {
       return res.status(500).send("merchant secret missing");
     }
 
-    const localSignature = md5Upper(
-      `${merchant_id}${order_id}${payhere_amount}${payhere_currency}${status_code}${md5Upper(
-        merchantSecret
-      )}`
-    );
+    const signWith = (secret) =>
+      md5Upper(
+        `${merchant_id}${order_id}${payhere_amount}${payhere_currency}${status_code}${md5Upper(
+          secret
+        )}`
+      );
 
-    if (localSignature !== String(md5sig || "").toUpperCase()) {
+    // A notification's checkout could have been signed with either secret -
+    // the web/frontend-domain one, or the mobile/backend-domain one (see
+    // getNormalizedMobileMerchantSecret) - depending on which domain
+    // actually submitted the checkout form. We can't tell which in advance,
+    // so accept a match against either.
+    const mobileSecret = getNormalizedMobileMerchantSecret();
+    const providedSignature = String(md5sig || "").toUpperCase();
+    const signatureValid =
+      signWith(merchantSecret) === providedSignature ||
+      (mobileSecret && mobileSecret !== merchantSecret && signWith(mobileSecret) === providedSignature);
+
+    if (!signatureValid) {
       return res.status(400).send("invalid signature");
     }
 
@@ -691,7 +723,7 @@ exports.handlePayHereNotify = async (req, res) => {
     }
 
     const { startDate, endDate } = getMonthRange();
-    const paymentCandidates = [String(payment_id || "").trim(), String(order_id || "").trim()].filter(Boolean);
+    const paymentCandidates = [String(order_id || "").trim(), String(payment_id || "").trim()].filter(Boolean);
 
     await Subscription.findOneAndUpdate(
       { paymentId: { $in: paymentCandidates } },
@@ -708,7 +740,17 @@ exports.handlePayHereNotify = async (req, res) => {
         payHereStatus: "ACTIVE",
         startDate,
         endDate,
-        paymentId: String(payment_id || order_id),
+        // SECURITY/CORRECTNESS: pin paymentId to our own order_id, not
+        // PayHere's payment_id. This used to be `payment_id || order_id`,
+        // which renamed the lookup key the instant this webhook landed -
+        // silently breaking the browser return-redirect page and
+        // confirmPayHereReturn's polling (both look the record up by the
+        // original order_id) whenever the webhook won the race against the
+        // browser's own redirect back, which it usually does once
+        // PAYHERE_NOTIFY_URL is actually reachable. PayHere's own payment
+        // reference is kept in payHerePaymentId instead.
+        paymentId: String(order_id || payment_id),
+        payHerePaymentId: String(payment_id || "").trim() || undefined,
         method: "PayHere",
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -754,7 +796,10 @@ const verifySubscriptionAgainstPayHere = async (subscription) => {
   try {
     payments = await payHereService.getPaymentByOrderId(subscription.paymentId);
   } catch (error) {
-    console.error("PayHere payment verification failed:", error.message);
+    console.error(
+      `PayHere payment verification failed for order ${subscription.paymentId}:`,
+      error.response ? JSON.stringify(error.response.data) : error.message
+    );
     return subscription;
   }
 
@@ -780,8 +825,10 @@ const verifySubscriptionAgainstPayHere = async (subscription) => {
 
   subscription.status = "Active";
   subscription.payHereStatus = "ACTIVE";
+  // paymentId stays pinned to our own order_id (see handlePayHereNotify) -
+  // PayHere's payment reference is recorded separately, for reference only.
   if (received.payment_id) {
-    subscription.paymentId = subscription.paymentId || String(received.payment_id);
+    subscription.payHerePaymentId = String(received.payment_id);
   }
   await subscription.save();
 
@@ -934,3 +981,64 @@ exports.forceActivateSubscription = async (req, res) => {
     return res.status(500).json({ message: "Failed to force-activate subscription" });
   }
 };
+
+/* Only re-check orders old enough that the checkout-return flow (which
+ * already polls confirmPayHereReturn a few times) has had a fair chance to
+ * finish, and not so old that they're almost certainly abandoned carts. */
+const PENDING_RECONCILE_MIN_AGE_MS = 2 * 60 * 1000; // 2 minutes
+const PENDING_RECONCILE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PENDING_RECONCILE_BATCH_SIZE = 50;
+
+/**
+ * Safety net for subscriptions that never got activated through either of
+ * the two request-driven paths:
+ *  - the PayHere notify webhook (requires a publicly reachable
+ *    PAYHERE_NOTIFY_URL - unreachable e.g. from localhost in local dev, or
+ *    if it's ever briefly down/misconfigured), and
+ *  - confirmPayHereReturn's short poll while the user's browser is still on
+ *    the return page (misses cases like the tab being closed early, or
+ *    PayHere not having recorded the payment as RECEIVED yet in that
+ *    window).
+ *
+ * Without this, an order that both paths miss stays "Pending" forever with
+ * nothing left to retry it, and the only recovery is an admin manually
+ * force-activating it. Run periodically (see startPendingSubscriptionReconciliation
+ * below); reuses the same PayHere-verified activation logic as everything
+ * else, so nothing here activates a plan without PayHere itself confirming
+ * a matching RECEIVED payment.
+ */
+const reconcilePendingSubscriptions = async () => {
+  const now = Date.now();
+  try {
+    const pending = await Subscription.find({
+      status: "Pending",
+      paymentId: { $exists: true, $ne: "" },
+      createdAt: {
+        $lte: new Date(now - PENDING_RECONCILE_MIN_AGE_MS),
+        $gte: new Date(now - PENDING_RECONCILE_MAX_AGE_MS),
+      },
+    }).limit(PENDING_RECONCILE_BATCH_SIZE);
+
+    for (const subscription of pending) {
+      await verifySubscriptionAgainstPayHere(subscription);
+    }
+  } catch (error) {
+    console.error("Pending subscription reconciliation failed:", error.message);
+  }
+};
+
+const PENDING_RECONCILE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let reconcileIntervalHandle = null;
+
+/* Started once from server.js (only for the real running process, never
+ * under tests/require()) so stuck-Pending orders keep getting retried in
+ * the background instead of only at checkout-return time. */
+const startPendingSubscriptionReconciliation = () => {
+  if (reconcileIntervalHandle) return reconcileIntervalHandle;
+  reconcileIntervalHandle = setInterval(reconcilePendingSubscriptions, PENDING_RECONCILE_INTERVAL_MS);
+  reconcileIntervalHandle.unref?.();
+  return reconcileIntervalHandle;
+};
+
+exports.reconcilePendingSubscriptions = reconcilePendingSubscriptions;
+exports.startPendingSubscriptionReconciliation = startPendingSubscriptionReconciliation;

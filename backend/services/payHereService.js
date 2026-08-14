@@ -45,7 +45,10 @@ class PayHereService {
 
       return this.accessToken;
     } catch (error) {
-      console.error('Failed to get PayHere access token:', error.message);
+      console.error(
+        'Failed to get PayHere access token:',
+        error.response ? JSON.stringify(error.response.data) : error.message
+      );
       throw error;
     }
   }
@@ -134,7 +137,15 @@ class PayHereService {
 
       return response.data.data || [];
     } catch (error) {
-      console.error(`Error looking up payment for order ${orderId}:`, error.message);
+      // PayHere's actual reason (e.g. an access-denied response caused by an
+      // App API key that isn't permissioned/domain-whitelisted for the
+      // Retrieval API) is in the response body, not error.message - log it
+      // so a silently-stuck-Pending subscription is actually diagnosable
+      // from server logs instead of requiring a manual repro.
+      console.error(
+        `Error looking up payment for order ${orderId}:`,
+        error.response ? JSON.stringify(error.response.data) : error.message
+      );
       throw error;
     }
   }

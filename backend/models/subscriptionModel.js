@@ -71,8 +71,20 @@ const subscriptionSchema = new mongoose.Schema(
       required: true,
     },
 
-    /* Payment processor transaction ID */
+    /* Payment processor transaction ID. This is pinned to our own order_id
+     * for the entire lifecycle of the subscription (set once at checkout
+     * initialization, never reassigned) - the return/cancel redirects and
+     * confirm-return polling all look the record up by this value, so it
+     * must stay stable. PayHere's own payment reference is stored
+     * separately in payHerePaymentId below. */
     paymentId: {
+      type: String,
+    },
+
+    /* PayHere's own payment_id for this transaction, from the notify
+     * webhook / Retrieval API - kept purely for reference/support lookups,
+     * never used as a query key. */
+    payHerePaymentId: {
       type: String,
     },
 

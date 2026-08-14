@@ -98,9 +98,11 @@ export const SubscriptionCheckoutScreen = () => {
         throw new Error("Checkout details were incomplete.");
       }
 
-      // PayHere hosted sandbox redirects to localhost:5173/subscription or deep link
-      // We pass localhost:5173/subscription to openAuthSessionAsync so Expo WebBrowser intercepts the redirect URL before phone tries to load localhost
-      const redirectMatchUrl = "http://localhost:5173/subscription";
+      // Must match the actual deep link the backend redirects back to on
+      // success (returnUrl, sent above) - not the web app's dev URL - or
+      // Expo's WebBrowser never recognizes the redirect as "success" and
+      // falls through to the (less reliable) 'dismiss' handling below.
+      const redirectMatchUrl = returnUrl;
 
       const browserResult = await WebBrowser.openAuthSessionAsync(
         launchUrl,
