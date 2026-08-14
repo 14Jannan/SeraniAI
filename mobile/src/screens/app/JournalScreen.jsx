@@ -642,9 +642,9 @@ export const JournalScreen = ({ navigation }) => {
           {/* Mood pill */}
           <TouchableOpacity
             style={[styles.quickPill, { backgroundColor: colors.surface }]}
-            onPress={() => navigation.navigate("JournalMoodPie")}
+            onPress={() => navigation.navigate("JournalMoodPie", { entries })}
           >
-            <Feather name="moon" size={sp(15)} color={colors.primary} />
+            <Feather name="pie-chart" size={sp(15)} color={colors.primary} />
             <Text style={[styles.quickPillText, { color: colors.text }]}>Mood</Text>
           </TouchableOpacity>
 
