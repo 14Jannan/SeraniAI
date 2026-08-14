@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
 import { addUser, updateUser, deleteUser } from "../../api/adminApi";
 import Modal from "../../components/Modal";
+import ConfirmModal from "../../components/ConfirmModal";
 import { useFetchUSers } from "../../hooks/useFetch";
 import { queryClient } from "../../main";
 
@@ -62,6 +63,8 @@ const AdminUsers = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [formError, setFormError] = useState("");
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -100,6 +103,7 @@ const AdminUsers = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setCurrentUser(null);
+    setFormData({ name: "", email: "", password: "", role: "user" });
     setFormError("");
   };
 
@@ -168,14 +172,17 @@ const AdminUsers = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      try {
-        await deleteUser(id);
-        await queryClient.invalidateQueries({ queryKey: ["users"] });
-      } catch (err) {
-        setFormError(err.response?.data?.message || "Failed to delete user.");
-      }
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      setIsDeletingUser(true);
+      await deleteUser(userToDelete._id);
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
+      setUserToDelete(null);
+    } catch (err) {
+      setFormError(err.response?.data?.message || "Failed to delete user.");
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -188,7 +195,7 @@ const AdminUsers = () => {
         {/*Add User Button*/}
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition cursor-pointer"
         >
           <FiPlus /> Add User
         </button>
@@ -236,7 +243,6 @@ const AdminUsers = () => {
                 users.map((user) => {
                   const displayRole =
                     user.role === "enterprise" ? "enterpriseUser" : user.role;
-
                   const roleConfig = getRoleConfig(displayRole);
 
                   return (
@@ -262,14 +268,14 @@ const AdminUsers = () => {
                         <button
                           onClick={() => handleOpenModal(user)}
                           aria-label={`Edit user ${user.name}`}
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-blue-500 hover:text-blue-700 cursor-pointer"
                         >
                           <FiEdit size={18} />
                         </button>
                         <button
-                          onClick={() => handleDelete(user._id)}
+                          onClick={() => setUserToDelete(user)}
                           aria-label={`Delete user ${user.name}`}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 cursor-pointer"
                         >
                           <FiTrash2 size={18} />
                         </button>
@@ -283,6 +289,7 @@ const AdminUsers = () => {
         </div>
       </div>
 
+      {/* Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -356,19 +363,33 @@ const AdminUsers = () => {
             <button
               type="button"
               onClick={handleCloseModal}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer"
             >
               Save
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* Delete User Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(userToDelete)}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={handleConfirmDeleteUser}
+        title="Delete User"
+        message={`Are you sure you want to delete "${userToDelete?.name || "this user"}" (${userToDelete?.email || ""})? All user data and access will be permanently removed. This action cannot be undone.`}
+        confirmText="Delete User"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeletingUser}
+        loadingText="Deleting..."
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStoredToken } from "../../utils/authStorage";
+import ConfirmModal from "../../components/ConfirmModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7001";
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
@@ -121,8 +122,9 @@ export default function AdminCourses() {
   const [initialCourseData, setInitialCourseData] = useState(emptyCourseForm);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [newCategoryName, setNewCategoryName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   // Keep the search value trimmed before sending it to the backend.
   const query = useMemo(() => search.trim(), [search]);
@@ -175,14 +177,15 @@ export default function AdminCourses() {
     !!thumbnail;
 
   // Prevent accidental modal close when there are unsaved edits.
-  const closeCourseModal = () => {
+  const closeCourseModal = (force = false) => {
     if (isSavingCourse) return;
 
-    if (isCourseFormDirty) {
-      const ok = window.confirm("You have unsaved changes. Discard changes?");
-      if (!ok) return;
+    if (!force && isCourseFormDirty) {
+      setShowDiscardConfirm(true);
+      return;
     }
 
+    setShowDiscardConfirm(false);
     setShowModal(false);
     setEditingCourseId(null);
     setFormErrors({});
@@ -323,12 +326,10 @@ export default function AdminCourses() {
     }
   };
 
-  // Delete a course with a confirmation prompt, then remove it from the table.
-  const handleDeleteCourse = async (id, title) => {
-    if (deletingCourseId) return;
-
-    const ok = window.confirm(`Delete course "${title || "this course"}"?`);
-    if (!ok) return;
+  // Delete a course after modal confirmation, then remove it from the table.
+  const handleConfirmDeleteCourse = async () => {
+    if (!courseToDelete || deletingCourseId) return;
+    const id = courseToDelete._id;
 
     try {
       setDeletingCourseId(id);
@@ -349,6 +350,7 @@ export default function AdminCourses() {
       // Remove from UI immediately
       setCourses((prev) => prev.filter((c) => c._id !== id));
       setFeedback({ type: "success", message: "Course deleted successfully" });
+      setCourseToDelete(null);
     } catch (e) {
       console.error(e);
       setFeedback({ type: "error", message: e.message || "Delete failed" });
@@ -746,8 +748,8 @@ export default function AdminCourses() {
 
                         <button
                           disabled={deletingCourseId === c._id}
-                          className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                          onClick={() => handleDeleteCourse(c._id, c.title)}
+                          className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                          onClick={() => setCourseToDelete(c)}
                         >
                           {deletingCourseId === c._id
                             ? "Deleting..."
@@ -920,7 +922,11 @@ export default function AdminCourses() {
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <button disabled={isSavingCourse} onClick={closeCourseModal}>
+              <button
+                disabled={isSavingCourse}
+                onClick={() => closeCourseModal(false)}
+                className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+              >
                 Cancel
               </button>
 
@@ -929,7 +935,7 @@ export default function AdminCourses() {
                 onClick={
                   editingCourseId ? handleUpdateCourse : handleCreateCourse
                 }
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSavingCourse
                   ? editingCourseId
@@ -943,6 +949,32 @@ export default function AdminCourses() {
           </div>
         </div>
       )}
+
+      {/* Discard Unsaved Changes Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={() => closeCourseModal(true)}
+        title="Discard Unsaved Changes"
+        message="You have unsaved changes in this course. Are you sure you want to discard your changes?"
+        confirmText="Discard Changes"
+        cancelText="Keep Editing"
+        variant="warning"
+      />
+
+      {/* Delete Course Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(courseToDelete)}
+        onClose={() => setCourseToDelete(null)}
+        onConfirm={handleConfirmDeleteCourse}
+        title="Delete Course"
+        message={`Are you sure you want to delete "${courseToDelete?.title || "this course"}"? All lessons and enrollments associated with this course may also be affected. This action cannot be undone.`}
+        confirmText="Delete Course"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={Boolean(deletingCourseId)}
+        loadingText="Deleting..."
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchSubscriptions, deleteSubscriptionById } from "../../api/subscriptionApi";
+import ConfirmModal from "../../components/ConfirmModal";
 
 /* Admin page component for managing all user subscriptions */
 const AdminSubscriptions = () => {
@@ -9,6 +10,7 @@ const AdminSubscriptions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [subToDelete, setSubToDelete] = useState(null);
 
   /* Fetch all subscriptions on component mount */
   useEffect(() => {
@@ -36,21 +38,17 @@ const AdminSubscriptions = () => {
     return email.includes(query) || paymentId.includes(query);
   });
 
-  /* Handle subscription deletion with confirmation */
-  const handleDelete = async (subscriptionId) => {
-    const subToDelete = subscriptions.find((sub) => sub._id === subscriptionId);
-    const confirmMessage =
-      subToDelete?.status === "Active"
-        ? "Delete this active subscription? If no other active subscription exists, the user will be downgraded to Free."
-        : "Delete this subscription record?";
-    const ok = window.confirm(confirmMessage);
-    if (!ok) return;
+  /* Execute subscription deletion after modal confirmation */
+  const handleConfirmDelete = async () => {
+    if (!subToDelete) return;
+    const subscriptionId = subToDelete._id;
 
     try {
       setDeletingId(subscriptionId);
       await deleteSubscriptionById(subscriptionId);
       setSubscriptions((prev) => prev.filter((sub) => sub._id !== subscriptionId));
       setError("");
+      setSubToDelete(null);
     } catch {
       setError("Failed to delete subscription");
     } finally {
@@ -130,9 +128,9 @@ const AdminSubscriptions = () => {
                 <td className="p-4">{new Date(sub.endDate).toLocaleDateString()}</td>
                 <td className="p-4">
                   <button
-                    onClick={() => handleDelete(sub._id)}
+                    onClick={() => setSubToDelete(sub)}
                     disabled={deletingId === sub._id}
-                    className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                   >
                     {deletingId === sub._id ? "Deleting..." : "Delete"}
                   </button>
@@ -146,6 +144,24 @@ const AdminSubscriptions = () => {
           <div className="p-6 text-center text-gray-500">No subscriptions found.</div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(subToDelete)}
+        onClose={() => setSubToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Subscription"
+        message={
+          subToDelete?.status === "Active"
+            ? `Delete this active subscription for ${subToDelete?.userId?.email || "this user"}? If no other active subscription exists, the user will be downgraded to Free.`
+            : `Are you sure you want to delete this subscription record for ${subToDelete?.userId?.email || "this user"}?`
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={Boolean(deletingId)}
+        loadingText="Deleting..."
+      />
     </div>
   );
 };

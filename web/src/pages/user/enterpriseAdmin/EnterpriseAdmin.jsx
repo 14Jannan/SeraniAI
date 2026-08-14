@@ -8,6 +8,7 @@ import {
   revokeEnterpriseInvite,
 } from "../../../api/enterpriseAdminApi";
 import Modal from "../../../components/Modal";
+import ConfirmModal from "../../../components/ConfirmModal";
 
 /* Enterprise admin management component for handling users and invitations */
 const EnterpriseAdmin = () => {
@@ -28,6 +29,10 @@ const EnterpriseAdmin = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [memberToRemove, setMemberToRemove] = useState(null);
+  const [isRemovingMember, setIsRemovingMember] = useState(false);
+  const [inviteToStop, setInviteToStop] = useState(null);
+  const [isStoppingInvite, setIsStoppingInvite] = useState(false);
 
   /* Form state for adding and editing users */
   const [addFormData, setAddFormData] = useState({ email: "" });
@@ -135,34 +140,39 @@ const EnterpriseAdmin = () => {
     }
   };
 
-  /* Delete user from enterprise with confirmation */
-  // Delete User
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to remove this user from the enterprise?")) {
-      try {
-        await deleteEnterpriseUser(id);
-        fetchUsers();
-        setError("");
-        setNotice("");
-      } catch (err) {
-        setNotice("");
-        setError(err.response?.data?.message || "Failed to delete user.");
-      }
+  /* Delete user from enterprise after modal confirmation */
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToRemove || isRemovingMember) return;
+    try {
+      setIsRemovingMember(true);
+      await deleteEnterpriseUser(memberToRemove._id);
+      fetchUsers();
+      setError("");
+      setNotice("");
+      setMemberToRemove(null);
+    } catch (err) {
+      setNotice("");
+      setError(err.response?.data?.message || "Failed to remove user.");
+    } finally {
+      setIsRemovingMember(false);
     }
   };
 
-  /* Revoke pending invitation */
-  const handleStopInvite = async (id) => {
-    if (window.confirm("Are you sure you want to stop this invite?")) {
-      try {
-        const response = await revokeEnterpriseInvite(id);
-        setError("");
-        setNotice(response.data?.message || "Invite stopped successfully.");
-        fetchUsers();
-      } catch (err) {
-        setNotice("");
-        setError(err.response?.data?.message || "Failed to stop invite.");
-      }
+  /* Revoke pending invitation after modal confirmation */
+  const handleConfirmStopInvite = async () => {
+    if (!inviteToStop || isStoppingInvite) return;
+    try {
+      setIsStoppingInvite(true);
+      const response = await revokeEnterpriseInvite(inviteToStop.id);
+      setError("");
+      setNotice(response.data?.message || "Invite stopped successfully.");
+      fetchUsers();
+      setInviteToStop(null);
+    } catch (err) {
+      setNotice("");
+      setError(err.response?.data?.message || "Failed to stop invite.");
+    } finally {
+      setIsStoppingInvite(false);
     }
   };
 
@@ -260,14 +270,15 @@ const EnterpriseAdmin = () => {
                           <FiEdit size={18} />
                         </button>
                         <button
-                          onClick={() => handleDelete(user._id)}
+                          onClick={() => setMemberToRemove(user)}
                           disabled={Boolean(user.isOwner)}
                           className={
                             user.isOwner
                               ? "text-gray-400 cursor-not-allowed"
-                              : "text-red-500 hover:text-red-700"
+                              : "text-red-500 hover:text-red-700 cursor-pointer"
                           }
-                          title="Remove"
+                          title="Remove Member"
+                          aria-label={`Remove user ${user.name || ""}`}
                         >
                           <FiTrash2 size={18} />
                         </button>
@@ -313,8 +324,8 @@ const EnterpriseAdmin = () => {
                       <td className="px-6 py-4 text-right">
                         {invite.status === "pending" ? (
                           <button
-                            onClick={() => handleStopInvite(invite.id)}
-                            className="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700 hover:bg-red-200"
+                            onClick={() => setInviteToStop(invite)}
+                            className="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700 hover:bg-red-200 cursor-pointer"
                           >
                             Stop Invite
                           </button>
@@ -421,19 +432,47 @@ const EnterpriseAdmin = () => {
             <button
               type="button"
               onClick={handleCloseEditModal}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer"
             >
               Save Changes
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* Remove Member Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(memberToRemove)}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={handleConfirmRemoveMember}
+        title="Remove Enterprise Member"
+        message={`Are you sure you want to remove "${memberToRemove?.name || memberToRemove?.email || "this user"}" from the enterprise workspace? They will lose access to team resources and revert to a standard user account.`}
+        confirmText="Remove Member"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isRemovingMember}
+        loadingText="Removing..."
+      />
+
+      {/* Stop Invite Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(inviteToStop)}
+        onClose={() => setInviteToStop(null)}
+        onConfirm={handleConfirmStopInvite}
+        title="Revoke Invitation"
+        message={`Are you sure you want to stop and revoke the invitation for "${inviteToStop?.email || "this user"}"? The invitation link will no longer be valid.`}
+        confirmText="Revoke Invite"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isStoppingInvite}
+        loadingText="Revoking..."
+      />
     </div>
   );
 };

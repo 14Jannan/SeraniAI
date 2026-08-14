@@ -9,6 +9,7 @@ import {
   FiThumbsDown,
   FiStar,
 } from "react-icons/fi";
+import ConfirmModal from "../../components/ConfirmModal";
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
 const CLOUDINARY_UPLOAD_PRESET =
@@ -87,6 +88,8 @@ const AdminLessons = () => {
   const [lessonSort, setLessonSort] = useState("order-asc");
   const [videoFilter, setVideoFilter] = useState("all");
   const [thumbnailPreview, setThumbnailPreview] = useState("");
+  const [lessonToDelete, setLessonToDelete] = useState(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const [newLesson, setNewLesson] = useState(emptyLessonForm);
 
@@ -159,14 +162,15 @@ const AdminLessons = () => {
     !!newLesson.thumbnail ||
     !!newLesson.video;
 
-  const closeLessonModal = () => {
+  const closeLessonModal = (force = false) => {
     if (isSavingLesson) return;
 
-    if (isLessonFormDirty) {
-      const ok = window.confirm("You have unsaved changes. Discard changes?");
-      if (!ok) return;
+    if (!force && isLessonFormDirty) {
+      setShowDiscardConfirm(true);
+      return;
     }
 
+    setShowDiscardConfirm(false);
     setShowModal(false);
     setFormErrors({});
     setThumbnailPreview("");
@@ -322,10 +326,9 @@ const AdminLessons = () => {
 
   /* ---------------- DELETE LESSON ---------------- */
 
-  const handleDelete = async (id) => {
-    if (deletingLessonId) return;
-
-    if (!window.confirm("Delete this lesson?")) return;
+  const handleConfirmDeleteLesson = async () => {
+    if (!lessonToDelete || deletingLessonId) return;
+    const id = lessonToDelete._id;
 
     try {
       setDeletingLessonId(id);
@@ -348,6 +351,7 @@ const AdminLessons = () => {
 
       fetchLessons();
       setFeedback({ type: "success", message: "Lesson deleted successfully" });
+      setLessonToDelete(null);
     } catch (err) {
       console.log(err);
       setFeedback({
@@ -608,8 +612,9 @@ const AdminLessons = () => {
 
                 <button
                   disabled={deletingLessonId === lesson._id}
-                  onClick={() => handleDelete(lesson._id)}
-                  className="disabled:opacity-60"
+                  onClick={() => setLessonToDelete(lesson)}
+                  className="text-red-500 hover:text-red-700 disabled:opacity-60 cursor-pointer"
+                  aria-label={`Delete lesson ${lesson.title || ""}`}
                 >
                   {deletingLessonId === lesson._id ? "..." : <FiTrash2 />}
                 </button>
@@ -718,14 +723,18 @@ const AdminLessons = () => {
             ) : null}
 
             <div className="flex justify-end gap-3 mt-5">
-              <button disabled={isSavingLesson} onClick={closeLessonModal}>
+              <button
+                disabled={isSavingLesson}
+                onClick={() => closeLessonModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+              >
                 Cancel
               </button>
 
               <button
                 disabled={isSavingLesson}
                 onClick={handleSaveLesson}
-                className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSavingLesson ? "Saving..." : "Save"}
               </button>
@@ -733,6 +742,32 @@ const AdminLessons = () => {
           </div>
         </div>
       )}
+
+      {/* Discard Unsaved Changes Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={() => closeLessonModal(true)}
+        title="Discard Unsaved Changes"
+        message="You have unsaved changes in this lesson form. Are you sure you want to discard your changes?"
+        confirmText="Discard Changes"
+        cancelText="Keep Editing"
+        variant="warning"
+      />
+
+      {/* Delete Lesson Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(lessonToDelete)}
+        onClose={() => setLessonToDelete(null)}
+        onConfirm={handleConfirmDeleteLesson}
+        title="Delete Lesson"
+        message={`Are you sure you want to delete "${lessonToDelete?.title || "this lesson"}"? This action cannot be undone.`}
+        confirmText="Delete Lesson"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={Boolean(deletingLessonId)}
+        loadingText="Deleting..."
+      />
     </div>
   );
 };

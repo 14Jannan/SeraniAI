@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FiEdit2, FiPlus, FiPower, FiTrash2, FiX } from "react-icons/fi";
+import ConfirmModal from "../../components/ConfirmModal";
 import {
   createTask,
   deleteTask,
@@ -56,6 +57,8 @@ export default function AdminTasks() {
   const [formData, setFormData] = useState(emptyForm);
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
 
   const loadTasks = async () => {
     try {
@@ -181,17 +184,21 @@ export default function AdminTasks() {
     }
   };
 
-  const onDelete = async (id) => {
-    const ok = window.confirm("Delete this task?");
-    if (!ok) return;
+  const handleConfirmDeleteTask = async () => {
+    if (!taskToDelete || isDeletingTask) return;
+    const id = taskToDelete.id;
 
     try {
+      setIsDeletingTask(true);
       setError("");
       await deleteTask(id);
       setTasks((current) => current.filter((task) => task.id !== id));
       setFeedback("Task deleted");
+      setTaskToDelete(null);
     } catch (e) {
       setError(e.message || "Delete failed");
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
@@ -312,9 +319,10 @@ export default function AdminTasks() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => onDelete(task.id)}
-                          className="rounded-md p-2 text-rose-600 transition hover:bg-rose-50"
+                          onClick={() => setTaskToDelete(task)}
+                          className="rounded-md p-2 text-rose-600 transition hover:bg-rose-50 cursor-pointer"
                           title="Delete Task"
+                          aria-label={`Delete task ${task.title || ""}`}
                         >
                           <FiTrash2 />
                         </button>
@@ -454,7 +462,7 @@ export default function AdminTasks() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
+                className="rounded-lg bg-gray-200 dark:bg-gray-700 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
               >
                 Cancel
               </button>
@@ -462,7 +470,7 @@ export default function AdminTasks() {
                 type="button"
                 onClick={onSave}
                 disabled={saving}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-60"
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-60 cursor-pointer"
               >
                 {saving ? "Saving..." : "Save Task"}
               </button>
@@ -470,6 +478,20 @@ export default function AdminTasks() {
           </div>
         </div>
       )}
+
+      {/* Delete Task Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(taskToDelete)}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={handleConfirmDeleteTask}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${taskToDelete?.title || "this task"}"? This action cannot be undone.`}
+        confirmText="Delete Task"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeletingTask}
+        loadingText="Deleting..."
+      />
     </div>
   );
 }

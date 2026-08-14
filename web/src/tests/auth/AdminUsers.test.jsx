@@ -163,12 +163,22 @@ describe("AdminUsers Page", () => {
   });
 
   it("deletes a user after confirmation", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(deleteUser).mockResolvedValueOnce({});
     renderAdminUsers();
 
     fireEvent.click(
       screen.getByRole("button", { name: /delete user alice smith/i }),
+    );
+
+    // Modal dialog is shown
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Are you sure you want to delete "Alice Smith"/i),
+    ).toBeInTheDocument();
+
+    // Confirm deletion in modal
+    fireEvent.click(
+      screen.getByRole("button", { name: /^delete user$/i }),
     );
 
     await waitFor(() => {

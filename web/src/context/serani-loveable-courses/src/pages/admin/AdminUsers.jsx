@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import { getUsers, addUser, updateUser, deleteUser } from '../../api/adminApi';
 import Modal from '../../components/Modal';
+import ConfirmModal from '../../../../components/ConfirmModal';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,14 +73,17 @@ const AdminUsers = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-        try {
-            await deleteUser(id);
-            fetchUsers();
-        } catch (err) {
-            setError('Failed to delete user.');
-        }
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    try {
+      setIsDeletingUser(true);
+      await deleteUser(userToDelete._id);
+      fetchUsers();
+      setUserToDelete(null);
+    } catch (err) {
+      setError('Failed to delete user.');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -121,10 +127,10 @@ const AdminUsers = () => {
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 flex justify-end gap-4">
-                      <button onClick={() => handleOpenModal(user)} className="text-blue-500 hover:text-blue-700"><FiEdit size={18} /></button>
-                      <button onClick={() => handleDelete(user._id)} className="text-red-500 hover:text-red-700"><FiTrash2 size={18} /></button>
-                    </td>
+                      <td className="px-6 py-4 flex justify-end gap-4">
+                        <button onClick={() => handleOpenModal(user)} className="text-blue-500 hover:text-blue-700"><FiEdit size={18} /></button>
+                        <button onClick={() => setUserToDelete(user)} className="text-red-500 hover:text-red-700 cursor-pointer"><FiTrash2 size={18} /></button>
+                      </td>
                   </tr>
                 ))
               )}
@@ -163,6 +169,19 @@ const AdminUsers = () => {
         </form>
       </Modal>
 
+      {/* Delete User Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(userToDelete)}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete User"
+        message={`Are you sure you want to delete "${userToDelete?.name || "this user"}" (${userToDelete?.email || ""})? This action cannot be undone.`}
+        confirmText="Delete User"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeletingUser}
+        loadingText="Deleting..."
+      />
     </div>
   );
 };
