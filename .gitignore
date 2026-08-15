@@ -31,6 +31,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Tool-generated metadata
+.refact/
+
 # Editor / OS files
 .vscode/
 !.vscode/extensions.json
