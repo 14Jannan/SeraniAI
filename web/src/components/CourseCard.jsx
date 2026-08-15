@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play } from "lucide-react";
 import { motion } from "framer-motion";
@@ -5,21 +6,74 @@ import { API_BASE_URL } from "../utils/apiBaseUrl";
 
 const API_URL = API_BASE_URL;
 
-const CourseCard = ({ course, horizontal }) => {
-
-  const navigate = useNavigate();
-
-  const progress = Number.isFinite(Number(course.progress))
-    ? Math.max(0, Math.min(100, Number(course.progress)))
-    : 0;
-
-const handleClick = () => {
-  navigate(`/dashboard/course/${course._id}`, {
-    state: {
-      courseTitle: course.title
+function getStoredCourseProgress(course) {
+  if (Number.isFinite(Number(course?.progress))) {
+    return Math.max(0, Math.min(100, Math.round(Number(course.progress))));
+  }
+  if (!course?._id) return 0;
+  try {
+    const raw = localStorage.getItem(`course-progress-${course._id}`);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw);
+    if (Number.isFinite(Number(parsed?.percentage))) {
+      return Math.max(0, Math.min(100, Math.round(Number(parsed.percentage))));
     }
-  });
-};
+    const completedCount = Array.isArray(parsed?.completedLessons)
+      ? parsed.completedLessons.length
+      : 0;
+    const total =
+      Number(parsed?.totalLessons) || Number(course?.lessonsCount) || 0;
+    if (total > 0 && completedCount > 0) {
+      return Math.max(
+        0,
+        Math.min(100, Math.round((completedCount / total) * 100))
+      );
+    }
+  } catch {
+    return 0;
+  }
+  return 0;
+}
+
+const CourseCard = ({ course, horizontal }) => {
+  const navigate = useNavigate();
+  const [progress, setProgress] = useState(() => getStoredCourseProgress(course));
+
+  useEffect(() => {
+    setProgress(getStoredCourseProgress(course));
+
+    const handleProgressUpdate = (event) => {
+      if (
+        event?.detail?.courseId === course?._id &&
+        Number.isFinite(event?.detail?.percentage)
+      ) {
+        setProgress(
+          Math.max(0, Math.min(100, Math.round(Number(event.detail.percentage))))
+        );
+      } else {
+        setProgress(getStoredCourseProgress(course));
+      }
+    };
+
+    window.addEventListener("serani-course-progress-updated", handleProgressUpdate);
+    window.addEventListener("storage", handleProgressUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "serani-course-progress-updated",
+        handleProgressUpdate
+      );
+      window.removeEventListener("storage", handleProgressUpdate);
+    };
+  }, [course]);
+
+  const handleClick = () => {
+    navigate(`/dashboard/course/${course._id}`, {
+      state: {
+        courseTitle: course.title,
+      },
+    });
+  };
   /* -------- IMAGE FIX -------- */
 
   const imageUrl = course.thumbnailUrl

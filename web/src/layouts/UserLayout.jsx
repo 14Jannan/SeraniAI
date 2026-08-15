@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { getUserSubscription } from '../api/subscriptionApi'
 import { getCurrentUser } from '../api/authApi'
@@ -25,6 +25,11 @@ import NotificationBell from '../components/NotificationBell'
 const UserLayout = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isFixedPage =
+    location.pathname.startsWith('/dashboard/chat') ||
+    location.pathname.startsWith('/dashboard/journal');
 
   const [user, setUser] = useState(() => getStoredUser() || { name: 'User' });
   const [subscription, setSubscription] = useState(null);
@@ -69,7 +74,7 @@ const UserLayout = () => {
           const mergedUser = {
             ...storedUser,
             ...freshUser,
-            profileImage: storedUser.profileImage || freshUser.profileImage || '',
+            profileImage: freshUser.profileImage || storedUser.profileImage || '',
           };
 
           setUser(mergedUser);
@@ -312,11 +317,17 @@ const UserLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="mb-4 flex justify-end">
+      <main
+        className={`flex-1 flex flex-col p-6 min-h-0 ${
+          isFixedPage ? 'h-screen overflow-hidden' : 'overflow-y-auto'
+        }`}
+      >
+        <div className="mb-4 flex justify-end flex-shrink-0">
           <NotificationBell />
         </div>
-        <Outlet />
+        <div className={isFixedPage ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : ''}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );

@@ -55,6 +55,49 @@ const getStoredCourseProgress = (courseId) => {
   }
 };
 
+function formatTimestamp(totalSeconds) {
+  const rounded = Math.max(0, Math.floor(totalSeconds || 0));
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const seconds = rounded % 60;
+  const pad = (num) => String(num).padStart(2, "0");
+
+  if (hours > 0) {
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${pad(minutes)}:${pad(seconds)}`;
+}
+
+function parseTimestampToSeconds(tag) {
+  if (!tag) return null;
+  const clean = tag.replace(/[\[\]]/g, "").trim();
+  const parts = clean.split(":").map(Number);
+  if (parts.some(isNaN)) return null;
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  return null;
+}
+
+function extractTimestampsFromText(text) {
+  if (!text) return [];
+  const regex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
+  const matches = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const rawTag = match[0];
+    const timeStr = match[1];
+    const seconds = parseTimestampToSeconds(timeStr);
+    if (seconds !== null && !matches.some((m) => m.seconds === seconds)) {
+      matches.push({ rawTag, timeStr, seconds });
+    }
+  }
+  return matches.sort((a, b) => a.seconds - b.seconds);
+}
+
 export default function CourseDetails() {
   const { courseId } = useParams();
   const navigate = useNavigate();
@@ -64,6 +107,7 @@ export default function CourseDetails() {
   const [activeLessonIndex, setActiveLessonIndex] = useState(0);
   const [completedLessons, setCompletedLessons] = useState([]);
   const [lessonProgress, setLessonProgress] = useState({});
+  const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("notes");
@@ -75,7 +119,43 @@ export default function CourseDetails() {
   const [lessonDataReady, setLessonDataReady] = useState(false);
   const [derivedDurationSeconds, setDerivedDurationSeconds] = useState({});
   const location = useLocation();
-const courseTitle = location.state?.courseTitle || "Course";
+  const courseTitle = location.state?.courseTitle || "Course";
+
+  const seekToTimestamp = (seconds) => {
+    if (videoRef.current && Number.isFinite(seconds)) {
+      videoRef.current.currentTime = seconds;
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  };
+
+  const insertTimestamp = (targetTab = activeTab) => {
+    const timeSecs = videoRef.current
+      ? Math.floor(videoRef.current.currentTime || 0)
+      : currentVideoTime;
+    const tag = `[${formatTimestamp(timeSecs)}]`;
+
+    if (targetTab === "notes") {
+      setNotes((prev) => {
+        const trimmed = (prev || "").trimEnd();
+        return trimmed ? `${trimmed}\n${tag} ` : `${tag} `;
+      });
+    } else {
+      setJournal((prev) => {
+        const trimmed = (prev || "").trimEnd();
+        return trimmed ? `${trimmed}\n${tag} ` : `${tag} `;
+      });
+    }
+  };
+
+  const activeNotesTimestamps = useMemo(
+    () => extractTimestampsFromText(notes),
+    [notes]
+  );
+  const activeJournalTimestamps = useMemo(
+    () => extractTimestampsFromText(journal),
+    [journal]
+  );
 
   useEffect(() => {
     const restoredProgress = getStoredCourseProgress(courseId);
@@ -87,15 +167,31 @@ const courseTitle = location.state?.courseTitle || "Course";
   useEffect(() => {
     if (!courseId) return;
 
+    const calcPercentage =
+      lessons.length > 0
+        ? Math.round((completedLessons.length / lessons.length) * 100)
+        : 0;
+
     const payload = {
+      courseId,
       completedLessons,
       activeLessonIndex,
       lessonProgress,
+      totalLessons: lessons.length,
+      percentage: calcPercentage,
       updatedAt: new Date().toISOString(),
     };
 
-    localStorage.setItem(getCourseProgressStorageKey(courseId), JSON.stringify(payload));
-  }, [activeLessonIndex, completedLessons, courseId, lessonProgress]);
+    localStorage.setItem(
+      getCourseProgressStorageKey(courseId),
+      JSON.stringify(payload)
+    );
+
+    // Notify other components (CourseCard, Courses list) about progress updates
+    window.dispatchEvent(
+      new CustomEvent("serani-course-progress-updated", { detail: payload })
+    );
+  }, [activeLessonIndex, completedLessons, courseId, lessonProgress, lessons.length]);
 
   useEffect(() => {
     if (!lessons.length) return;
@@ -549,7 +645,11 @@ const courseTitle = location.state?.courseTitle || "Course";
                         videoRef.current.currentTime = resumeAt;
                       }
                     }}
-                    onTimeUpdate={(event) => saveLessonProgress(event.currentTarget.currentTime)}
+                    onTimeUpdate={(event) => {
+                      const curTime = event.currentTarget.currentTime;
+                      setCurrentVideoTime(Math.floor(curTime || 0));
+                      saveLessonProgress(curTime);
+                    }}
                     onEnded={handleVideoEnded}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
@@ -601,7 +701,7 @@ const courseTitle = location.state?.courseTitle || "Course";
                   <span>Lesson {activeLessonIndex + 1} of {lessons.length}</span>
                   <span>•</span>
                   <span className="text-yellow-500">★ 4.9</span>
-                  <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                  <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 font-semibold">
                     Progress {progress}%
                   </span>
                 </div>
@@ -671,14 +771,47 @@ const courseTitle = location.state?.courseTitle || "Course";
               {activeTab === "notes" ? (
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 p-4">
-                    <h3 className="font-semibold text-purple-800 dark:text-purple-300 mb-3">
-                      Your Notes
-                    </h3>
+                    <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                      <h3 className="font-semibold text-purple-800 dark:text-purple-300">
+                        Your Notes
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => insertTimestamp("notes")}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-purple-600 text-white hover:bg-purple-700 active:scale-95 transition shadow-sm"
+                        title="Add current video timestamp to notes"
+                      >
+                        <span>⏱️</span>
+                        <span>Insert [{formatTimestamp(currentVideoTime)}]</span>
+                      </button>
+                    </div>
+
+                    {/* Quick jump pills extracted from notes */}
+                    {activeNotesTimestamps.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 mb-3 p-2.5 rounded-xl bg-purple-100/70 dark:bg-purple-900/20 border border-purple-200/60 dark:border-purple-800/40">
+                        <span className="text-xs font-medium text-purple-800 dark:text-purple-300">
+                          Jump to moments:
+                        </span>
+                        {activeNotesTimestamps.map((item) => (
+                          <button
+                            key={item.rawTag + item.seconds}
+                            type="button"
+                            onClick={() => seekToTimestamp(item.seconds)}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-white dark:bg-gray-800 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition shadow-sm border border-purple-200/50 dark:border-purple-700/50"
+                            title={`Seek video to ${item.timeStr}`}
+                          >
+                            <span>▶</span>
+                            <span>{item.timeStr}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Write the key ideas from this lesson..."
-                      className="w-full h-56 rounded-2xl border border-purple-200 dark:border-purple-800/40 bg-white dark:bg-gray-900 p-4 outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                      placeholder="Write key takeaways or click 'Insert [00:00]' to bookmark moments..."
+                      className="w-full h-56 rounded-2xl border border-purple-200 dark:border-purple-800/40 bg-white dark:bg-gray-900 p-4 outline-none focus:ring-2 focus:ring-purple-500 resize-none font-sans leading-relaxed"
                     />
                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       {notesSaveState === "saving"
@@ -695,21 +828,54 @@ const courseTitle = location.state?.courseTitle || "Course";
                     </h4>
                     <p className="text-sm text-gray-700 dark:text-gray-300">
                       Self-awareness grows when you notice emotional patterns without judging them.
-                      Use your notes to track repeated triggers, calming techniques, and personal wins.
+                      Use timestamped notes to mark breathing pauses, key exercises, and reflections.
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-pink-50 dark:bg-pink-900/10 border border-pink-100 dark:border-pink-900/30 p-4">
-                    <h3 className="font-semibold text-pink-700 dark:text-pink-300 mb-3">
-                      Reflection Journal
-                    </h3>
+                    <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                      <h3 className="font-semibold text-pink-700 dark:text-pink-300">
+                        Reflection Journal
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => insertTimestamp("journal")}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-pink-600 text-white hover:bg-pink-700 active:scale-95 transition shadow-sm"
+                        title="Add current video timestamp to journal"
+                      >
+                        <span>⏱️</span>
+                        <span>Insert [{formatTimestamp(currentVideoTime)}]</span>
+                      </button>
+                    </div>
+
+                    {/* Quick jump pills extracted from journal */}
+                    {activeJournalTimestamps.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 mb-3 p-2.5 rounded-xl bg-pink-100/70 dark:bg-pink-900/20 border border-pink-200/60 dark:border-pink-800/40">
+                        <span className="text-xs font-medium text-pink-800 dark:text-pink-300">
+                          Jump to moments:
+                        </span>
+                        {activeJournalTimestamps.map((item) => (
+                          <button
+                            key={item.rawTag + item.seconds}
+                            type="button"
+                            onClick={() => seekToTimestamp(item.seconds)}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-white dark:bg-gray-800 text-pink-700 dark:text-pink-300 hover:bg-pink-200 dark:hover:bg-pink-900/60 transition shadow-sm border border-pink-200/50 dark:border-pink-700/50"
+                            title={`Seek video to ${item.timeStr}`}
+                          >
+                            <span>▶</span>
+                            <span>{item.timeStr}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <textarea
                       value={journal}
                       onChange={(e) => setJournal(e.target.value)}
                       placeholder="What did you learn from this lesson? How does it connect to your life?"
-                      className="w-full h-56 rounded-2xl border border-pink-200 dark:border-pink-800/40 bg-white dark:bg-gray-900 p-4 outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+                      className="w-full h-56 rounded-2xl border border-pink-200 dark:border-pink-800/40 bg-white dark:bg-gray-900 p-4 outline-none focus:ring-2 focus:ring-pink-500 resize-none font-sans leading-relaxed"
                     />
                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       {notesSaveState === "saving"

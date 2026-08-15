@@ -6,8 +6,6 @@ const Enrollment = require("../models/enrollmentModel");
 const Course = require("../models/courseModel");
 const Lesson = require("../models/lessonModel");
 const fs = require("fs");
-const path = require("path");
-const axios = require("axios");
 const { saveJournalEntry } = require("../utils/journalUtils");
 const OpenAI = require("openai");
 const { PDFParse } = require("pdf-parse");
@@ -15,6 +13,7 @@ const { generateSystemPrompt } = require("../utils/promptBuilder");
 const ChromaDBService = require("../services/chromaDBService");
 const UserTaskProgress = require("../models/userTaskProgressModel");
 const { Task } = require("../models/taskModel");
+const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
 
 
 
@@ -44,6 +43,26 @@ async function extractTextFromFile(filePath, fileType) {
     console.error("Extraction error:", err);
     return "";
   }
+}
+
+async function uploadChatFileToCloudinary(localFilePath, mimeType, originalName) {
+  if (!isCloudinaryConfigured()) {
+    throw new Error("Cloudinary is not configured on the backend");
+  }
+
+  const options = {
+    folder: "seraniai/chat/uploads",
+    resource_type: "raw",
+    use_filename: true,
+    unique_filename: true,
+    filename_override: originalName,
+  };
+
+  if (mimeType === "text/plain") {
+    options.format = "txt";
+  }
+
+  return cloudinary.uploader.upload(localFilePath, options);
 }
 
 async function isFirstChatOfDay(userId) {
@@ -497,9 +516,21 @@ exports.sendMessage = async (req, res) => {
     let fileMeta = { url: "", type: "" };
 
     if (req.file) {
-      fileMeta.url = "/uploads/" + req.file.filename;
       fileMeta.type = req.file.mimetype;
       fileData = await extractTextFromFile(req.file.path, req.file.mimetype);
+
+      const uploadedFile = await uploadChatFileToCloudinary(
+        req.file.path,
+        req.file.mimetype,
+        req.file.originalname,
+      );
+      fileMeta.url = uploadedFile.secure_url || uploadedFile.url || "";
+
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupErr) {
+        console.warn("Failed to cleanup temporary chat upload:", cleanupErr.message);
+      }
     }
 
     let chat;
@@ -670,6 +701,10 @@ exports.sendMessage = async (req, res) => {
           } else if (toolCall.function.name === "generate_image") {
             const args = JSON.parse(toolCall.function.arguments);
             try {
+              if (!isCloudinaryConfigured()) {
+                throw new Error("Cloudinary is not configured on the backend");
+              }
+
               console.log(`Generating image for prompt: ${args.prompt}`);
               const imageResponse = await openai.images.generate({
                 model: "dall-e-3",
@@ -678,36 +713,20 @@ exports.sendMessage = async (req, res) => {
                 size: "1024x1024",
               });
               const tempImageUrl = imageResponse.data[0].url;
-              
-              // Download and save locally
-              const fileName = `generated-${Date.now()}.png`;
-              const filePath = path.join(__dirname, "..", "uploads", fileName);
-              const response = await axios({
-                url: tempImageUrl,
-                method: 'GET',
-                responseType: 'stream'
-              });
-              
-              const writer = fs.createWriteStream(filePath);
-              response.data.pipe(writer);
-              
-              await new Promise((resolve, reject) => {
-                writer.on('finish', resolve);
-                writer.on('error', reject);
-              });
 
-              const localImageUrl = `/uploads/${fileName}`;
-              const protocol = req.protocol;
-              const host = req.get('host');
-              const fullImageUrl = `${protocol}://${host}${localImageUrl}`;
+              const uploadedImage = await cloudinary.uploader.upload(tempImageUrl, {
+                folder: "seraniai/chat/generated",
+                resource_type: "image",
+              });
+              const generatedImageUrl = uploadedImage.secure_url || uploadedImage.url;
               
               chat.messages.push({
                 role: "tool",
                 tool_call_id: toolCall.id,
-                content: JSON.stringify({ success: true, imageUrl: localImageUrl, message: "Image generated and saved successfully" })
+                content: JSON.stringify({ success: true, imageUrl: generatedImageUrl, message: "Image generated and saved successfully" })
               });
-              // Append the local image to the final reply
-              reply += `\n\n![Generated Image](${fullImageUrl})`;
+              // Append the Cloudinary image to the final reply
+              reply += `\n\n![Generated Image](${generatedImageUrl})`;
             } catch (err) {
               console.error("Image generation error:", err);
               chat.messages.push({

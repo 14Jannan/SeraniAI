@@ -31,6 +31,7 @@ export const resetPassword = (data) =>
   httpClient.post(`${API_URL}/reset-password`, data);
 
 export const getCurrentUser = () => httpClient.get(`${API_URL}/me`);
+export const updateCurrentUser = (data) => httpClient.patch(`${API_URL}/me`, data);
 export const deleteCurrentUser = () => httpClient.delete(`${API_URL}/me`);
 
 export const acceptEnterpriseInvite = (token) =>

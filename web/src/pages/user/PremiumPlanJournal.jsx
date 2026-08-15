@@ -806,9 +806,9 @@ const PremiumPlanJournal = () => {
   }
 
   return (
-    <div className={`w-full h-full p-4 overflow-x-hidden ${theme === "dark" ? "bg-slate-950" : "bg-slate-100"}`}>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 h-full min-w-0">
-        <div className={`rounded-2xl border ${theme === "dark" ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"} p-5 flex flex-col min-h-0 min-w-0`}>
+    <div className={`w-full h-full flex flex-col overflow-hidden p-4 ${theme === "dark" ? "bg-slate-950" : "bg-slate-100"}`}>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 min-w-0 flex-1 min-h-0">
+        <div className={`rounded-2xl border ${theme === "dark" ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"} p-5 flex flex-col min-h-0 min-w-0 h-full`}>
           <div className="flex flex-wrap items-center gap-3">
             <div className={`flex-1 min-w-[220px] rounded-lg border px-3 py-2 flex items-center gap-2 ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-gray-50"}`}>
               <Search size={16} className={theme === "dark" ? "text-gray-400" : "text-gray-500"} />
@@ -895,7 +895,7 @@ const PremiumPlanJournal = () => {
             </div>
           )}
 
-          <div className={`mt-3 flex-1 min-w-0 overflow-y-auto overflow-x-hidden pr-1 ${viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 gap-3" : "space-y-3"}`}>
+          <div className={`mt-3 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pr-1 ${viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 gap-3" : "space-y-3"}`}>
             {loading ? (
               <p className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>Loading journal entries...</p>
             ) : filteredEntries.length === 0 ? (
@@ -999,7 +999,7 @@ const PremiumPlanJournal = () => {
           </div>
         </div>
 
-        <aside className={`rounded-2xl border ${theme === "dark" ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"} p-4 space-y-4 overflow-y-auto overflow-x-hidden min-w-0`}>
+        <aside className={`rounded-2xl border ${theme === "dark" ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"} p-4 space-y-4 overflow-y-auto overflow-x-hidden min-w-0 h-full`}>
           <section className={`rounded-[18px] border p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] ${theme === "dark" ? "border-slate-700 bg-slate-950" : "border-gray-200 bg-white"}`}>
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold">{calendarData.monthLabel}</h4>

@@ -11,6 +11,7 @@ import {
   FiCreditCard,
   FiCheckSquare,
 } from "react-icons/fi";
+import NotificationBell from "../components/NotificationBell";
 
 const AdminLayout = () => {
   const { theme, toggleTheme } = useTheme();
@@ -147,8 +148,25 @@ const AdminLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Header */}
+        <header
+          className={`h-16 flex items-center justify-between px-8 border-b flex-shrink-0 transition-colors duration-300 ${
+            isDark ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+              Admin Portal
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-8">
           <Outlet />
         </div>
       </main>

@@ -27,6 +27,18 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
     }
   };
 
+  const resolveFileUrl = (url) => {
+    if (!url) return "";
+    return url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+  };
+
+  const getAttachmentName = (url) => {
+    if (!url) return "Document";
+    const withoutQuery = url.split("?")[0];
+    const fileName = withoutQuery.split("/").pop() || "";
+    return fileName.split("-").slice(1).join("-") || fileName || "Document";
+  };
+
   const renderMessageContent = (content) => {
     if (!content) return null;
 
@@ -331,7 +343,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                             </div>
                             <div className="flex flex-col min-w-0">
                               <span className="text-xs font-bold truncate">
-                                {msg.fileUrl.split("/").pop().split("-").slice(1).join("-") || "Document"}
+                                {getAttachmentName(msg.fileUrl)}
                               </span>
                               <span className="text-[10px] opacity-70 font-bold uppercase tracking-widest">
                                 {msg.fileType?.split("/")[1] || "File"}
@@ -339,7 +351,7 @@ function MessageList({ messages = [], loading = false, onEditMessage = null }) {
                             </div>
                           </div>
                           <a
-                            href={`${API_BASE_URL}${msg.fileUrl}`}
+                            href={resolveFileUrl(msg.fileUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all"

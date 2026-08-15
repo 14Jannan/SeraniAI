@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
-import { getCurrentUser, deleteCurrentUser } from '../../api/authApi';
+import { getCurrentUser, updateCurrentUser, deleteCurrentUser } from '../../api/authApi';
 import { getUserSubscription } from '../../api/subscriptionApi';
 import { Sun, Moon, User, Save, LogOut, CreditCard, ChevronRight, Upload } from 'lucide-react';
 import {
@@ -25,6 +25,7 @@ const Settings = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [selectedProfileImageFile, setSelectedProfileImageFile] = useState(null);
 
   const [formData, setFormData] = useState({
     displayName: getStoredUser()?.name || '',
@@ -40,7 +41,7 @@ const Settings = () => {
           const mergedUser = {
             ...storedUser,
             ...response.data,
-            profileImage: storedUser.profileImage || response.data.profileImage || '',
+            profileImage: response.data.profileImage || storedUser.profileImage || '',
           };
 
           setUser(mergedUser);
@@ -94,15 +95,42 @@ const Settings = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setFormData((prev) => ({
-        ...prev,
-        profileImage: String(reader.result || ''),
-      }));
-    };
-    reader.readAsDataURL(file);
+    setSelectedProfileImageFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setFormData((prev) => ({
+      ...prev,
+      profileImage: previewUrl,
+    }));
     e.target.value = '';
+  };
+
+  const uploadProfileImageToCloudinary = async (file) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error('Cloudinary is not configured in the web app');
+    }
+
+    const body = new FormData();
+    body.append('file', file);
+    body.append('upload_preset', uploadPreset);
+    body.append('folder', 'seraniai/users/profile');
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body,
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || 'Cloudinary upload failed');
+    }
+
+    return response.json();
   };
 
   const handleSaveProfile = async () => {
@@ -116,10 +144,23 @@ const Settings = () => {
         return;
       }
 
+      let profileImageUrl = formData.profileImage || '';
+      if (selectedProfileImageFile) {
+        const uploadResult = await uploadProfileImageToCloudinary(selectedProfileImageFile);
+        profileImageUrl = uploadResult.secure_url || uploadResult.url || '';
+      }
+
+      const response = await updateCurrentUser({
+        name: trimmedDisplayName,
+        profileImage: profileImageUrl,
+      });
+      const savedUser = response?.data || {};
+
       const updatedUser = {
         ...(user || {}),
-        name: trimmedDisplayName,
-        profileImage: formData.profileImage || '',
+        ...savedUser,
+        name: savedUser.name || trimmedDisplayName,
+        profileImage: savedUser.profileImage || profileImageUrl,
       };
 
       setUser(updatedUser);
@@ -138,6 +179,7 @@ const Settings = () => {
       );
 
       setSaveMessage('Profile updated successfully!');
+      setSelectedProfileImageFile(null);
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
       setSaveMessage('Failed to save profile');
@@ -300,7 +342,10 @@ const Settings = () => {
                 {formData.profileImage && (
                   <button
                     type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, profileImage: '' }))}
+                    onClick={() => {
+                      setSelectedProfileImageFile(null);
+                      setFormData((prev) => ({ ...prev, profileImage: '' }));
+                    }}
                     className={`px-4 py-2 rounded-lg border transition ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
                   >
                     Remove image

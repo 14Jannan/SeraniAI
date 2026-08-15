@@ -124,6 +124,7 @@ export default function AdminCourses() {
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [courseToDelete, setCourseToDelete] = useState(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
@@ -316,6 +317,7 @@ export default function AdminCourses() {
       setThumbnail(null);
       setThumbnailPreview("");
       setFeedback({ type: "success", message: "Course created successfully" });
+      window.dispatchEvent(new CustomEvent("serani:refresh-notifications"));
     } catch (error) {
       console.error(error);
       setFeedback({
