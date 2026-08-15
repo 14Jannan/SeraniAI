@@ -29,6 +29,7 @@ const {
   acceptEnterpriseInvite,
   cancelEnterprisePremiumAccess,
   updateOnboarding,
+  updateProfile,
   generateAuthTokens,
   setRefreshCookie,
 } = require("../controllers/authController");
@@ -62,6 +63,7 @@ router.post("/logout", logoutUser);
 router.get("/oauth/:provider/token", protect, getOAuthProviderToken);
 router.get("/me", protect, getCurrentUser);
 router.delete("/me", protect, deleteCurrentUser);
+router.put("/profile", protect, updateProfile);
 router.post("/invites/accept", protect, acceptEnterpriseInvite);
 router.post("/enterprise/cancel-premium", protect, cancelEnterprisePremiumAccess);
 router.post(

@@ -649,6 +649,49 @@ exports.updateOnboarding = async (req, res) => {
 };
 
 
+// @desc    Update user profile and preferences
+// @route   PUT /api/auth/profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const { name, profileImage, preferences } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (name) user.name = name;
+    
+    // Allow updating profile images if needed later, but focusing on preferences
+    if (preferences) {
+      user.preferences = {
+        ...user.preferences,
+        ...preferences
+      };
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        preferences: user.preferences
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update profile" });
+  }
+};
+
 // Exported so authRoutes.js (OAuth callback handlers) can reuse the exact
 // same token-generation and cookie logic instead of duplicating it.
 exports.generateAuthTokens = generateAuthTokens;

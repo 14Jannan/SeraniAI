@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import * as chatApi from "../../api/chatApi";
+import * as DocumentPicker from "expo-document-picker";
 
 const DRAWER_WIDTH = 280;
 
@@ -32,6 +33,7 @@ export const AIChatbotScreen = () => {
   const [history, setHistory] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const flatListRef = useRef(null);
@@ -63,6 +65,7 @@ export const AIChatbotScreen = () => {
     setMessages([]);
     setActiveSessionId(null);
     setIsDrawerOpen(false);
+    setSelectedFile(null);
   };
 
   const handleOpenSession = async (sessionId) => {
@@ -106,14 +109,38 @@ export const AIChatbotScreen = () => {
     );
   };
 
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "text/plain"],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedFile(result.assets[0]);
+      }
+    } catch (err) {
+      console.error("Error picking document:", err);
+      Alert.alert("Error", "Could not pick the document.");
+    }
+  };
+
   const handleSend = async () => {
     const cleanText = input.trim();
-    if (!cleanText || loading) return;
+    if ((!cleanText && !selectedFile) || loading) return;
 
     // Show user message immediately
-    const userMsg = { id: Date.now().toString(), role: "user", content: cleanText, createdAt: new Date().toISOString() };
+    const userMsg = { 
+      id: Date.now().toString(), 
+      role: "user", 
+      content: cleanText || `Uploaded file: ${selectedFile.name}`, 
+      createdAt: new Date().toISOString() 
+    };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    const fileToSend = selectedFile;
+    setSelectedFile(null);
 
     try {
       setLoading(true);
@@ -123,6 +150,14 @@ export const AIChatbotScreen = () => {
       formData.append("localDate", new Date().toDateString());
       if (activeSessionId) {
         formData.append("sessionId", activeSessionId);
+      }
+      
+      if (fileToSend) {
+        formData.append("file", {
+          uri: fileToSend.uri,
+          name: fileToSend.name,
+          type: fileToSend.mimeType || "application/pdf"
+        });
       }
 
       const res = await chatApi.sendMessage(formData);
@@ -396,12 +431,12 @@ export const AIChatbotScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top", "bottom"]}>
       {renderHeader()}
       
       <KeyboardAvoidingView
         style={styles.chatArea}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         {messages.length === 0 ? (
@@ -431,33 +466,49 @@ export const AIChatbotScreen = () => {
           </View>
         )}
 
+        {selectedFile && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceAlt, padding: 8, marginHorizontal: 12, marginBottom: 8, borderRadius: 8 }}>
+            <Feather name="file-text" size={16} color={colors.primary} />
+            <Text style={{ flex: 1, marginLeft: 8, fontSize: 13, color: colors.text }} numberOfLines={1}>
+              {selectedFile.name}
+            </Text>
+            <TouchableOpacity onPress={() => setSelectedFile(null)} style={{ padding: 4 }}>
+              <Feather name="x" size={16} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+        )}
           <View style={[styles.inputArea, { backgroundColor: colors.background, borderTopColor: "transparent" }]}> 
-          <TextInput
-            style={[styles.input, { backgroundColor: "rgba(255,255,255,0.92)", color: colors.text }]}
-            placeholder="Ask SeraniAI something..."
-            placeholderTextColor={colors.muted}
-            value={input}
-            onChangeText={setInput}
-            multiline
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-          />
+            <View style={[styles.inputWrapper, { backgroundColor: "rgba(255,255,255,0.92)" }]}>
+              <TouchableOpacity style={styles.attachBtn} onPress={pickDocument}>
+                <Feather name="plus" size={24} color={colors.muted} />
+              </TouchableOpacity>
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="Ask SeraniAI something..."
+                placeholderTextColor={colors.muted}
+                value={input}
+                onChangeText={setInput}
+                multiline
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
+                blurOnSubmit={false}
+              />
+            </View>
           <TouchableOpacity
             style={[
               styles.sendBtn,
               {
-                backgroundColor: input.trim() && !loading ? colors.primary : colors.surfaceAlt,
-                opacity: input.trim() && !loading ? 1 : 0.6
+                backgroundColor: (input.trim() || selectedFile) && !loading ? colors.primary : colors.surfaceAlt,
+                opacity: (input.trim() || selectedFile) && !loading ? 1 : 0.6
               }
             ]}
             onPress={handleSend}
-            disabled={!input.trim() || loading}
+            disabled={!(input.trim() || selectedFile) || loading}
           >
             <Feather
               name="send"
               size={20}
-              color={input.trim() && !loading ? "#fff" : colors.muted}
+              color={(input.trim() || selectedFile) && !loading ? "#fff" : colors.muted}
             />
           </TouchableOpacity>
         </View>
@@ -602,12 +653,24 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: 0,
   },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    minHeight: 40,
+    maxHeight: 120,
+  },
+  attachBtn: {
+    padding: 8,
+    paddingLeft: 12,
+  },
   input: {
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
-    borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
+    paddingRight: 16,
     paddingVertical: 8,
     fontSize: 15,
   },

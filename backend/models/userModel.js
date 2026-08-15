@@ -116,6 +116,8 @@ const userSchema = new mongoose.Schema({
     goals: { type: String, default: "" },
     expectations: { type: String, default: "" },
     communicationStyle: { type: String, default: "Professional" },
+    knowledgeLevel: { type: String, default: "Beginner" },
+    currentFocus: { type: String, default: "" },
   },
 
   createdAt: { type: Date, default: Date.now },

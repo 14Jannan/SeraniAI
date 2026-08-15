@@ -42,7 +42,7 @@ export const LoginScreen = ({ navigation }) => {
     {
       key: "github",
       label: "GitHub",
-      icon: <AntDesign name="github" size={20} color="#111827" />,
+      icon: <AntDesign name="github" size={20} color={colors.text} />,
     },
     {
       key: "facebook",
@@ -90,9 +90,8 @@ export const LoginScreen = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView 
-      behavior="padding"
-      enabled={Platform.OS === "ios"}
-      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
         style={styles.scrollView}
@@ -100,8 +99,8 @@ export const LoginScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-      <View style={styles.heroCircleLarge} />
-      <View style={styles.heroCircleSmall} />
+      <View style={[styles.heroCircleLarge, { backgroundColor: mode === 'light' ? "#DBEAFE" : "rgba(59,130,246,0.10)" }]} />
+      <View style={[styles.heroCircleSmall, { backgroundColor: mode === 'light' ? "#E9D5FF" : "rgba(168,85,247,0.10)" }]} />
 
       <View style={styles.topRow}>
         <Text style={[styles.topBrand, { color: colors.text }]}>SeraniAI</Text>

@@ -140,12 +140,12 @@ const UserLayout = () => {
     { name: 'Subscription', icon: <FiCreditCard />, path: '/subscription' },
     ...(user?.role === 'enterpriseAdmin'
       ? [
-          {
-            name: 'Enterprise Manager',
-            icon: <FiUsers />,
-            path: '/dashboard/enterprise-manager',
-          },
-        ]
+        {
+          name: 'Enterprise Manager',
+          icon: <FiUsers />,
+          path: '/dashboard/enterprise-manager',
+        },
+      ]
       : []),
   ];
 
@@ -261,19 +261,17 @@ const UserLayout = () => {
               </div>
 
               {showProfileMenu && (
-                <div className={`absolute inset-x-0 bottom-full mb-3 rounded-2xl shadow-2xl border overflow-hidden z-20 transition-colors duration-300 ${
-                  isDark
+                <div className={`absolute inset-x-0 bottom-full mb-3 rounded-2xl shadow-2xl border overflow-hidden z-20 transition-colors duration-300 ${isDark
                     ? 'bg-[#0f172a] border-slate-700 text-white'
                     : 'bg-white border-gray-200 text-gray-900'
-                }`}>
+                  }`}>
                   <button
                     onClick={() => {
                       navigate('/dashboard/settings');
                       setShowProfileMenu(false);
                     }}
-                    className={`w-full text-left px-4 py-3 transition-colors ${
-                      isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
-                    }`}
+                    className={`w-full text-left px-4 py-3 transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
+                      }`}
                   >
                     <div className="font-medium text-inherit">Settings</div>
                     <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Profile & preferences</div>
@@ -283,9 +281,8 @@ const UserLayout = () => {
                       navigate('/subscription');
                       setShowProfileMenu(false);
                     }}
-                    className={`w-full text-left px-4 py-3 transition-colors ${
-                      isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
-                    }`}
+                    className={`w-full text-left px-4 py-3 transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
+                      }`}
                   >
                     <div className="font-medium text-inherit">Upgrade to Pro</div>
                     <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Unlock premium features</div>

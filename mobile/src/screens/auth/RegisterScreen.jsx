@@ -11,6 +11,7 @@ import {
   Image,
   Platform,
   useWindowDimensions,
+  KeyboardAvoidingView,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
@@ -37,7 +38,7 @@ export const RegisterScreen = ({ navigation }) => {
 
   const socialLogins = [
     { key: "google", label: "Google", icon: <AntDesign name="google" size={20} color="#4285F4" /> },
-    { key: "github", label: "GitHub", icon: <AntDesign name="github" size={20} color="#111827" /> },
+    { key: "github", label: "GitHub", icon: <AntDesign name="github" size={20} color={colors.text} /> },
     { key: "facebook", label: "Facebook", icon: <FontAwesome name="facebook-square" size={20} color="#1877F2" /> },
   ];
 
@@ -83,12 +84,17 @@ export const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
-      <View style={styles.heroCircleLarge} />
-      <View style={styles.heroCircleSmall} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+        keyboardShouldPersistTaps="handled"
+      >
+      <View style={[styles.heroCircleLarge, { backgroundColor: mode === 'light' ? "#DBEAFE" : "rgba(59,130,246,0.10)" }]} />
+      <View style={[styles.heroCircleSmall, { backgroundColor: mode === 'light' ? "#E9D5FF" : "rgba(168,85,247,0.10)" }]} />
 
       <View style={styles.topRow}>
         <Text style={[styles.topBrand, { color: colors.text }]}>SeraniAI</Text>
@@ -222,11 +228,12 @@ export const RegisterScreen = ({ navigation }) => {
         </View>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, justifyContent: "center" },
+  container: { flexGrow: 1, padding: 20, paddingTop: 40, paddingBottom: 60 },
   scrollView: { flex: 1 },
   heroCircleLarge: {
     position: "absolute", top: -80, right: -50,

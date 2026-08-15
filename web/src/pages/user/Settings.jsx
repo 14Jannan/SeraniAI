@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
-import { getCurrentUser, deleteCurrentUser } from '../../api/authApi';
+import { getCurrentUser, deleteCurrentUser, updateProfile } from '../../api/authApi';
 import { getUserSubscription } from '../../api/subscriptionApi';
 import { Sun, Moon, User, Save, LogOut, CreditCard, ChevronRight, Upload } from 'lucide-react';
 import {
@@ -29,6 +29,11 @@ const Settings = () => {
   const [formData, setFormData] = useState({
     displayName: getStoredUser()?.name || '',
     profileImage: getStoredUser()?.profileImage || '',
+    goals: getStoredUser()?.preferences?.goals || '',
+    profession: getStoredUser()?.preferences?.profession || '',
+    communicationStyle: getStoredUser()?.preferences?.communicationStyle || 'Professional',
+    knowledgeLevel: getStoredUser()?.preferences?.knowledgeLevel || 'Beginner',
+    currentFocus: getStoredUser()?.preferences?.currentFocus || '',
   });
 
   useEffect(() => {
@@ -47,6 +52,11 @@ const Settings = () => {
           setFormData({
             displayName: mergedUser.name || '',
             profileImage: mergedUser.profileImage || '',
+            goals: mergedUser.preferences?.goals || '',
+            profession: mergedUser.preferences?.profession || '',
+            communicationStyle: mergedUser.preferences?.communicationStyle || 'Professional',
+            knowledgeLevel: mergedUser.preferences?.knowledgeLevel || 'Beginner',
+            currentFocus: mergedUser.preferences?.currentFocus || '',
           });
 
           saveAuthSession({
@@ -116,16 +126,30 @@ const Settings = () => {
         return;
       }
 
-      const updatedUser = {
-        ...(user || {}),
+      const updateData = {
         name: trimmedDisplayName,
         profileImage: formData.profileImage || '',
+        preferences: {
+          goals: formData.goals,
+          profession: formData.profession,
+          communicationStyle: formData.communicationStyle,
+          knowledgeLevel: formData.knowledgeLevel,
+          currentFocus: formData.currentFocus,
+        }
       };
+
+      const response = await updateProfile(updateData);
+      const updatedUser = { ...(user || {}), ...response.data.user, profileImage: updateData.profileImage };
 
       setUser(updatedUser);
       setFormData({
         displayName: updatedUser.name || '',
         profileImage: updatedUser.profileImage || '',
+        goals: updatedUser.preferences?.goals || '',
+        profession: updatedUser.preferences?.profession || '',
+        communicationStyle: updatedUser.preferences?.communicationStyle || 'Professional',
+        knowledgeLevel: updatedUser.preferences?.knowledgeLevel || 'Beginner',
+        currentFocus: updatedUser.preferences?.currentFocus || '',
       });
 
       saveAuthSession({
@@ -336,16 +360,101 @@ const Settings = () => {
             </div>
 
             <div className={`rounded-lg border px-4 py-3 text-sm ${isDark ? 'border-gray-700 bg-gray-900/40 text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'}`}>
-              Only your display name and profile image can be edited here.
+              Manage your profile and personalization settings below.
             </div>
+          </div>
+        </div>
 
+        {/* Personalization Section */}
+        <div className={`mb-8 p-6 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
+              <User size={20} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <h2 className="text-xl font-bold">AI Personalization</h2>
+          </div>
+          
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Primary Goals
+              </label>
+              <input
+                type="text"
+                name="goals"
+                value={formData.goals}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                placeholder="e.g. Learn React, Prepare for Interviews"
+              />
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Study / Work
+              </label>
+              <input
+                type="text"
+                name="profession"
+                value={formData.profession}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                placeholder="e.g. IT Student, Software Engineer"
+              />
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Communication Style
+              </label>
+              <select
+                name="communicationStyle"
+                value={formData.communicationStyle}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              >
+                <option value="Professional">Professional & Formal</option>
+                <option value="Friendly">Friendly & Supportive</option>
+                <option value="Simple">Simple English & Short Explanations</option>
+                <option value="Direct">Direct & Code-heavy</option>
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Knowledge Level
+              </label>
+              <select
+                name="knowledgeLevel"
+                value={formData.knowledgeLevel}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              >
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Expert">Expert</option>
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Current Focus Area
+              </label>
+              <input
+                type="text"
+                name="currentFocus"
+                value={formData.currentFocus}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                placeholder="e.g. Debugging a Node API"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end border-t pt-6 dark:border-gray-700">
             <button
               onClick={handleSaveProfile}
               disabled={isSaving}
               className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={18} />
-              {isSaving ? 'Saving...' : 'Save Profile'}
+              {isSaving ? 'Saving...' : 'Save All Settings'}
             </button>
           </div>
         </div>

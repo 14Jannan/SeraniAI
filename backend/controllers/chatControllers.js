@@ -545,13 +545,11 @@ exports.sendMessage = async (req, res) => {
     const isAskingAboutToday = lowerMsg.includes("today") || lowerMsg.includes("now") || lowerMsg.includes("current");
 
     try {
-      // 1. Search journals for context (Skip past journals if explicitly asking about today)
-      if (!isAskingAboutToday) {
-        const journalData = await chromadb.search(clean, "journals", 3, { userId: userId.toString() });
-        if (journalData && journalData.results && journalData.results.length > 0) {
-          const docs = journalData.results.map(r => r.document);
-          searchContext += "PAST JOURNALS (for background context):\n" + docs.join("\n") + "\n\n";
-        }
+      // 1. Search journals for context
+      const journalData = await chromadb.search(clean, "journals", 3, { userId: userId.toString() });
+      if (journalData && journalData.results && journalData.results.length > 0) {
+        const docs = journalData.results.map(r => r.document);
+        searchContext += "PAST JOURNALS (for background context):\n" + docs.join("\n") + "\n\n";
       }
 
       // 2. Search past chat messages for memory

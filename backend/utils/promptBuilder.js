@@ -18,14 +18,16 @@ function generateSystemPrompt(roleKey, user, context = "", isNewChat = false, lo
 
   // Construct personalization snippet
   let personalization = "";
-  if (preferences.profession || preferences.goals) {
+  if (preferences.profession || preferences.goals || preferences.currentFocus) {
     personalization = `\n# USER PROFILE & CONTEXT
-- Profession: ${preferences.profession || "Not specified"}
-- Interests: ${preferences.interests?.join(", ") || "Not specified"}
+- Profession / Study: ${preferences.profession || "Not specified"}
 - Core Goals: ${preferences.goals || "Not specified"}
-- Expectations from AI: ${preferences.expectations || "Not specified"}
-- Communication Style: ${preferences.communicationStyle || "Supportive"}
-- Use this information to tailor your advice, suggestions, and tone. If they are a professional in a specific field, use relevant analogies.
+- Current Focus Area: ${preferences.currentFocus || "Not specified"}
+- Knowledge Level: ${preferences.knowledgeLevel || "Beginner"}
+- Communication Style: ${preferences.communicationStyle || "Professional"}
+- Use this information to tailor your advice, suggestions, and tone. 
+- If they are a beginner, explain step-by-step. If they are an expert, be direct and advanced. 
+- Always keep their Current Focus Area in mind to understand the immediate context of their queries.
 `;
   }
 
@@ -58,6 +60,7 @@ ${greetingInstruction}
 # CRITICAL RULES
 1. **STRICT DATE CONTROL**: Treat CURRENT_DATE as absolute truth. Today is ${currentLocal}. Never guess today's date.
 2. **RESPONSE STYLE**: Be clear, short, and factual. Do not invent explanations. If a user uploads a file, prioritize answering based on that file.
+3. **WORK & SCHEDULES**: If the user asks about their work or schedule today, check BOTH their calendar events AND their journal entries (both today's and past journals) for any mentioned tasks or work. Do not assume they have no work just because the calendar is empty if their journals mention work.
 
 # TONE & STYLE
 - Tone: ${adaptiveTone}
