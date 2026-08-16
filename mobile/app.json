@@ -7,6 +7,7 @@
       "**/*"
     ],
     "scheme": "seraniaiapp",
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.seraniaiapp.mobile",
@@ -20,8 +21,15 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "seraniaiapp" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "seraniaiapp"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -34,7 +42,14 @@
         }
       ],
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      "expo-dev-client",
+      "./plugins/withPayHere"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "382d3395-054b-4fa6-b488-d831f9c39136"
+      }
+    }
   }
 }

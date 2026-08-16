@@ -453,6 +453,35 @@ exports.initializePayHerePayment = async (req, res) => {
       hash,
     };
 
+    // For the mobile app's native PayHere SDK (@payhere/payhere-mobilesdk-reactnative).
+    // Unlike the web/hosted-checkout `payload` above, PayHere's own SDK
+    // takes no `hash` field at all - it authenticates the request by the
+    // calling app's registered package identity (the "com.seraniaiapp.mobile"
+    // App entry in the PayHere dashboard) instead of a merchant-secret MD5
+    // signature, so there's no domain/hash to get wrong here. It also
+    // reports success/error/dismiss straight back into the app via JS
+    // callbacks, so return_url/cancel_url are irrelevant to it - only
+    // notify_url still matters, for the same server-to-server webhook
+    // verification used everywhere else (handlePayHereNotify).
+    const nativePayload = {
+      sandbox: (process.env.PAYHERE_ENV || "sandbox").toLowerCase() !== "live",
+      merchant_id: payload.merchant_id,
+      notify_url: payload.notify_url,
+      order_id: payload.order_id,
+      items: payload.items,
+      currency: payload.currency,
+      amount: payload.amount,
+      first_name: payload.first_name,
+      last_name: payload.last_name,
+      email: payload.email,
+      phone: payload.phone,
+      address: payload.address,
+      city: payload.city,
+      country: payload.country,
+      custom_1: payload.custom_1,
+      custom_2: payload.custom_2,
+    };
+
     const { startDate, endDate } = getMonthRange();
     await Subscription.findOneAndUpdate(
       { paymentId: orderId },
@@ -480,8 +509,18 @@ exports.initializePayHerePayment = async (req, res) => {
 
     return res.status(200).json({
       actionUrl,
-      checkoutUrl: `/api/billing/payhere/launch/${encodeURIComponent(orderId)}`,
+      // Absolute, and always on serverBase (BACKEND_URL / the public
+      // domain PayHere is told about for return_url/notify_url) - not a
+      // bare path. Mobile resolves this with `new URL(checkoutUrl,
+      // getApiBaseUrl())`, and getApiBaseUrl() is the phone's LAN-detected
+      // address, which PayHere has never heard of and can't authorize a
+      // checkout form submitted from. An absolute URL here overrides that
+      // base entirely, so the in-app browser always loads the launch page
+      // (and therefore submits the PayHere form) from the same domain
+      // that's actually registered in the PayHere dashboard.
+      checkoutUrl: `${serverBase}/api/billing/payhere/launch/${encodeURIComponent(orderId)}`,
       payload,
+      nativePayload,
     });
   } catch (error) {
     return res.status(500).json({ error: "Payment initialization failed" });

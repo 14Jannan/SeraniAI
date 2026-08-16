@@ -8,12 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
+import PayHere from "@payhere/payhere-mobilesdk-reactnative";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import subscriptionApi from "../../api/subscriptionApi";
-import { getApiBaseUrl } from "../../api/baseUrl";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -35,6 +33,37 @@ const PLAN_META = {
 };
 
 const formatCurrency = (amount) => `LKR ${Number(amount || 0).toLocaleString("en-LK")}`;
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* PayHere's onCompleted callback firing is not itself proof of payment -
+ * it just means the native sheet reported success back to this device.
+ * confirmPayHereReturn on the backend is the source of truth (it verifies
+ * against PayHere's own webhook / Retrieval API, re-checking the amount),
+ * and can briefly still say "pending" right after onCompleted fires if the
+ * notify webhook hasn't landed yet. Poll a few times instead of taking the
+ * first answer at face value - this is what "Payment complete" below
+ * actually depends on being true. */
+const CONFIRM_POLL_ATTEMPTS = 5;
+const CONFIRM_POLL_DELAY_MS = 1500;
+
+const confirmPaymentWithRetry = async (orderId) => {
+  let lastData = null;
+  for (let attempt = 0; attempt < CONFIRM_POLL_ATTEMPTS; attempt += 1) {
+    try {
+      lastData = await subscriptionApi.confirmReturn(orderId);
+      if (!lastData?.pending) {
+        return { confirmed: true, data: lastData };
+      }
+    } catch {
+      lastData = null;
+    }
+    if (attempt < CONFIRM_POLL_ATTEMPTS - 1) {
+      await wait(CONFIRM_POLL_DELAY_MS);
+    }
+  }
+  return { confirmed: false, data: lastData };
+};
 
 export const SubscriptionCheckoutScreen = () => {
   const navigation = useNavigation();
@@ -79,75 +108,66 @@ export const SubscriptionCheckoutScreen = () => {
       setError("");
 
       const checkoutSeats = planId === "business" ? Math.max(5, seats) : 1;
-      const returnUrl = Linking.createURL("subscription?payment=success");
-      const cancelUrl = Linking.createURL("subscription?payment=cancelled");
 
+      // No returnUrl/cancelUrl needed here anymore - PayHere.startPayment
+      // reports success/error/dismiss straight back into this screen via
+      // its own callbacks, so there's no browser redirect or deep link to
+      // arrange (see nativePayload built server-side in
+      // initializePayHerePayment).
       const result = await subscriptionApi.initializeCheckout({
         planId,
         seats: checkoutSeats,
-        returnUrl,
-        cancelUrl,
       });
 
       const orderId = result?.payload?.order_id || result?.payload?.orderId;
-      const launchUrl = result?.checkoutUrl
-        ? new URL(result.checkoutUrl, getApiBaseUrl()).toString()
-        : null;
+      const nativePayload = result?.nativePayload;
 
-      if (!launchUrl || !orderId) {
+      if (!nativePayload || !orderId) {
         throw new Error("Checkout details were incomplete.");
       }
 
-      // Must match the actual deep link the backend redirects back to on
-      // success (returnUrl, sent above) - not the web app's dev URL - or
-      // Expo's WebBrowser never recognizes the redirect as "success" and
-      // falls through to the (less reliable) 'dismiss' handling below.
-      const redirectMatchUrl = returnUrl;
-
-      const browserResult = await WebBrowser.openAuthSessionAsync(
-        launchUrl,
-        redirectMatchUrl,
-      );
-
-      const returnedUrl = browserResult?.url || "";
-      const parsed = returnedUrl ? Linking.parse(returnedUrl) : null;
-      const paymentState = parsed?.queryParams?.payment;
-
-      if (browserResult?.type === "success" || paymentState === "success") {
-        try {
-          await subscriptionApi.confirmReturn(orderId);
-        } catch {
-          // Handled on backend
-        }
-        await refreshUser?.();
-        Alert.alert("Payment complete", "Your subscription is now active.");
-        navigation.navigate("SubscriptionHome");
-        return;
-      }
-
-      if (browserResult?.type === "dismiss" || browserResult?.type === "cancel") {
-        try {
-          await subscriptionApi.confirmReturn(orderId);
+      PayHere.startPayment(
+        nativePayload,
+        async () => {
+          // Completed - still confirm against the backend before telling
+          // the user their plan is active (see comment above CONFIRM_POLL_*).
+          const { confirmed } = await confirmPaymentWithRetry(orderId);
           await refreshUser?.();
-          Alert.alert("Payment complete", "Your subscription is now active.");
+
+          if (confirmed) {
+            Alert.alert("Payment complete", "Your subscription is now active.");
+          } else {
+            Alert.alert(
+              "Payment received",
+              "We're still confirming it with PayHere. Your plan will update automatically in a moment - pull to refresh on the Subscription screen if it hasn't yet.",
+            );
+          }
+          setLoading(false);
           navigation.navigate("SubscriptionHome");
-          return;
-        } catch {
-          // Payment was not confirmed
-        }
-        if (browserResult?.type === "cancel") {
+        },
+        (errorData) => {
+          setLoading(false);
+          setError(
+            typeof errorData === "string" && errorData
+              ? errorData
+              : "PayHere reported an error. Please try again.",
+          );
+        },
+        () => {
+          // Unlike the old WebBrowser-based flow, PayHere's own SDK only
+          // calls this when the user backed out without paying - no need
+          // to hedge with a confirm-return check here.
+          setLoading(false);
           setError("Payment was cancelled.");
-        }
-        await refreshUser?.();
-      }
+        },
+      );
     } catch (checkoutError) {
+      setLoading(false);
       setError(
         checkoutError.response?.data?.message ||
           checkoutError.message ||
           "Unable to start checkout.",
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -232,8 +252,8 @@ export const SubscriptionCheckoutScreen = () => {
       <View style={[styles.noteCard, { backgroundColor: colors.surface, borderColor: colors.border }, cardShadow]}>
         <Text style={[styles.noteTitle, { color: colors.text }]}>What happens next</Text>
         <Text style={[styles.noteText, { color: colors.muted }]}>1. We create a PayHere checkout session.</Text>
-        <Text style={[styles.noteText, { color: colors.muted }]}>2. PayHere opens in an in-app browser to collect payment.</Text>
-        <Text style={[styles.noteText, { color: colors.muted }]}>3. After success, we confirm the payment and return you to Subscription.</Text>
+        <Text style={[styles.noteText, { color: colors.muted }]}>2. PayHere opens as a secure payment sheet inside the app.</Text>
+        <Text style={[styles.noteText, { color: colors.muted }]}>3. After success, we confirm the payment and take you to Subscription.</Text>
       </View>
     </ScrollView>
   );
