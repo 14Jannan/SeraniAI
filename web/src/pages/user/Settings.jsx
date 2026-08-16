@@ -398,6 +398,17 @@ const Settings = () => {
             <div className={`rounded-lg border px-4 py-3 text-sm ${isDark ? 'border-gray-700 bg-gray-900/40 text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'}`}>
               Manage your profile and personalization settings below.
             </div>
+
+            <div className="flex justify-end border-t pt-6 dark:border-gray-700">
+              <button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save size={18} />
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
 

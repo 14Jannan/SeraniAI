@@ -20,7 +20,6 @@ import { AdminAccessScreen } from "../screens/app/AdminAccessScreen";
 import { EnterpriseManagerScreen } from "../screens/app/EnterpriseManagerScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import AppHeader from "../components/AppHeader";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -179,10 +178,10 @@ const TabNavigatorContent = () => {
 
 const TabNavigator = () => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <AppHeader />
+    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
       <TabNavigatorContent />
     </View>
   );
