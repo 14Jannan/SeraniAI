@@ -44,7 +44,8 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-dev-client",
-      "./plugins/withPayHere"
+      "./plugins/withPayHere",
+      "expo-font"
     ],
     "extra": {
       "eas": {

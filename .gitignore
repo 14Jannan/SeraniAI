@@ -18,6 +18,11 @@ chroma_service/.env
 # Expo / React Native
 mobile/.expo/
 mobile/.expo-shared/
+# Prebuild output - this project stays on Expo's managed/CNG workflow, so
+# android/ios are regenerated from app.json (+ plugins/withPayHere.js) on
+# every `expo prebuild`/`eas build`, never hand-edited or committed.
+mobile/android/
+mobile/ios/
 
 # Build outputs
 dist/
