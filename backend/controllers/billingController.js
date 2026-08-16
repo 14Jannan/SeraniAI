@@ -480,7 +480,17 @@ exports.initializePayHerePayment = async (req, res) => {
 
     return res.status(200).json({
       actionUrl,
-      checkoutUrl: `/api/billing/payhere/launch/${encodeURIComponent(orderId)}`,
+      // Absolute, and built from the same serverBase as return_url/
+      // cancel_url/notify_url above (not the relative path this used to
+      // be) - the mobile app resolves this against its own API base
+      // (whatever LAN IP/host it used to reach the backend, e.g. Metro's
+      // dev-server host), which is almost never the public domain actually
+      // registered with PayHere for PAYHERE_MOBILE_MERCHANT_SECRET. If the
+      // launch page loads from that mismatched origin instead, PayHere
+      // rejects the checkout it submits with "Unauthorized payment
+      // request" - so this must always point at serverBase, not a
+      // relative path a caller could resolve against the wrong host.
+      checkoutUrl: `${serverBase}/api/billing/payhere/launch/${encodeURIComponent(orderId)}`,
       payload,
     });
   } catch (error) {
