@@ -137,7 +137,7 @@ describe("notificationService unit tests", () => {
 
       await notifyNewCourse({ courseId: VALID_ID_1, courseTitle: "JS 101" });
 
-      expect(User.distinct).toHaveBeenCalledWith("_id", { status: "active", role: { $ne: "admin" } });
+      expect(User.distinct).toHaveBeenCalledWith("_id", { status: "active" });
       expect(Notification.create).toHaveBeenCalledTimes(2);
     });
 

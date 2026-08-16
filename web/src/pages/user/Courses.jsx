@@ -17,19 +17,34 @@ export default function Courses() {
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   /* -------- FETCH COURSES -------- */
 
   useEffect(() => {
-
     fetch(`${API_URL}/api/courses`)
-      .then(res => res.json())
-      .then(data => {
-        setCourses(data);
-        setFilteredCourses(data);
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setCourses(list);
+        setFilteredCourses(list);
       })
-      .catch(err => console.error("Error loading courses", err));
+      .catch((err) => console.error("Error loading courses", err));
 
+    const handleProgressUpdate = () => {
+      setRefreshTrigger((prev) => prev + 1);
+    };
+
+    window.addEventListener("serani-course-progress-updated", handleProgressUpdate);
+    window.addEventListener("storage", handleProgressUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "serani-course-progress-updated",
+        handleProgressUpdate
+      );
+      window.removeEventListener("storage", handleProgressUpdate);
+    };
   }, []);
 
   /* -------- FILTER COURSES -------- */

@@ -152,7 +152,7 @@ function ChatInterface() {
 
   return (
     <div
-      className={`flex h-full w-full overflow-hidden p-4 lg:p-6 gap-4 lg:gap-6 transition-colors duration-500 ${
+      className={`flex flex-col h-full min-h-0 overflow-hidden w-full p-4 lg:p-6 gap-4 lg:gap-6 transition-colors duration-500 ${
         isDark
           ? "bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_34%),linear-gradient(180deg,_#07111f_0%,_#040816_100%)]"
           : "bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_34%),linear-gradient(180deg,_#f8fbff_0%,_#eef4ff_100%)]"
@@ -172,10 +172,10 @@ function ChatInterface() {
       />
 
       {/* Main Chat Panel - Floating rounded card */}
-      <div className="flex-1 min-w-0 flex flex-col bg-white/95 dark:bg-[#0b1322]/95 backdrop-blur-xl rounded-[28px] shadow-[0_35px_75px_-45px_rgba(15,23,42,0.45)] border border-slate-200/70 dark:border-white/10 overflow-hidden relative transition-all duration-500">
+      <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-white/95 dark:bg-[#0b1322]/95 backdrop-blur-xl rounded-[28px] shadow-[0_35px_75px_-45px_rgba(15,23,42,0.45)] border border-slate-200/70 dark:border-white/10 overflow-hidden relative transition-all duration-500">
         
         {/* Modern Header */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-[#0b1322]/95 backdrop-blur-sm z-10 transition-colors">
+        <div className="flex-shrink-0 flex items-center justify-between px-8 py-6 border-b border-slate-200/70 dark:border-white/10 bg-white/95 dark:bg-[#0b1322]/95 backdrop-blur-sm z-10 transition-colors">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
               <SeraniAILogo size={24} color="#ffffff" />
@@ -212,7 +212,7 @@ function ChatInterface() {
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 min-h-0 overflow-hidden relative">
           <MessageList
             messages={messages}
             loading={loading}
@@ -221,7 +221,7 @@ function ChatInterface() {
         </div>
 
         {/* Input Area */}
-        <div className="p-6 pt-0">
+        <div className="flex-shrink-0 p-6 pt-0">
           <MessageInput
             onSend={sendToBackend}
             loading={loading}

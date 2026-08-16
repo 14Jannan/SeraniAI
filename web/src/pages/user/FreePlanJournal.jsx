@@ -414,8 +414,8 @@ const FreePlanJournal = () => {
   // Render entries filtered for the currently selected date.
   if (mode === "dateEvent") {
     return (
-      <div className={"w-full h-full flex flex-col " + bgClass}>
-        <div className="bg-blue-500 px-6 py-4 flex items-center justify-between">
+      <div className={"w-full h-full flex flex-col overflow-hidden " + bgClass}>
+        <div className="bg-blue-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <button
             type="button"
             onClick={handleBackFromDateEvent}
@@ -431,7 +431,7 @@ const FreePlanJournal = () => {
           </div>
         </div>
 
-        <div className={"flex-1 p-6 space-y-4 overflow-y-auto " + scrollBgClass}>
+        <div className={"flex-1 min-h-0 overflow-y-auto p-6 space-y-4 " + scrollBgClass}>
           {error && (
             <div className="rounded-lg bg-red-100 text-red-700 px-4 py-3 border border-red-200">
               {error}
@@ -497,11 +497,11 @@ const FreePlanJournal = () => {
 
   return (
     <div
-      className={`w-full h-full flex flex-col ${
+      className={`w-full h-full flex flex-col overflow-hidden ${
         theme === "dark" ? "bg-slate-950" : "bg-white"
       }`}
     >
-      <div className="bg-blue-500 px-6 py-4 flex justify-end">
+      <div className="bg-blue-500 px-6 py-4 flex justify-end flex-shrink-0">
         <div className="relative flex items-center gap-3">
 
           <div className="inline-flex items-center overflow-hidden rounded-lg shadow-sm bg-blue-700 text-white relative z-20">
@@ -679,7 +679,7 @@ const FreePlanJournal = () => {
           theme === "dark"
             ? "bg-slate-900 border-slate-700"
             : "bg-white border-gray-200"
-        } border-b px-6 py-3`}
+        } border-b px-6 py-3 flex-shrink-0`}
       >
         <h3
           className={`font-semibold ${
@@ -691,7 +691,7 @@ const FreePlanJournal = () => {
       </div>
 
       <div
-        className={`flex-1 p-6 space-y-4 overflow-y-auto ${
+        className={`flex-1 min-h-0 overflow-y-auto p-6 space-y-4 ${
           theme === "dark" ? "bg-slate-950" : "bg-gray-100"
         }`}
       >

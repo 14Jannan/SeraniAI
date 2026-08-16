@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
@@ -19,6 +20,7 @@ import { AdminAccessScreen } from "../screens/app/AdminAccessScreen";
 import { EnterpriseManagerScreen } from "../screens/app/EnterpriseManagerScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import AppHeader from "../components/AppHeader";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -73,7 +75,7 @@ const EnterpriseStack = () => (
 
 // ── Bottom Tab Navigator (NO Plan tab) ────────────────────
 
-const TabNavigator = () => {
+const TabNavigatorContent = () => {
   const { user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -172,6 +174,17 @@ const TabNavigator = () => {
         />
       )}
     </Tab.Navigator>
+  );
+};
+
+const TabNavigator = () => {
+  const { colors } = useTheme();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <AppHeader />
+      <TabNavigatorContent />
+    </View>
   );
 };
 

@@ -100,8 +100,17 @@ const NotificationBell = ({ className = '' }) => {
   useEffect(() => {
     fetchNotifications();
 
-    const intervalId = window.setInterval(fetchNotifications, 60000);
-    return () => window.clearInterval(intervalId);
+    const intervalId = window.setInterval(fetchNotifications, 20000);
+    const handleRefresh = () => fetchNotifications();
+
+    window.addEventListener('serani:refresh-notifications', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('serani:refresh-notifications', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, [clearedNotificationIds]);
 
   useEffect(() => {

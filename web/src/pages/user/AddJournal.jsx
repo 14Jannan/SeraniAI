@@ -257,11 +257,11 @@ const AddJournal = ({
 
   return (
     <div
-      className={`w-full h-full flex flex-col p-4 ${
+      className={`w-full h-full flex flex-col overflow-hidden p-4 ${
         theme === "dark" ? "bg-slate-950" : "bg-white"
       }`}
     >
-      <div className="flex justify-between items-center mb-4 gap-3">
+      <div className="flex justify-between items-center mb-4 gap-3 flex-shrink-0">
         <button
           onClick={onBack}
           className={`flex items-center gap-2 ${
@@ -323,7 +323,7 @@ const AddJournal = ({
         </div>
       )}
 
-      <div className={`flex-1 rounded-xl shadow p-6 border flex flex-col gap-4 ${containerClass}`}>
+      <div className={`flex-1 min-h-0 rounded-xl shadow p-6 border flex flex-col gap-4 overflow-y-auto ${containerClass}`}>
         <input
           type="text"
           placeholder="Entry Title"

@@ -25,6 +25,10 @@ const lessonProgressSchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  profileImage: {
+    type: String,
+    default: "",
+  },
   email: {
     type: String,
     required: true,

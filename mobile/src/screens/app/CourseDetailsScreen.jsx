@@ -140,9 +140,18 @@ export const CourseDetailsScreen = ({ route }) => {
 
   const saveProgressToStorage = async (nextIndexes, nextActiveIndex = activeLessonIndex) => {
     if (!courseId) return;
+    const completed = Array.isArray(nextIndexes) ? nextIndexes : completedLessonIndexes;
+    const total = lessons.length;
+    const percentage = total > 0 ? Math.round((completed.length / total) * 100) : 0;
+
     await persistProgress(courseId, {
-      completedLessonIndexes: Array.isArray(nextIndexes) ? nextIndexes : completedLessonIndexes,
+      courseId,
+      completedLessonIndexes: completed,
+      completedLessons: completed,
       activeLessonIndex: Number.isInteger(nextActiveIndex) ? nextActiveIndex : 0,
+      totalLessons: total,
+      percentage,
+      updatedAt: new Date().toISOString(),
     });
   };
 

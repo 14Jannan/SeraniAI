@@ -53,6 +53,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# IDE and tool caches
+.refact/
+
 # Editor / OS files
 .vscode/
 !.vscode/extensions.json

@@ -75,7 +75,6 @@ const createNotificationsForUsers = async (userIds, payload) => {
 const getActiveLearnerUserIds = async () => {
   return User.distinct('_id', {
     status: 'active',
-    role: { $ne: 'admin' },
   });
 };
 

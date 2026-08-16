@@ -406,6 +406,7 @@ exports.getCurrentUser = async (req, res) => {
     return res.status(200).json({
       id: req.user._id,
       name: req.user.name,
+      profileImage: req.user.profileImage || "",
       email: req.user.email,
       role: req.user.role,
       enterpriseId: req.user.enterpriseId || null,
@@ -415,6 +416,47 @@ exports.getCurrentUser = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch user profile" });
+  }
+};
+
+// @desc    Update current authenticated user profile
+// @route   PATCH /api/auth/me
+exports.updateCurrentUser = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    const profileImage =
+      typeof req.body?.profileImage === "string" ? req.body.profileImage.trim() : "";
+
+    if (name) {
+      user.name = name;
+    }
+    user.profileImage = profileImage;
+
+    await user.save();
+
+    return res.status(200).json({
+      id: user._id,
+      name: user.name,
+      profileImage: user.profileImage || "",
+      email: user.email,
+      role: user.role,
+      enterpriseId: user.enterpriseId || null,
+      status: user.status,
+      onboardingStatus: user.onboardingStatus || "pending",
+      preferences: user.preferences || {},
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update user profile" });
   }
 };
 
