@@ -544,6 +544,27 @@ const updateJournal = async (req, res) => {
       });
     }
 
+    // Determine whether this request carries any content-level changes.
+    // isFavorite-only updates (star/unstar) are always permitted regardless of date.
+    const isContentEdit = title !== undefined || content !== undefined || mood !== undefined || tags !== undefined;
+
+    if (isContentEdit) {
+      // Enforce same-day-only editing: block content edits on entries from prior calendar days.
+      const entryDate = new Date(journal.createdAt);
+      const now = new Date();
+      const isSameCalendarDay =
+        entryDate.getFullYear() === now.getFullYear() &&
+        entryDate.getMonth()    === now.getMonth()    &&
+        entryDate.getDate()     === now.getDate();
+
+      if (!isSameCalendarDay) {
+        return res.status(403).json({
+          success: false,
+          message: "Journal entries can only be edited on the day they were created.",
+        });
+      }
+    }
+
     const nextTitle = title !== undefined ? title : journal.title;
     const nextContent = content !== undefined ? content : journal.content;
     const contentChanged = content !== undefined || title !== undefined;
@@ -746,8 +767,6 @@ module.exports = {
   getJournalById,
   updateJournal,
   deleteJournal,
-  refreshJournalInsight,
-  getJournalSummary,
   refreshJournalInsight,
   getJournalSummary,
 };

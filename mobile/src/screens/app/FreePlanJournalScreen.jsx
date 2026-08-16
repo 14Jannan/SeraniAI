@@ -40,6 +40,18 @@ const entryDateStr = (isoString) => {
     return toLocalDateStr(new Date(isoString));
 };
 
+// Returns true when an entry's createdAt falls on today's local calendar date.
+const isCreatedToday = (isoString) => {
+    if (!isoString) return false;
+    const entry = new Date(isoString);
+    const now = new Date();
+    return (
+        entry.getFullYear() === now.getFullYear() &&
+        entry.getMonth()    === now.getMonth()    &&
+        entry.getDate()     === now.getDate()
+    );
+};
+
 const MONTH_LABELS = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
@@ -594,9 +606,11 @@ const EntryCard = ({ entry, colors, onView, onEdit, onDelete }) => {
                     </Text>
 
                     <View style={styles.entryActions}>
-                        <TouchableOpacity style={styles.iconBtn} onPress={onEdit}>
-                            <Feather name="edit-2" size={16} color={colors.primary} />
-                        </TouchableOpacity>
+                        {isCreatedToday(entry.createdAt) && (
+                            <TouchableOpacity style={styles.iconBtn} onPress={onEdit}>
+                                <Feather name="edit-2" size={16} color={colors.primary} />
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity style={styles.iconBtn} onPress={onDelete}>
                             <Feather name="trash-2" size={16} color="#DC2626" />
                         </TouchableOpacity>

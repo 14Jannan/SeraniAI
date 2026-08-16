@@ -15,6 +15,18 @@ import { API_BASE_URL } from "../../utils/apiBaseUrl";
 // API endpoint for journal operations.
 const API_URL = API_BASE_URL;
 
+// Returns true when an entry's createdAt falls on today's local calendar date.
+const isCreatedToday = (isoString) => {
+  if (!isoString) return false;
+  const entry = new Date(isoString);
+  const now = new Date();
+  return (
+    entry.getFullYear() === now.getFullYear() &&
+    entry.getMonth()    === now.getMonth()    &&
+    entry.getDate()     === now.getDate()
+  );
+};
+
 // Utility function: Convert Date object to ISO-like local date string (YYYY-MM-DD).
 const getLocalDateString = (date = new Date()) => {
   const year = date.getFullYear();
@@ -297,8 +309,9 @@ const FreePlanJournal = () => {
     }
   };
 
-  // Navigate to edit mode for an entry.
+  // Navigate to edit mode for an entry — only allowed on the day it was created.
   const handleEditClick = (entry) => {
+    if (!isCreatedToday(entry.createdAt)) return;
     setSelectedEntry(entry);
     setMode("edit");
   };
@@ -463,17 +476,19 @@ const FreePlanJournal = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditClick(entry);
-                      }}
-                      className="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50"
-                      title="Edit"
-                    >
-                      <Pencil size={16} />
-                    </button>
+                    {isCreatedToday(entry.createdAt) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClick(entry);
+                        }}
+                        className="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50"
+                        title="Edit"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -736,17 +751,19 @@ const FreePlanJournal = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditClick(entry);
-                    }}
-                    className="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50"
-                    title="Edit"
-                  >
-                    <Pencil size={16} />
-                  </button>
+                  {isCreatedToday(entry.createdAt) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditClick(entry);
+                      }}
+                      className="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50"
+                      title="Edit"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
 
                   <button
                     type="button"

@@ -112,6 +112,14 @@ const isSameDay = (d1, d2) =>
   d1.getMonth() === d2.getMonth() &&
   d1.getDate() === d2.getDate();
 
+// Returns true when an entry's createdAt falls on today's local calendar date.
+const isCreatedToday = (isoString) => {
+  if (!isoString) return false;
+  const entry = new Date(isoString);
+  const now = new Date();
+  return isSameDay(entry, now);
+};
+
 const buildJournalHtml = (entry) => `
 <!DOCTYPE html>
 <html>
@@ -575,13 +583,15 @@ export const JournalScreen = ({ navigation }) => {
 
         {/* Icon-only action row: Edit · Refresh · Download · Delete */}
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[styles.actionIcon, { backgroundColor: colors.inputBg }]}
-            onPress={() => navigation.navigate("JournalEditor", { mode: "edit", entry: item })}
-            disabled={isLoading}
-          >
-            <Feather name="edit-2" size={sp(14)} color={colors.primary} />
-          </TouchableOpacity>
+          {isCreatedToday(item.createdAt) && (
+            <TouchableOpacity
+              style={[styles.actionIcon, { backgroundColor: colors.inputBg }]}
+              onPress={() => navigation.navigate("JournalEditor", { mode: "edit", entry: item })}
+              disabled={isLoading}
+            >
+              <Feather name="edit-2" size={sp(14)} color={colors.primary} />
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[styles.actionIcon, { backgroundColor: colors.inputBg }]}

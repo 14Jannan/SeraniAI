@@ -28,6 +28,18 @@ import { API_BASE_URL } from "../../utils/apiBaseUrl";
 const API_URL = API_BASE_URL;
 const SUMMARY_URL = `${API_URL}/api/journals/stats/summary`;
 
+// Returns true when an entry's createdAt falls on today's local calendar date.
+const isCreatedToday = (isoString) => {
+  if (!isoString) return false;
+  const entry = new Date(isoString);
+  const now = new Date();
+  return (
+    entry.getFullYear() === now.getFullYear() &&
+    entry.getMonth()    === now.getMonth()    &&
+    entry.getDate()     === now.getDate()
+  );
+};
+
 // Mood display styling: background and text colors for each mood category.
 const MOOD_COLORS = {
   happy: "bg-emerald-100 text-emerald-700",
@@ -476,6 +488,7 @@ const PremiumPlanJournal = () => {
   };
 
   const handleEditClick = (entry) => {
+    if (!isCreatedToday(entry.createdAt)) return;
     setSelectedEntry(entry);
     setMode("edit");
   };
@@ -956,17 +969,19 @@ const PremiumPlanJournal = () => {
                       <Download size={16} />
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleEditClick(entry);
-                      }}
-                      className="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50"
-                      title="Edit"
-                    >
-                      <Pencil size={16} />
-                    </button>
+                    {isCreatedToday(entry.createdAt) && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleEditClick(entry);
+                        }}
+                        className="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50"
+                        title="Edit"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
 
                     <button
                       type="button"
