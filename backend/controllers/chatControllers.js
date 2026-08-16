@@ -14,6 +14,7 @@ const ChromaDBService = require("../services/chromaDBService");
 const UserTaskProgress = require("../models/userTaskProgressModel");
 const { Task } = require("../models/taskModel");
 const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
+const langchainService = require("../services/langchainService");
 
 
 
@@ -519,12 +520,20 @@ exports.sendMessage = async (req, res) => {
       fileMeta.type = req.file.mimetype;
       fileData = await extractTextFromFile(req.file.path, req.file.mimetype);
 
-      const uploadedFile = await uploadChatFileToCloudinary(
-        req.file.path,
-        req.file.mimetype,
-        req.file.originalname,
-      );
-      fileMeta.url = uploadedFile.secure_url || uploadedFile.url || "";
+      // Cloudinary is only used to persist a link back to the uploaded file;
+      // it must never block answering the user's question. If it's not
+      // configured (or the upload fails for any reason), just skip storing
+      // the URL and carry on with the extracted text we already have.
+      try {
+        const uploadedFile = await uploadChatFileToCloudinary(
+          req.file.path,
+          req.file.mimetype,
+          req.file.originalname,
+        );
+        fileMeta.url = uploadedFile.secure_url || uploadedFile.url || "";
+      } catch (uploadErr) {
+        console.warn("Chat file Cloudinary upload skipped/failed:", uploadErr.message);
+      }
 
       try {
         fs.unlinkSync(req.file.path);

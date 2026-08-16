@@ -8,6 +8,7 @@ import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import AnalyzePanel from "./AnalyzePanel";
 import { useTheme } from "../../../context/ThemeContext";
+import notify from "../../../utils/notifications";
 
 function ChatInterface() {
   const { theme } = useTheme();
@@ -145,6 +146,14 @@ function ChatInterface() {
       setConversations(his.data || []);
     } catch (e) {
       console.error("sendMessage error:", e);
+      // Roll back the optimistic user message so the chat doesn't show a
+      // question that was never actually answered, and let the user know
+      // instead of failing silently.
+      setMessages(updatedMessages);
+      notify.error(
+        "Message failed to send",
+        e.response?.data?.message || "Something went wrong while talking to Serani. Please try again."
+      );
     } finally {
       setLoading(false);
     }
