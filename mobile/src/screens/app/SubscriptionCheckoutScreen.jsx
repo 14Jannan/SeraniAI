@@ -113,32 +113,50 @@ export const SubscriptionCheckoutScreen = () => {
       const parsed = returnedUrl ? Linking.parse(returnedUrl) : null;
       const paymentState = parsed?.queryParams?.payment;
 
-      if (browserResult?.type === "success" || paymentState === "success") {
-        try {
-          await subscriptionApi.confirmReturn(orderId);
-        } catch {
-          // Handled on backend
-        }
-        await refreshUser?.();
-        Alert.alert("Payment complete", "Your subscription is now active.");
-        navigation.navigate("SubscriptionHome");
-        return;
-      }
+      const looksLikeSuccess = browserResult?.type === "success" || paymentState === "success";
+      const looksLikeDismissOrCancel =
+        browserResult?.type === "dismiss" || browserResult?.type === "cancel";
 
-      if (browserResult?.type === "dismiss" || browserResult?.type === "cancel") {
+      if (looksLikeSuccess || looksLikeDismissOrCancel) {
+        // Neither a "success" redirect nor a dismissed browser is proof of
+        // payment (see the SECURITY note on the backend's return handler) -
+        // confirm-return is what actually re-checks with PayHere, and it
+        // responds 2xx either way: once truly confirmed, or with
+        // `pending: true` while it's still trying. So the call resolving
+        // without throwing is NOT itself confirmation - only a response
+        // without `pending` is (same rule the web app's
+        // notifyPaymentConfirmationResult already follows).
+        let confirmation = null;
         try {
-          await subscriptionApi.confirmReturn(orderId);
-          await refreshUser?.();
+          confirmation = await subscriptionApi.confirmReturn(orderId);
+        } catch {
+          // Handled on backend / picked up by the reconciliation job
+        }
+
+        await refreshUser?.();
+
+        if (confirmation && !confirmation.pending) {
           Alert.alert("Payment complete", "Your subscription is now active.");
           navigation.navigate("SubscriptionHome");
           return;
-        } catch {
-          // Payment was not confirmed
         }
+
+        if (looksLikeSuccess) {
+          // PayHere did redirect back as a success, but our own
+          // confirmation (webhook or direct verification) hasn't landed
+          // yet - don't claim completion; it updates automatically.
+          Alert.alert(
+            "Confirming your payment",
+            "Your payment was received and is being confirmed. Your plan will update automatically within a moment - no action needed.",
+          );
+          navigation.navigate("SubscriptionHome");
+          return;
+        }
+
+        // Dismissed/cancelled and not confirmed - genuinely not paid.
         if (browserResult?.type === "cancel") {
           setError("Payment was cancelled.");
         }
-        await refreshUser?.();
       }
     } catch (checkoutError) {
       setError(
