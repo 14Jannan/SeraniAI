@@ -39,8 +39,11 @@ backend/extracted_text.txt
 backend/rasterization_text.txt
 backend/test-results.txt
 
-# Chroma's local persistent vector store.
+# Chroma's local persistent vector store, plus ad-hoc local backups of it -
+# these are machine-local data dumps, not source, and shouldn't be committed.
 chroma_service/chroma_db/
+chroma_service/chroma_db_backup/
+chroma_service/chroma_db_old/
 chroma_service/__pycache__/
 chroma_service/.venv/
 

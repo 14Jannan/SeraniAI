@@ -174,7 +174,7 @@ export default function TasksPage() {
   const nextTask = filteredTasks.find((task) => !completedTaskIds.includes(task.id));
 
   const stats = [
-    { label: "Completed", value: `${completedCount}/${totalCount}`, icon: CheckCircle2, tone: "text-emerald-600" },
+    { label: "Completed", value: `${completedCount}/${totalCount}`, icon: CheckCircle2, tone: "text-indigo-600" },
     { label: "Progress", value: `${progress}%`, icon: BarChart3, tone: "text-blue-600" },
     { label: "XP", value: `${xp}`, icon: Sparkles, tone: "text-violet-600" },
   ];
@@ -209,7 +209,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="min-h-full rounded-[32px] bg-[radial-gradient(circle_at_top,_rgba(213,248,230,0.9),_transparent_40%),linear-gradient(180deg,_#f8fffc_0%,_#f7f9ff_100%)] p-4 sm:p-6">
+    <div className="min-h-full rounded-[32px] bg-[radial-gradient(circle_at_top,_rgba(224,231,255,0.9),_transparent_40%),linear-gradient(180deg,_#f7f8ff_0%,_#f7f9ff_100%)] p-4 sm:p-6">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <motion.header
@@ -219,7 +219,7 @@ export default function TasksPage() {
           >
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+                <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700">
                   <Sparkles className="h-4 w-4" />
                   Serani AI daily mind tasks
                 </div>
@@ -231,7 +231,7 @@ export default function TasksPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-lg">
+              <div className="rounded-2xl bg-[#1e1b4b] px-4 py-3 text-white shadow-lg">
                 <p className="text-xs text-white/70">Current task streak</p>
                 <p className="text-2xl font-semibold">{streakCount} days</p>
               </div>
@@ -245,7 +245,7 @@ export default function TasksPage() {
                   onClick={() => setSelectedMood(mood.key)}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     selectedMood === mood.key
-                      ? "bg-emerald-600 text-white shadow"
+                      ? "bg-indigo-600 text-white shadow"
                       : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
                   }`}
                 >
@@ -281,7 +281,7 @@ export default function TasksPage() {
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.45 }}
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-blue-400 to-violet-400"
+                className="h-full rounded-full bg-gradient-to-r from-indigo-400 via-blue-400 to-violet-400"
               />
             </div>
 
@@ -345,10 +345,10 @@ export default function TasksPage() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 right-6 z-50 rounded-[24px] bg-slate-900 px-5 py-4 text-white shadow-2xl"
+            className="fixed bottom-6 right-6 z-50 rounded-[24px] bg-[#1e1b4b] px-5 py-4 text-white shadow-2xl"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>

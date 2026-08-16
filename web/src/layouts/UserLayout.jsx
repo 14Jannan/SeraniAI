@@ -27,9 +27,9 @@ const UserLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isFixedPage =
-    location.pathname.startsWith('/dashboard/chat') ||
-    location.pathname.startsWith('/dashboard/journal');
+  const isChatPage = location.pathname.startsWith('/dashboard/chat');
+  const isJournalPage = location.pathname.startsWith('/dashboard/journal');
+  const isFixedPage = isChatPage || isJournalPage;
 
   const [user, setUser] = useState(() => getStoredUser() || { name: 'User' });
   const [subscription, setSubscription] = useState(null);
@@ -171,9 +171,12 @@ const UserLayout = () => {
 
         {/* Header */}
         <div className="p-6">
-          <h1 className="text-3xl font-bold text-white mb-10 tracking-wide">
-            SeraniAI
-          </h1>
+          <div className="mb-10 flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-white tracking-wide">
+              SeraniAI
+            </h1>
+            <NotificationBell variant="sidebar" panelAlign="left" />
+          </div>
 
           <nav className="space-y-2">
             {menuItems.map((item) => (
@@ -315,13 +318,10 @@ const UserLayout = () => {
 
       {/* Main Content */}
       <main
-        className={`flex-1 flex flex-col p-6 min-h-0 ${
-          isFixedPage ? 'h-screen overflow-hidden' : 'overflow-y-auto'
-        }`}
+        className={`flex-1 flex flex-col min-h-0 ${
+          isJournalPage ? 'pr-6 pb-6' : 'p-6'
+        } ${isFixedPage ? 'h-screen overflow-hidden' : 'overflow-y-auto'}`}
       >
-        <div className="mb-4 flex justify-end flex-shrink-0">
-          <NotificationBell />
-        </div>
         <div className={isFixedPage ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : ''}>
           <Outlet />
         </div>

@@ -19,7 +19,7 @@ describe("adminCourseController", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
-    process.env.BASE_URL = "http://localhost:5000";
+    process.env.BACKEND_URL = "http://localhost:5000";
   });
 
   it("getAdminCategories merges categories and course category strings", async () => {

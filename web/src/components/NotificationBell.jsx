@@ -52,7 +52,7 @@ const formatRelativeTime = (value) => {
   return `${diffDays}d`;
 };
 
-const NotificationBell = ({ className = '' }) => {
+const NotificationBell = ({ className = '', variant = 'floating', panelAlign = 'right' }) => {
   const navigate = useNavigate();
   const panelRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -201,12 +201,18 @@ const NotificationBell = ({ className = '' }) => {
     }
   };
 
+  const isSidebar = variant === 'sidebar';
+
   return (
     <div ref={panelRef} className={`relative z-40 ${className}`}>
       <button
         type="button"
         onClick={handleOpen}
-        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+        className={
+          isSidebar
+            ? 'relative flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20'
+            : 'relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl'
+        }
         aria-label="Notifications"
       >
         <FiBell className="text-lg" />
@@ -218,7 +224,11 @@ const NotificationBell = ({ className = '' }) => {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-full mt-3 w-[22rem] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <div
+          className={`absolute top-full mt-3 w-[22rem] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ${
+            panelAlign === 'left' ? 'left-0' : 'right-0'
+          }`}
+        >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-slate-900">Notifications</p>

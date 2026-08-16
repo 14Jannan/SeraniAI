@@ -417,6 +417,10 @@ const FreePlanJournal = () => {
   const bgClass = theme === "dark" ? "bg-slate-950" : "bg-white";
   const scrollBgClass = theme === "dark" ? "bg-slate-950" : "bg-gray-100";
   const darkText = theme === "dark" ? "text-gray-400" : "text-gray-500";
+  // Matches the sidebar's background so the journal header reads as one system with the nav.
+  const headerBgClass = theme === "dark" ? "bg-[#111827]" : "bg-[#1e1b4b]";
+  const headerButtonClass =
+    "bg-indigo-600 hover:bg-indigo-700 text-white";
   const darkCardBg =
     theme === "dark"
       ? "bg-slate-900 border-slate-700"
@@ -428,11 +432,11 @@ const FreePlanJournal = () => {
   if (mode === "dateEvent") {
     return (
       <div className={"w-full h-full flex flex-col overflow-hidden " + bgClass}>
-        <div className="bg-blue-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div className={`${headerBgClass} px-6 py-4 flex items-center justify-between flex-shrink-0`}>
           <button
             type="button"
             onClick={handleBackFromDateEvent}
-            className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg font-semibold"
+            className={`flex items-center gap-2 ${headerButtonClass} px-4 py-2 rounded-lg font-semibold`}
           >
             <ArrowLeft size={16} />
             Back
@@ -516,17 +520,17 @@ const FreePlanJournal = () => {
         theme === "dark" ? "bg-slate-950" : "bg-white"
       }`}
     >
-      <div className="bg-blue-500 px-6 py-4 flex justify-end flex-shrink-0">
+      <div className={`${headerBgClass} px-6 py-4 flex justify-end flex-shrink-0`}>
         <div className="relative flex items-center gap-3">
 
-          <div className="inline-flex items-center overflow-hidden rounded-lg shadow-sm bg-blue-700 text-white relative z-20">
+          <div className={`inline-flex items-center overflow-hidden rounded-lg shadow-sm ${headerButtonClass} relative z-20`}>
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
                 setShowCalendar((prev) => !prev);
               }}
-              className="flex items-center gap-2 px-3 py-2 font-semibold hover:bg-blue-800 cursor-pointer relative z-30"
+              className="flex items-center gap-2 px-3 py-2 font-semibold hover:bg-indigo-700 cursor-pointer relative z-30"
             >
               <CalendarDays size={18} />
               <span>{formatSelectedDate(selectedDate)}</span>
@@ -634,9 +638,9 @@ const FreePlanJournal = () => {
                       disabled={!cell.isCurrentMonth}
                       className={`h-8 w-8 rounded-full text-xs font-medium disabled:cursor-default ${
                         isSelected
-                          ? "bg-blue-600 text-white"
+                          ? "bg-indigo-600 text-white"
                           : cell.isToday
-                            ? "bg-blue-500 text-white"
+                            ? "bg-indigo-500 text-white"
                             : cell.isCurrentMonth
                               ? theme === "dark"
                                 ? "text-gray-200 hover:bg-slate-800"
@@ -668,7 +672,7 @@ const FreePlanJournal = () => {
 
           <button
             onClick={handleAddClick}
-            className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg font-semibold"
+            className={`flex items-center gap-2 ${headerButtonClass} px-4 py-2 rounded-lg font-semibold`}
           >
             <Plus size={18} />
             ADD ENTRY

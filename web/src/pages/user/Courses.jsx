@@ -105,9 +105,9 @@ export default function Courses() {
 <div
   className="
   bg-gradient-to-b
-  from-purple-200
-  via-green-400
-  to-blue-400
+  from-indigo-200
+  via-blue-300
+  to-indigo-400
   rounded-3xl
   p-16
   text-center
@@ -157,7 +157,7 @@ export default function Courses() {
             className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow transition
               ${
                 selectedCategory === cat.name
-                  ? "bg-green-600 text-white"
+                  ? "bg-indigo-600 text-white"
                   : "bg-white hover:bg-gray-100"
               }
             `}

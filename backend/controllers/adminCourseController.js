@@ -12,6 +12,24 @@ const { deleteCache } = require("../utils/cache");
 const { notifyCourseUpdate, notifyNewCourse } = require("../services/notificationService");
 
 /**
+ * Base URL to prefix locally-uploaded file paths with, so thumbnailUrl is an
+ * absolute URL the frontend can load directly. Prefers BACKEND_URL (set in
+ * production); falls back to reconstructing it from the incoming request
+ * (works in local dev without any env var), then to the dev default.
+ */
+const getBackendBaseUrl = (req) => {
+  if (process.env.BACKEND_URL) {
+    return process.env.BACKEND_URL.replace(/\/+$/, "");
+  }
+  const host = req ? req.get("host") : null;
+  const protocol = req ? req.protocol || "http" : "http";
+  if (host) {
+    return `${protocol}://${host}`;
+  }
+  return "http://localhost:7001";
+};
+
+/**
  * Get all categories (both from Category model and existing course categories)
  * Merges categories from the dedicated Category collection with any categories
  * used directly in courses (for backward compatibility)
@@ -266,7 +284,7 @@ exports.createCourse = async (req, res) => {
       // Handle thumbnail: use provided URL or uploaded file, default to empty string
       thumbnailUrl:
         req.body.thumbnailUrl ||
-        (req.file ? `${process.env.BASE_URL}/uploads/${req.file.filename}` : ""),
+        (req.file ? `${getBackendBaseUrl(req)}/uploads/${req.file.filename}` : ""),
     });
 
     // Save the new course to database
@@ -355,7 +373,7 @@ exports.updateCourse = async (req, res) => {
       updateData.thumbnailUrl = req.body.thumbnailUrl;
     } else if (req.file) {
       // Use uploaded file if no URL provided
-      updateData.thumbnailUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
+      updateData.thumbnailUrl = `${getBackendBaseUrl(req)}/uploads/${req.file.filename}`;
     }
 
     // Update course and return the modified document

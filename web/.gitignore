@@ -13,6 +13,9 @@ dist-ssr
 .vite
 *.local
 
+# Ad-hoc local test/debug output that shouldn't be committed.
+test_output.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

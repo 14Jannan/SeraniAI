@@ -1,0 +1,24 @@
+# Without this file, `docker build` (via the Dockerfile's `COPY . .`) bakes
+# all of the following into the image: the local .env (real secrets), the
+# full Python venv, __pycache__, and the persisted vector store data. That
+# bloats the image by hundreds of MB and leaks secrets into an image layer -
+# never acceptable for anything pushed to a registry.
+
+.env
+.env.*
+!.env.example
+
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+chroma_db/
+chroma_db_backup/
+chroma_db_old/
+
+.git/
+.gitignore
+.dockerignore

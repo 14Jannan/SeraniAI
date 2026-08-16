@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+
+node_modules/
+uploads/*
+!uploads/.gitkeep
+
+.git/
+.gitignore
+.dockerignore
+
+coverage/
+tests/
+*.test.js
