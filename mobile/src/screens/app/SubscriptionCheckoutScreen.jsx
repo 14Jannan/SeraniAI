@@ -156,21 +156,23 @@ export const SubscriptionCheckoutScreen = () => {
       style={[styles.scrollView, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
     >
-      <TouchableOpacity
-        onPress={() => navigation.goBack()}
-        style={styles.backRow}
-        accessibilityRole="button"
-      >
-        <Feather name="arrow-left" size={18} color={colors.text} />
-        <Text style={[styles.backText, { color: colors.text }]}>Back</Text>
-      </TouchableOpacity>
-
       <View style={[styles.hero, { backgroundColor: colors.primaryStrong }]}>
-        <Text style={styles.heroTitle}>Checkout</Text>
-        <Text style={styles.heroSubtitle}>
-          Review your plan and complete the payment in PayHere.
-        </Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={[styles.backButton, { backgroundColor: colors.surface }]}
+          accessibilityRole="button"
+        >
+          <Feather name="arrow-left" size={18} color={colors.primary} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.heroTitle}>Checkout</Text>
+          <Text style={styles.heroSubtitle}>
+            Review your plan and complete the payment in PayHere.
+          </Text>
+        </View>
       </View>
+
+      <View style={styles.body}>
 
       <View
         style={[
@@ -235,6 +237,7 @@ export const SubscriptionCheckoutScreen = () => {
         <Text style={[styles.noteText, { color: colors.muted }]}>2. PayHere opens in an in-app browser to collect payment.</Text>
         <Text style={[styles.noteText, { color: colors.muted }]}>3. After success, we confirm the payment and return you to Subscription.</Text>
       </View>
+      </View>
     </ScrollView>
   );
 };
@@ -242,20 +245,29 @@ export const SubscriptionCheckoutScreen = () => {
 const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   content: {
-    paddingHorizontal: 18,
     paddingBottom: 28,
+  },
+  body: {
+    paddingHorizontal: 18,
+    paddingTop: 20,
     gap: 14,
   },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 16,
-  },
-  backText: { fontSize: 14, fontWeight: "700" },
   hero: {
-    borderRadius: 28,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroTitle: {
     color: "#FFFFFF",

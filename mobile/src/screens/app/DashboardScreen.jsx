@@ -6,18 +6,32 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Alert,
   useWindowDimensions,
 } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
+import { isPaidRole } from "../../utils/roles";
 
 export const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const isPaidUser = isPaidRole(user?.role);
+
+  const handleLockedAction = (label) => {
+    Alert.alert(
+      "Pro feature",
+      `${label} is available on the Pro plan. Upgrade to unlock it.`,
+      [
+        { text: "Not now", style: "cancel" },
+        { text: "Upgrade", onPress: () => navigation.navigate("Subscription") },
+      ],
+    );
+  };
   const isWide = width >= 768;
 
   const getRoleBadgeLabel = (role) => {
@@ -99,14 +113,18 @@ export const DashboardScreen = ({ navigation }) => {
               />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => navigation.navigate("AIChatbot")}
+              onPress={
+                isPaidUser
+                  ? () => navigation.navigate("AIChatbot")
+                  : () => handleLockedAction("AI Chatbot")
+              }
               activeOpacity={0.8}
             >
               <Image
                 source={{
                   uri: "https://cdn-icons-png.flaticon.com/512/4712/4712035.png",
                 }}
-                style={styles.robot}
+                style={[styles.robot, !isPaidUser && { opacity: 0.5 }]}
               />
             </TouchableOpacity>
           </View>
@@ -136,12 +154,14 @@ export const DashboardScreen = ({ navigation }) => {
               />
             ),
             onPress: () => navigation.navigate('AIChatbot'),
+            locked: !isPaidUser,
           },
           {
             label: "My Courses",
             description: "Continue learning",
             icon: <Feather name="book-open" size={20} color={colors.primary} />,
             onPress: () => navigation.navigate("Courses"),
+            locked: !isPaidUser,
           },
           {
             label: "Daily Tasks",
@@ -150,6 +170,7 @@ export const DashboardScreen = ({ navigation }) => {
               <Feather name="check-square" size={20} color={colors.accentAlt} />
             ),
             onPress: () => navigation.navigate("Tasks"),
+            locked: !isPaidUser,
           },
           {
             label: "Subscription",
@@ -163,8 +184,12 @@ export const DashboardScreen = ({ navigation }) => {
             style={[
               styles.card,
               { backgroundColor: colors.surface, borderColor: colors.border },
+              item.locked && styles.cardLocked,
             ]}
-            onPress={item.onPress}
+            onPress={
+              item.locked ? () => handleLockedAction(item.label) : item.onPress
+            }
+            activeOpacity={item.locked ? 1 : 0.7}
           >
             <View
               style={[styles.iconWrap, { backgroundColor: colors.inputBg }]}
@@ -179,7 +204,13 @@ export const DashboardScreen = ({ navigation }) => {
                 {item.description}
               </Text>
             </View>
-            <Feather name="chevron-right" size={18} color={colors.muted} />
+            {item.locked ? (
+              <View style={[styles.lockBadge, { backgroundColor: colors.inputBg }]}>
+                <Feather name="lock" size={14} color={colors.muted} />
+              </View>
+            ) : (
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            )}
           </TouchableOpacity>
         ))}
 
@@ -303,4 +334,12 @@ const styles = StyleSheet.create({
   cardTextWrap: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 2 },
   cardDescription: { fontSize: 13 },
+  cardLocked: { opacity: 0.5 },
+  lockBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

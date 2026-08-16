@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Sparkles,
+  MessageCircle,
+  ShieldCheck,
+  Star,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Building2,
+  Lock,
+} from "lucide-react";
 import Modal from "../../components/Modal";
 import { cancelSubscription, getUserSubscription } from "../../api/subscriptionApi";
 import { cancelEnterprisePremiumAccess } from "../../api/authApi";
@@ -101,74 +112,13 @@ const BUSINESS_PLANS = [
   },
 ];
 
-/* SVG icon component for sparkle feature indicator */
-function IconSparkle({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path
-        d="M12 2l1.2 5.2L18 8.4l-4.8 1.2L12 15l-1.2-5.4L6 8.4l4.8-1.2L12 2Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M19 13l.7 3 2.3.6-2.3.6-.7 3-.7-3-2.3-.6 2.3-.6.7-3Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/* SVG icon component for chat feature indicator */
-function IconChat({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path
-        d="M7 18l-3 3V6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 8h8M8 12h6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/* SVG icon component for shield/security feature indicator */
-function IconShield({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path
-        d="M12 2l8 4v6c0 5-3.4 9.4-8 10-4.6-.6-8-5-8-10V6l8-4Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9.5 12l1.8 1.8L15.5 9.6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 /* Render appropriate feature icon based on kind parameter */
 function FeatureIcon({ kind }) {
-  const common = "h-5 w-5 text-neutral-700";
-  if (kind === "sparkle") return <IconSparkle className={common} />;
-  if (kind === "chat") return <IconChat className={common} />;
-  if (kind === "shield") return <IconShield className={common} />;
-  return <span className="h-5 w-5" />;
+  const common = "h-3.5 w-3.5";
+  if (kind === "sparkle") return <Sparkles className={common} />;
+  if (kind === "chat") return <MessageCircle className={common} />;
+  if (kind === "shield") return <ShieldCheck className={common} />;
+  return <span className="h-3.5 w-3.5" />;
 }
 
 /* Reusable subscription plan card component with upgrade functionality */
@@ -184,37 +134,38 @@ function PlanCard({ plan, onUpgrade, disableUpgrade }) {
   return (
     <div
       className={[
-        "relative rounded-2xl border bg-white p-7 shadow-sm",
+        "relative flex flex-col rounded-3xl border bg-white p-7 transition-all duration-200",
         isHighlighted
-          ? "border-indigo-400 bg-indigo-50/60"
-          : "border-neutral-200",
+          ? "border-indigo-200 bg-gradient-to-b from-indigo-50/70 to-white shadow-lg shadow-indigo-100 ring-1 ring-indigo-500/20 hover:shadow-xl"
+          : "border-neutral-200 shadow-sm hover:shadow-md hover:-translate-y-0.5",
       ].join(" ")}
     >
       {plan.badge ? (
         <div
           className={[
-            "absolute right-6 top-6 rounded-full px-3 py-1 text-xs font-medium",
+            "absolute right-6 top-6 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold",
             isHighlighted
-              ? "bg-indigo-100 text-indigo-700"
+              ? "bg-indigo-600 text-white shadow-sm"
               : "bg-neutral-100 text-neutral-600",
           ].join(" ")}
         >
+          <Star className="h-3 w-3 fill-current" />
           {plan.badge}
         </div>
       ) : null}
 
-      <h3 className="text-2xl font-semibold tracking-tight">{plan.name}</h3>
+      <h3 className="text-2xl font-semibold tracking-tight text-neutral-900">{plan.name}</h3>
 
-      <div className="mt-5 flex items-start gap-2">
-        <span className="pt-2 text-lg text-neutral-400">LKR</span>
-        <span className="text-5xl font-medium tracking-tight">{plan.price}</span>
-        <div className="pt-3 text-sm text-neutral-500">
+      <div className="mt-5 flex items-start gap-1.5">
+        <span className="pt-2 text-lg font-medium text-neutral-400">LKR</span>
+        <span className="text-5xl font-bold tracking-tight text-neutral-900">{plan.price}</span>
+        <div className="pt-3 text-sm leading-tight text-neutral-500">
           <div>/</div>
           <div>month</div>
         </div>
       </div>
 
-      <p className="mt-4 text-sm font-semibold text-neutral-900">
+      <p className="mt-4 text-sm font-semibold text-neutral-700">
         {plan.subtitle}
       </p>
 
@@ -223,9 +174,9 @@ function PlanCard({ plan, onUpgrade, disableUpgrade }) {
         className={[
           "mt-6 w-full rounded-full px-5 py-3 text-sm font-semibold transition",
           isDisabled
-            ? "border border-neutral-200 bg-white text-neutral-500"
+            ? "border border-neutral-200 bg-neutral-50 text-neutral-400"
             : isHighlighted
-            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200 hover:bg-indigo-700 hover:shadow-md"
             : "bg-neutral-900 text-white hover:bg-neutral-800",
         ].join(" ")}
         onClick={handleCheckout}
@@ -238,14 +189,23 @@ function PlanCard({ plan, onUpgrade, disableUpgrade }) {
           : plan.cta}
       </button>
 
-      <ul className="mt-7 space-y-4">
-        {plan.features.map((f) => (
-          <li key={f.text} className="flex gap-3">
-            <FeatureIcon kind={f.icon} />
-            <span className="text-sm text-neutral-800">{f.text}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-7 border-t border-neutral-100 pt-6">
+        <ul className="space-y-3.5">
+          {plan.features.map((f) => (
+            <li key={f.text} className="flex items-start gap-3">
+              <span
+                className={[
+                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+                  isHighlighted ? "bg-indigo-100 text-indigo-600" : "bg-neutral-100 text-neutral-600",
+                ].join(" ")}
+              >
+                <FeatureIcon kind={f.icon} />
+              </span>
+              <span className="pt-0.5 text-sm text-neutral-700">{f.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -487,22 +447,29 @@ export default function Subscription() {
       : "You already have an active subscription. Cancel your current plan first before upgrading to another plan.";
 
   return (
-    <main className="min-h-screen bg-white text-neutral-900">
+    <main className="min-h-screen bg-gradient-to-b from-indigo-50/50 via-white to-white text-neutral-900">
       <div className="mx-auto max-w-6xl px-6 py-10">
         {/* Current Subscription Section */}
         {currentUserRole === "enterpriseUser" && (
           <section className="mt-10 mb-12">
-            <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50/60 p-8">
-              <h2 className="text-2xl font-semibold text-neutral-900">
-                Enterprise Premium Access
-              </h2>
-              <p className="mt-3 text-sm text-neutral-700">
-                Your premium features are provided by your enterprise admin.
-                If you cancel, your account will be downgraded to Free features.
-              </p>
+            <div className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-amber-50/60 p-8 shadow-sm">
+              <div className="flex items-start gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                  <Building2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-xl font-semibold text-neutral-900">
+                    Enterprise Premium Access
+                  </h2>
+                  <p className="mt-2 text-sm text-neutral-700">
+                    Your premium features are provided by your enterprise admin.
+                    If you cancel, your account will be downgraded to Free features.
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={handleCancelEnterprisePremium}
-                className="mt-6 rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700 transition"
+                className="mt-6 rounded-full bg-red-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 hover:shadow"
               >
                 Cancel Premium Features
               </button>
@@ -512,49 +479,57 @@ export default function Subscription() {
 
         {currentSubscription && (
           <section className="mt-10 mb-12">
-            <div className="mx-auto max-w-2xl rounded-2xl border border-green-200 bg-green-50/50 p-8">
-              <h2 className="text-2xl font-semibold text-neutral-900">
-                Your Current Plan
-              </h2>
-              
-              <div className="mt-6 space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">Plan Name:</span>
-                  <span className="font-semibold text-neutral-900">
-                    {currentSubscription.plan === "Personal" 
-                      ? "Pro" 
-                      : currentSubscription.plan === "Business" 
-                      ? "Business" 
+            <div className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-sm">
+              <div className="flex items-center gap-3 border-b border-emerald-100 bg-emerald-50/60 px-8 py-5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <CheckCircle2 className="h-5 w-5" />
+                </span>
+                <h2 className="text-xl font-semibold text-neutral-900">
+                  Your Current Plan
+                </h2>
+              </div>
+
+              <div className="space-y-3 px-8 py-6">
+                <div className="flex justify-between border-b border-neutral-100 pb-3">
+                  <span className="text-sm text-neutral-500">Plan Name</span>
+                  <span className="text-sm font-semibold text-neutral-900">
+                    {currentSubscription.plan === "Personal"
+                      ? "Pro"
+                      : currentSubscription.plan === "Business"
+                      ? "Business"
                       : "Free"}
                   </span>
                 </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">Status:</span>
-                  <span className={`font-semibold ${
-                    currentSubscription.status === "Active" 
-                      ? "text-green-600" 
-                      : currentSubscription.status === "Cancelled"
-                      ? "text-red-600"
-                      : "text-neutral-600"
-                  }`}>
+
+                <div className="flex justify-between border-b border-neutral-100 pb-3">
+                  <span className="text-sm text-neutral-500">Status</span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      currentSubscription.status === "Active"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : currentSubscription.status === "Cancelled"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-neutral-100 text-neutral-600"
+                    }`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
                     {currentSubscription.status}
                   </span>
                 </div>
 
                 {currentSubscription.amount && (
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">Monthly Price:</span>
-                    <span className="font-semibold text-neutral-900">
+                  <div className="flex justify-between border-b border-neutral-100 pb-3">
+                    <span className="text-sm text-neutral-500">Monthly Price</span>
+                    <span className="text-sm font-semibold text-neutral-900">
                       LKR {currentSubscription.amount}
                     </span>
                   </div>
                 )}
 
                 {currentSubscription.nextChargeDate && (
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">Next Charge Date:</span>
-                    <span className="font-semibold text-neutral-900">
+                  <div className="flex justify-between pb-1">
+                    <span className="text-sm text-neutral-500">Next Charge Date</span>
+                    <span className="text-sm font-semibold text-neutral-900">
                       {new Date(currentSubscription.nextChargeDate).toLocaleDateString()}
                     </span>
                   </div>
@@ -562,15 +537,17 @@ export default function Subscription() {
               </div>
 
               {/* Cancel Button */}
-              {currentSubscription.status === "Active" && 
+              {currentSubscription.status === "Active" &&
                currentSubscription.plan !== undefined &&
                currentSubscription.plan !== null && (
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="mt-6 rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700 transition"
-                >
-                  Cancel Subscription
-                </button>
+                <div className="border-t border-neutral-100 px-8 py-5">
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="rounded-full bg-red-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 hover:shadow"
+                  >
+                    Cancel Subscription
+                  </button>
+                </div>
               )}
             </div>
           </section>
@@ -578,7 +555,11 @@ export default function Subscription() {
 
         {/* Title + plan toggle */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-medium tracking-tight md:text-4xl">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+            <Sparkles className="h-3.5 w-3.5" />
+            Pricing
+          </span>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">
             Upgrade your plan
           </h1>
           <p className="mt-2 text-sm text-neutral-500">
@@ -586,7 +567,7 @@ export default function Subscription() {
           </p>
 
           <div className="mt-6 flex justify-center">
-            <div className="inline-flex items-center rounded-full bg-neutral-100 p-1 shadow-sm">
+            <div className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-100 p-1 shadow-sm">
               <button
                 type="button"
                 onClick={() => setMode("personal")}
@@ -618,23 +599,25 @@ export default function Subscription() {
 
         {mustCancelBeforeUpgrade && (
           <section className="mb-8">
-            <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-sm text-amber-900">
-              {upgradeBlockMessage}
+            <div className="mx-auto flex max-w-2xl items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-sm text-amber-900 shadow-sm">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{upgradeBlockMessage}</span>
             </div>
           </section>
         )}
 
         {upgradeBlockError && (
           <section className="mb-8">
-            <div className="mx-auto max-w-2xl rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              {upgradeBlockError}
+            <div className="mx-auto flex max-w-2xl items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-sm">
+              <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{upgradeBlockError}</span>
             </div>
           </section>
         )}
 
         {/* Title for Upgrade Section */}
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-medium tracking-tight">
+          <h2 className="text-2xl font-semibold tracking-tight">
             {currentSubscription?.status === "Active" ? "Upgrade your plan" : "Select a plan"}
           </h2>
         </div>
@@ -654,7 +637,8 @@ export default function Subscription() {
         </section>
 
         {/* Footer note */}
-        <div className="mt-10 text-center text-xs text-neutral-400">
+        <div className="mt-10 flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
+          <Lock className="h-3.5 w-3.5" />
           Payments via PayHere Hosted Checkout (wire-up).
         </div>
       </div>

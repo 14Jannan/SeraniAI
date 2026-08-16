@@ -243,6 +243,8 @@ export const SubscriptionScreen = () => {
         </View>
       </View>
 
+      <View style={styles.body}>
+
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -406,6 +408,7 @@ export const SubscriptionScreen = () => {
       <Text style={styles.footerNote}>
         Tap a plan to open the checkout page, then complete payment in PayHere.
       </Text>
+      </View>
     </ScrollView>
   );
 };
@@ -414,13 +417,18 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   content: {
     paddingBottom: 28,
-    paddingHorizontal: 18,
-    gap: 14,
   },
   hero: {
-    marginTop: 20,
-    borderRadius: 28,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  body: {
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    gap: 14,
   },
   title: {
     color: "#FFFFFF",

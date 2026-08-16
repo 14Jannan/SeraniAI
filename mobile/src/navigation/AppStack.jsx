@@ -1,7 +1,8 @@
 import React from "react";
-import { View } from "react-native";
+import { View, Alert } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DashboardScreen } from "../screens/app/DashboardScreen";
@@ -20,6 +21,7 @@ import { AdminAccessScreen } from "../screens/app/AdminAccessScreen";
 import { EnterpriseManagerScreen } from "../screens/app/EnterpriseManagerScreen";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { isPaidRole } from "../utils/roles";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -77,8 +79,25 @@ const EnterpriseStack = () => (
 const TabNavigatorContent = () => {
   const { user } = useAuth();
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(12, insets.bottom + 8);
+  const isPaidUser = isPaidRole(user?.role);
+
+  const blockIfLocked = (label) => ({
+    tabPress: (e) => {
+      if (isPaidUser) return;
+      e.preventDefault();
+      Alert.alert(
+        "Pro feature",
+        `${label} is available on the Pro plan. Upgrade to unlock it.`,
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Upgrade", onPress: () => navigation.navigate("Subscription") },
+        ],
+      );
+    },
+  });
 
   return (
     <Tab.Navigator
@@ -120,6 +139,7 @@ const TabNavigatorContent = () => {
             <Feather name="book-open" size={size} color={color} />
           ),
         }}
+        listeners={blockIfLocked("My Courses")}
       />
       {/* Subscription — hidden from tab bar, bottom bar stays visible */}
       <Tab.Screen
@@ -148,6 +168,7 @@ const TabNavigatorContent = () => {
             <Feather name="check-square" size={size} color={color} />
           ),
         }}
+        listeners={blockIfLocked("Daily Tasks")}
       />
       <Tab.Screen
         name="Profile"

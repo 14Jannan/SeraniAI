@@ -19,8 +19,10 @@ import {
   FiUsers,
   FiCreditCard,
   FiChevronDown,
+  FiLock,
 } from 'react-icons/fi'
 import NotificationBell from '../components/NotificationBell'
+import notify from '../utils/notifications'
 
 const UserLayout = () => {
   const { theme, toggleTheme } = useTheme();
@@ -136,12 +138,26 @@ const UserLayout = () => {
 
   const subscriptionAction = getSubscriptionAction();
 
+  // Mirrors PlanFeatureGate's free-user check, so the sidebar and the
+  // route-level gate agree on who counts as "free".
+  const isPaidUser = (user?.role || 'user') !== 'user';
+
+  const handleLockedNavClick = (label) => {
+    notify.warning(
+      'Pro feature',
+      `${label} is available on the Pro plan. Upgrade to unlock it.`,
+      {
+        action: { label: 'Upgrade', onClick: () => navigate('/subscription') },
+      },
+    );
+  };
+
   const menuItems = [
     { name: 'Home', icon: <FiHome />, path: '/dashboard' },
-    { name: 'AI Chat', icon: <FiMessageSquare />, path: '/dashboard/chat' },
     { name: 'Journal', icon: <FiBook />, path: '/dashboard/journal' },
-    { name: 'Courses', icon: <FiGrid />, path: '/dashboard/courses' },
-    { name: 'Daily Tasks', icon: <FiCheckSquare />, path: '/dashboard/tasks' },
+    { name: 'AI Chat', icon: <FiMessageSquare />, path: '/dashboard/chat', locked: !isPaidUser },
+    { name: 'Courses', icon: <FiGrid />, path: '/dashboard/courses', locked: !isPaidUser },
+    { name: 'Daily Tasks', icon: <FiCheckSquare />, path: '/dashboard/tasks', locked: !isPaidUser },
     { name: 'Subscription', icon: <FiCreditCard />, path: '/subscription' },
     ...(user?.role === 'enterpriseAdmin'
       ? [
@@ -179,25 +195,41 @@ const UserLayout = () => {
           </div>
 
           <nav className="space-y-2">
-            {menuItems.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.path}
-                end={item.path === '/dashboard'}
-                className={({ isActive }) => `
-                  flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200
-                  ${isActive
-                    ? 'bg-indigo-600 text-white shadow-lg'
-                    : isDark
-                      ? 'text-gray-300 hover:bg-gray-700'
-                      : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  }
-                `}
-              >
-                <span className="text-xl">{item.icon}</span>
-                <span>{item.name}</span>
-              </NavLink>
-            ))}
+            {menuItems.map((item) =>
+              item.locked ? (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => handleLockedNavClick(item.name)}
+                  className={`
+                    flex w-full items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 opacity-50
+                    ${isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-white/80 hover:bg-white/10 hover:text-white'}
+                  `}
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  <span className="flex-1 text-left">{item.name}</span>
+                  <FiLock className="text-sm" />
+                </button>
+              ) : (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  end={item.path === '/dashboard'}
+                  className={({ isActive }) => `
+                    flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200
+                    ${isActive
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : isDark
+                        ? 'text-gray-300 hover:bg-gray-700'
+                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    }
+                  `}
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  <span>{item.name}</span>
+                </NavLink>
+              )
+            )}
           </nav>
         </div>
 

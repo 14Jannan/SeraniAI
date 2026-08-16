@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, CheckCircle2, CreditCard, Lock, Sparkles } from "lucide-react";
 import { getStoredToken } from "../../../utils/authStorage";
 import notify from "../../../utils/notifications";
 import { API_BASE_URL } from "../../../utils/apiBaseUrl";
@@ -98,8 +99,8 @@ export default function PersonalCheckout() {
   /* Show error message if plan is invalid */
   if (!plan) {
     return (
-      <main className="min-h-screen bg-white px-6 py-16 text-neutral-900">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 p-8">
+      <main className="min-h-screen bg-neutral-50 px-6 py-16 text-neutral-900">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-neutral-200 bg-white p-8 shadow-sm">
           <h1 className="text-2xl font-semibold">Invalid plan</h1>
           <p className="mt-3 text-sm text-neutral-600">
             We could not find this personal plan.
@@ -107,8 +108,9 @@ export default function PersonalCheckout() {
           <button
             type="button"
             onClick={() => navigate("/subscription")}
-            className="mt-6 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
           >
+            <ArrowLeft className="h-4 w-4" />
             Back to Subscription
           </button>
         </div>
@@ -117,43 +119,57 @@ export default function PersonalCheckout() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-5 py-10 text-neutral-900 sm:px-8">
+    <main className="min-h-screen bg-gradient-to-b from-indigo-50/50 via-neutral-50 to-neutral-50 px-5 py-10 text-neutral-900 sm:px-8">
       <div className="mx-auto max-w-6xl">
         <button
           type="button"
           onClick={() => navigate("/subscription")}
-          className="mb-6 text-sm font-medium text-neutral-600 hover:text-neutral-900"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 transition hover:text-neutral-900"
         >
+          <ArrowLeft className="h-4 w-4" />
           Back
         </button>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm sm:p-9">
-            <h1 className="text-4xl font-semibold tracking-tight">{plan.name} plan</h1>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+              <Sparkles className="h-3.5 w-3.5" />
+              {plan.name} plan
+            </span>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight">{plan.name} plan</h1>
             <p className="mt-3 text-sm text-neutral-600">{plan.subtitle}</p>
 
-            <h2 className="mt-8 text-xl font-semibold">Top features</h2>
-            <ul className="mt-4 space-y-3">
-              {plan.features.map((feature) => (
-                <li key={feature} className="text-sm text-neutral-800">
-                  {feature}
-                </li>
-              ))}
-            </ul>
+            <div className="mt-8 border-t border-neutral-100 pt-8">
+              <h2 className="text-xl font-semibold">Top features</h2>
+              <ul className="mt-4 space-y-3.5">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="pt-0.5 text-sm text-neutral-800">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
 
-          <aside className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm sm:p-9">
-            <h2 className="text-2xl font-semibold">Order summary</h2>
+          <aside className="h-fit rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm sm:p-9 lg:sticky lg:top-10">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-2xl font-semibold">Order summary</h2>
+            </div>
 
             <div className="mt-6 border-t border-neutral-200 pt-6 text-sm">
               <div className="flex items-center justify-between py-1.5">
                 <span className="text-neutral-600">Monthly subscription</span>
-                <span>LKR {Number(plan.price).toFixed(2)}</span>
+                <span className="font-medium">LKR {Number(plan.price).toFixed(2)}</span>
               </div>
-              <div className="mt-3 flex items-center justify-between text-2xl font-semibold">
-                <span>Due today</span>
-                <span>LKR {Number(plan.price).toFixed(2)}</span>
-              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-2xl bg-indigo-50 px-4 py-4 text-lg font-semibold text-indigo-900">
+              <span>Due today</span>
+              <span>LKR {Number(plan.price).toFixed(2)}</span>
             </div>
 
             {error ? (
@@ -166,12 +182,17 @@ export default function PersonalCheckout() {
               type="button"
               onClick={handleConfirm}
               disabled={loading}
-              className="mt-8 w-full rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="mt-8 w-full rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 hover:shadow-md disabled:opacity-60 disabled:shadow-none"
             >
               {loading
                 ? "Redirecting..."
                 : `Proceed to Payment (LKR ${Number(plan.price).toFixed(2)})`}
             </button>
+
+            <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-neutral-400">
+              <Lock className="h-3.5 w-3.5" />
+              Secure checkout via PayHere
+            </p>
           </aside>
         </div>
       </div>
