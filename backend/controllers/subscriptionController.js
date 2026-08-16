@@ -15,10 +15,16 @@ const normalizePlan = (plan) => {
   return null;
 };
 
-/* Fetch all subscriptions with populated user information - admin endpoint */
+/* Fetch all subscriptions with populated user information - admin endpoint.
+ * Deliberately excludes "Pending" (unconfirmed checkout attempts) - the
+ * admin should only ever see confirmed subscription states. Pending is an
+ * internal bookkeeping status used by the PayHere checkout/webhook/return
+ * flow (see billingController.js) and is never meant to be admin-facing. */
 exports.getAllSubscriptions = async (req, res) => {
   try {
-    const subscriptions = await Subscription.find()
+    const subscriptions = await Subscription.find({
+      status: { $in: ['Active', 'Expired', 'Cancelled'] },
+    })
       .populate('userId', 'name email')
       .sort({ createdAt: -1 });
 

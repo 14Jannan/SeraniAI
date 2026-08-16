@@ -14,11 +14,6 @@ const {
   cancelSubscriptionPayment,
 } = require('../controllers/subscriptionController');
 
-/* forceActivateSubscription lives in billingController.js alongside the
- * other PayHere activation logic (PLAN_DETAILS, syncUserRoleFromPlanCode)
- * it reuses - kept there instead of duplicated here. */
-const { forceActivateSubscription } = require('../controllers/billingController');
-
 /* Import authentication and authorization middleware */
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -35,7 +30,6 @@ router.get('/:id', protect, authorize('admin'), getSubscriptionById);
 router.post('/', protect, authorize('admin'), createSubscription);
 router.patch('/:id', protect, authorize('admin'), updateSubscriptionStatus);
 router.delete('/:id', protect, authorize('admin'), deleteSubscription);
-router.post('/:id/force-activate', protect, authorize('admin'), forceActivateSubscription);
 
 module.exports = router;
 

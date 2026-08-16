@@ -20,11 +20,6 @@ export const getSubscriptionById = (id) =>
 export const deleteSubscriptionById = (id) =>
   httpClient.delete(`${SUBSCRIPTIONS_API_URL}/${id}`);
 
-/* Force-activate a pending/stuck subscription without PayHere verification
- * (admin only) - an escape hatch for when PayHere's API is unreachable. */
-export const forceActivateSubscription = (id) =>
-  httpClient.post(`${SUBSCRIPTIONS_API_URL}/${id}/force-activate`);
-
 /* Cancel subscription by ID (user action) */
 export const cancelSubscription = (id) =>
   httpClient.post(`${SUBSCRIPTIONS_API_URL}/${id}/cancel`);

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   fetchSubscriptions,
   deleteSubscriptionById,
-  forceActivateSubscription,
 } from "../../api/subscriptionApi";
 import ConfirmModal from "../../components/ConfirmModal";
 
@@ -15,8 +14,6 @@ const AdminSubscriptions = () => {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [subToDelete, setSubToDelete] = useState(null);
-  const [activatingId, setActivatingId] = useState(null);
-  const [subToActivate, setSubToActivate] = useState(null);
 
   /* Fetch all subscriptions on component mount */
   useEffect(() => {
@@ -59,32 +56,6 @@ const AdminSubscriptions = () => {
       setError("Failed to delete subscription");
     } finally {
       setDeletingId(null);
-    }
-  };
-
-  /* Force-activate a stuck/pending subscription without PayHere verification
-   * (admin override) after modal confirmation. */
-  const handleConfirmActivate = async () => {
-    if (!subToActivate) return;
-    const subscriptionId = subToActivate._id;
-
-    try {
-      setActivatingId(subscriptionId);
-      const res = await forceActivateSubscription(subscriptionId);
-      const updated = res.data?.data;
-      setSubscriptions((prev) =>
-        prev.map((sub) =>
-          sub._id === subscriptionId
-            ? { ...sub, ...updated, userId: sub.userId }
-            : sub,
-        ),
-      );
-      setError("");
-      setSubToActivate(null);
-    } catch {
-      setError("Failed to activate subscription");
-    } finally {
-      setActivatingId(null);
     }
   };
 
@@ -150,7 +121,7 @@ const AdminSubscriptions = () => {
                         ? "bg-green-100 text-green-600"
                         : sub.status === "Expired"
                         ? "bg-red-100 text-red-600"
-                        : "bg-yellow-100 text-yellow-600"
+                        : "bg-gray-100 text-gray-600"
                     }`}
                   >
                     {sub.status}
@@ -160,16 +131,6 @@ const AdminSubscriptions = () => {
                 <td className="p-4">{new Date(sub.endDate).toLocaleDateString()}</td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
-                    {sub.status !== "Active" && (
-                      <button
-                        onClick={() => setSubToActivate(sub)}
-                        disabled={activatingId === sub._id}
-                        title="Manually activate this subscription without PayHere verification"
-                        className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                      >
-                        {activatingId === sub._id ? "Activating..." : "Force Activate"}
-                      </button>
-                    )}
                     <button
                       onClick={() => setSubToDelete(sub)}
                       disabled={deletingId === sub._id}
@@ -205,22 +166,6 @@ const AdminSubscriptions = () => {
         variant="danger"
         isLoading={Boolean(deletingId)}
         loadingText="Deleting..."
-      />
-
-      {/* Force Activate Confirmation Modal */}
-      <ConfirmModal
-        isOpen={Boolean(subToActivate)}
-        onClose={() => setSubToActivate(null)}
-        onConfirm={handleConfirmActivate}
-        title="Force Activate Subscription"
-        message={`This activates the ${subToActivate?.plan || ""} plan for ${
-          subToActivate?.userId?.email || "this user"
-        } immediately WITHOUT verifying payment with PayHere. Only use this if you've independently confirmed the payment went through (e.g. it's visible in the PayHere dashboard). This action is logged.`}
-        confirmText="Force Activate"
-        cancelText="Cancel"
-        variant="danger"
-        isLoading={Boolean(activatingId)}
-        loadingText="Activating..."
       />
     </div>
   );
