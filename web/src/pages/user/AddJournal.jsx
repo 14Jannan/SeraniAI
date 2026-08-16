@@ -1,61 +1,15 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   CalendarDays,
   Save,
   ArrowLeft,
   Download,
-  Mic,
-  MicOff,
   Sparkles,
   RefreshCcw,
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
-// Utility: Convert spoken punctuation keywords into actual punctuation marks and line breaks.
-const normalizeSpokenTranscript = (spokenValue) => {
-  // Convert spoken punctuation keywords into actual punctuation and line breaks.
-  const text = spokenValue
-    .replace(/\bfull stop\b/gi, ".")
-    .replace(/\bperiod\b/gi, ".")
-    .replace(/\bcomma\b/gi, ",")
-    .replace(/\bquestion mark\b/gi, "?")
-    .replace(/\bexclamation mark\b/gi, "!")
-    .replace(/\bnew line\b/gi, "\n")
-    .replace(/\bnext line\b/gi, "\n")
-    .replace(/\bparagraph\b/gi, "\n\n");
 
-  return text.replace(/\s+([,.!?])/g, "$1").replace(/\n\s+/g, "\n").trim();
-};
-
-const capitalizeFirstLetter = (value) => {
-  // Uppercase the first character of a string for proper sentence formatting.
-  if (!value) {
-    return value;
-  }
-  return value.charAt(0).toUpperCase() + value.slice(1);
-};
-
-const appendSpokenText = (currentValue, spokenValue) => {
-  // Append normalized spoken text to the current entry, with intelligent line and space handling.
-  const trimmedSpoken = normalizeSpokenTranscript(spokenValue);
-
-  if (!trimmedSpoken) {
-    return currentValue;
-  }
-
-  if (!currentValue.trim()) {
-    const normalized = capitalizeFirstLetter(trimmedSpoken);
-    return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
-  }
-
-  const trimmedCurrent = currentValue.trimEnd();
-  const needsLineBreak =
-    /[.!?]$/.test(trimmedCurrent) || trimmedCurrent.endsWith("\n");
-  const separator = needsLineBreak ? "\n" : " ";
-  const normalized = capitalizeFirstLetter(trimmedSpoken);
-
-  return `${trimmedCurrent}${separator}${normalized}`.replace(/\s+\n/g, "\n");
-};
 
 const AddJournal = ({
   onBack,
@@ -67,16 +21,12 @@ const AddJournal = ({
   readOnly = false,
 }) => {
   const { theme } = useTheme();
-  const recognitionRef = useRef(null);
 
-  // Component state: Text content, UI feedback, voice input, and async operation tracking.
+  // Component state: Text content, UI feedback, and async operation tracking.
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState("");
-  const [speechError, setSpeechError] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(true);
   const [refreshingInsight, setRefreshingInsight] = useState(false);
 
   const aiInsight = initialData?.aiInsight || null;
@@ -91,110 +41,6 @@ const AddJournal = ({
       setText("");
     }
   }, [initialData]);
-
-  useEffect(() => {
-    // Initialize browser speech recognition once and clean it up on unmount.
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setSpeechSupported(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.continuous = true;
-    recognition.maxAlternatives = 3;
-
-    recognition.onstart = () => setIsListening(true);
-
-    recognition.onresult = (event) => {
-      let bestTranscript = "";
-      let bestConfidence = -1;
-
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index];
-        if (!result.isFinal) {
-          continue;
-        }
-
-        for (
-          let alternativeIndex = 0;
-          alternativeIndex < result.length;
-          alternativeIndex += 1
-        ) {
-          const alternative = result[alternativeIndex];
-          if (alternative.confidence > bestConfidence) {
-            bestConfidence = alternative.confidence;
-            bestTranscript = alternative.transcript;
-          }
-        }
-      }
-
-      const cleanTranscript = bestTranscript.trim();
-      if (!cleanTranscript) {
-        return;
-      }
-
-      setText((current) => appendSpokenText(current, cleanTranscript));
-    };
-
-    recognition.onerror = () => {
-      setSpeechError("Voice input is unavailable right now.");
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.onstart = null;
-      recognition.onresult = null;
-      recognition.onerror = null;
-      recognition.onend = null;
-
-      try {
-        recognition.stop();
-      } catch (error) {
-        void error;
-      }
-
-      recognitionRef.current = null;
-    };
-  }, []);
-
-  const toggleVoiceInput = () => {
-    // Toggle Web Speech API voice recognition on or off.
-    setSpeechError("");
-
-    if (!speechSupported) {
-      setSpeechError("Voice input is not supported in this browser.");
-      return;
-    }
-
-    const recognition = recognitionRef.current;
-    if (!recognition) {
-      setSpeechError("Voice input is not ready yet.");
-      return;
-    }
-
-    if (isListening) {
-      recognition.stop();
-      return;
-    }
-
-    try {
-      recognition.start();
-    } catch (error) {
-      setSpeechError("Unable to start voice input. Try again.");
-      setIsListening(false);
-    }
-  };
 
   const handleRefreshInsight = async () => {
     // Request the server to regenerate AI analysis for the current entry.
@@ -214,7 +60,7 @@ const AddJournal = ({
   };
 
   const handleSave = async () => {
-    // Validate form, stop voice recognition if active, and submit entry to API.
+    // Validate form and submit entry to API.
     if (readOnly) {
       return;
     }
@@ -222,10 +68,6 @@ const AddJournal = ({
     if (!title.trim() && !text.trim()) {
       setLocalError("Please add a title or some content.");
       return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
     }
 
     try {
@@ -317,12 +159,6 @@ const AddJournal = ({
         </div>
       )}
 
-      {speechError && (
-        <div className="mb-4 rounded-lg bg-amber-100 text-amber-800 px-4 py-3 border border-amber-200">
-          {speechError}
-        </div>
-      )}
-
       <div className={`flex-1 min-h-0 rounded-xl shadow p-6 border flex flex-col gap-4 overflow-y-auto ${containerClass}`}>
         <input
           type="text"
@@ -345,26 +181,6 @@ const AddJournal = ({
           <CalendarDays size={16} />
           <span>{isEdit ? "Editing entry" : new Date().toDateString()}</span>
         </div>
-
-        {!readOnly && (
-          <div>
-            <button
-              type="button"
-              onClick={toggleVoiceInput}
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${
-                isListening
-                  ? "border-rose-400 bg-rose-50 text-rose-600"
-                  : theme === "dark"
-                    ? "border-slate-700 bg-slate-900 text-gray-300 hover:bg-slate-800"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-              title={isListening ? "Stop voice input" : "Start voice input"}
-            >
-              {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-              <span>{isListening ? "Stop mic" : "Start mic"}</span>
-            </button>
-          </div>
-        )}
 
         <textarea
           placeholder="Write your thoughts..."

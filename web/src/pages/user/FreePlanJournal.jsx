@@ -637,20 +637,7 @@ const FreePlanJournal = () => {
                 })}
               </div>
 
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDate(getLocalDateString());
-                    setCalendarMonth(new Date());
-                    setMode("dateEvent");
-                    setShowCalendar(false);
-                  }}
-                  className="text-sm font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  Jump to today
-                </button>
-
+              <div className="mt-3 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCalendar(false)}
