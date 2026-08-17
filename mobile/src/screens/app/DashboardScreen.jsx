@@ -178,6 +178,16 @@ export const DashboardScreen = ({ navigation }) => {
             icon: <Feather name="credit-card" size={20} color={colors.accent} />,
             onPress: () => navigation.navigate("Subscription"),
           },
+          ...(user?.role === "enterpriseAdmin"
+            ? [
+                {
+                  label: "Enterprise Manager",
+                  description: "Manage team members & seats",
+                  icon: <Feather name="users" size={20} color={colors.primary} />,
+                  onPress: () => navigation.navigate("Enterprise"),
+                },
+              ]
+            : []),
         ].map((item) => (
           <TouchableOpacity
             key={item.label}
