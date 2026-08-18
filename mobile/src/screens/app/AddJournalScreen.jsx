@@ -256,7 +256,7 @@ export const AddJournalScreen = ({ navigation, route }) => {
           )}
 
           {/* Primary action button */}
-          {!readOnly ? (
+          {!readOnly && (
             <TouchableOpacity
               style={[styles.saveButton, { backgroundColor: colors.surface }]}
               onPress={handleSave}
@@ -269,13 +269,6 @@ export const AddJournalScreen = ({ navigation, route }) => {
                   {mode === "edit" ? "Update" : "Save"}
                 </Text>
               )}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.surface }]}
-              onPress={handleSwitchToEdit}
-            >
-              <Text style={[styles.saveButtonText, { color: colors.primary }]}>Edit</Text>
             </TouchableOpacity>
           )}
         </View>
