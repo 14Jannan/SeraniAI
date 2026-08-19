@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -95,6 +95,12 @@ const CalendarModal = ({ visible, onClose, calMonth, setCalMonth, selectedDate, 
     const month = calMonth.getMonth();
     const cells = useMemo(() => buildCalendarCells(calMonth), [calMonth]);
 
+    useEffect(() => {
+        if (visible) {
+            setCalMonth(parseDateStr(selectedDate));
+        }
+    }, [visible, selectedDate, setCalMonth]);
+
     const yearOptions = useMemo(() => {
         const cur = new Date().getFullYear();
         const arr = [];
@@ -175,19 +181,6 @@ const CalendarModal = ({ visible, onClose, calMonth, setCalMonth, selectedDate, 
                                     );
                                 })}
                             </View>
-
-                            {/* Jump to today */}
-                            <TouchableOpacity
-                                style={styles.todayBtn}
-                                onPress={() => {
-                                    const today = toLocalDateStr();
-                                    setCalMonth(new Date());
-                                    onSelectDate(today);
-                                    onClose();
-                                }}
-                            >
-                                <Text style={[styles.todayText, { color: colors.primary }]}>Jump to today</Text>
-                            </TouchableOpacity>
                         </View>
                     </TouchableWithoutFeedback>
                 </View>
@@ -277,6 +270,11 @@ export const FreePlanJournalScreen = () => {
     const [selectedDate, setSelectedDate] = useState(toLocalDateStr());
     const [calMonth, setCalMonth] = useState(new Date());
     const [calVisible, setCalVisible] = useState(false);
+
+    // Synchronize calMonth whenever selectedDate changes
+    useEffect(() => {
+        setCalMonth(parseDateStr(selectedDate));
+    }, [selectedDate]);
 
     // ── data fetching ──────────────────────────────────────────────────────────
 
@@ -371,6 +369,14 @@ export const FreePlanJournalScreen = () => {
         setMode("dateView");
     };
 
+    const handleBackFromDateView = () => {
+        const today = toLocalDateStr();
+        setSelectedDate(today);
+        setCalMonth(new Date());
+        setMode("list");
+        setSelectedEntry(null);
+    };
+
     // ── form views ─────────────────────────────────────────────────────────────
 
     if (mode === "add") {
@@ -426,7 +432,7 @@ export const FreePlanJournalScreen = () => {
                     <View style={styles.heroTopRow}>
                         <TouchableOpacity
                             style={styles.heroBackBtn}
-                            onPress={() => setMode("list")}
+                            onPress={handleBackFromDateView}
                         >
                             <Feather name="arrow-left" size={18} color="#fff" />
                             <Text style={styles.heroBackText}>All Entries</Text>
@@ -749,8 +755,6 @@ const styles = StyleSheet.create({
     gridWrap: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-around" },
     cellBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 4 },
     cellText: { fontSize: 13, fontWeight: "600" },
-    todayBtn: { marginTop: 12, alignItems: "center" },
-    todayText: { fontSize: 13, fontWeight: "800" },
 
     // Entry form
     formHero: {
